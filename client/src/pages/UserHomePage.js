@@ -260,6 +260,13 @@ const UserHomePage = () => {
             Goals
           </button>
           <button 
+            className="nav-item"
+            onClick={() => navigate('/tutorials')}
+          >
+            <span className="nav-icon">📚</span>
+            Tutorials
+          </button>
+          <button 
             className={`nav-item ${activeTab === 'profile' ? 'active' : ''}`}
             onClick={() => setActiveTab('profile')}
           >

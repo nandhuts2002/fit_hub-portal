@@ -9,6 +9,16 @@ const AdminHomePage = () => {
   const [users, setUsers] = useState([]);
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
+  const [showTrainerForm, setShowTrainerForm] = useState(false);
+  const [trainerApplications, setTrainerApplications] = useState([]);
+  const [applicationsLoading, setApplicationsLoading] = useState(false);
+  const [trainerForm, setTrainerForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    password: ''
+  });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -69,6 +79,92 @@ const AdminHomePage = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('userName');
     navigate('/');
+  };
+
+  const fetchTrainerApplications = async () => {
+    setApplicationsLoading(true);
+    try {
+      const response = await axios.get('http://localhost:5000/trainer/applications');
+      setTrainerApplications(response.data.applications || []);
+    } catch (error) {
+      console.error('Error fetching trainer applications:', error);
+      setTrainerApplications([]);
+    } finally {
+      setApplicationsLoading(false);
+    }
+  };
+
+  const handleApproveApplication = async (applicationId) => {
+    try {
+      const response = await axios.post(`http://localhost:5000/trainer/applications/${applicationId}/approve`, {
+        admin_email: 'admin@fithub.com',
+        admin_notes: 'Approved through admin dashboard'
+      });
+      
+      if (response.data.success) {
+        alert('Trainer application approved successfully!');
+        fetchTrainerApplications(); // Refresh the list
+        
+        // Also refresh users list to show new trainer
+        const usersResponse = await axios.get('http://localhost:5000/users');
+        setUsers(usersResponse.data.users || []);
+      } else {
+        alert('Error approving application: ' + response.data.message);
+      }
+    } catch (error) {
+      console.error('Error approving application:', error);
+      alert('Error approving application: ' + (error.response?.data?.message || 'Unknown error'));
+    }
+  };
+
+  const handleRejectApplication = async (applicationId) => {
+    const reason = prompt('Please provide a reason for rejection:');
+    if (!reason) return;
+
+    try {
+      const response = await axios.post(`http://localhost:5000/trainer/applications/${applicationId}/reject`, {
+        admin_email: 'admin@fithub.com',
+        rejection_reason: reason
+      });
+      
+      if (response.data.success) {
+        alert('Trainer application rejected.');
+        fetchTrainerApplications(); // Refresh the list
+      } else {
+        alert('Error rejecting application: ' + response.data.message);
+      }
+    } catch (error) {
+      console.error('Error rejecting application:', error);
+      alert('Error rejecting application: ' + (error.response?.data?.message || 'Unknown error'));
+    }
+  };
+
+  const handleCreateTrainer = async (e) => {
+    e.preventDefault();
+    try {
+      const trainerData = {
+        ...trainerForm,
+        role: 'trainer'
+      };
+
+      const response = await axios.post('http://localhost:5000/signup', trainerData);
+      alert('Trainer created successfully!');
+      setTrainerForm({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        password: ''
+      });
+      setShowTrainerForm(false);
+      
+      // Refresh users list
+      const usersResponse = await axios.get('http://localhost:5000/users');
+      setUsers(usersResponse.data.users || []);
+    } catch (error) {
+      console.error('Error creating trainer:', error);
+      alert('Error creating trainer: ' + (error.response?.data?.msg || 'Unknown error'));
+    }
   };
 
   const renderDashboard = () => (
@@ -219,6 +315,152 @@ const AdminHomePage = () => {
     </div>
   );
 
+  const renderTrainers = () => {
+    const trainers = users.filter(user => user.role === 'trainer');
+    
+    return (
+      <div className="trainers-content">
+        <div className="section-header">
+          <h2>Trainer Management</h2>
+          <div className="header-actions">
+            <input type="search" placeholder="Search trainers..." className="search-input" />
+            <button 
+              className="btn-primary"
+              onClick={() => setShowTrainerForm(true)}
+            >
+              + Add Trainer
+            </button>
+          </div>
+        </div>
+        
+        <div className="trainers-grid">
+          {trainers.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon">🏋️</div>
+              <h3>No trainers found</h3>
+              <p>Start by adding your first trainer to the platform.</p>
+              <button 
+                className="btn-primary"
+                onClick={() => setShowTrainerForm(true)}
+              >
+                Add First Trainer
+              </button>
+            </div>
+          ) : (
+            trainers.map(trainer => (
+              <div key={trainer.id} className="trainer-card">
+                <div className="trainer-avatar">
+                  {trainer.name.charAt(0)}
+                </div>
+                <div className="trainer-info">
+                  <h3>{trainer.name}</h3>
+                  <p>{trainer.email}</p>
+                  <span className="trainer-phone">{trainer.phone || 'No phone'}</span>
+                </div>
+                <div className="trainer-stats">
+                  <div className="stat">
+                    <span className="stat-value">0</span>
+                    <span className="stat-label">Tutorials</span>
+                  </div>
+                  <div className="stat">
+                    <span className="stat-value">0</span>
+                    <span className="stat-label">Queries</span>
+                  </div>
+                </div>
+                <div className="trainer-actions">
+                  <button className="btn-secondary">View Profile</button>
+                  <button className="btn-icon danger" title="Remove">🗑️</button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Trainer Registration Modal */}
+        {showTrainerForm && (
+          <div className="modal-overlay" onClick={() => setShowTrainerForm(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>Add New Trainer</h3>
+                <button 
+                  className="close-btn"
+                  onClick={() => setShowTrainerForm(false)}
+                >
+                  ×
+                </button>
+              </div>
+              
+              <form onSubmit={handleCreateTrainer} className="trainer-form">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>First Name *</label>
+                    <input
+                      type="text"
+                      value={trainerForm.firstName}
+                      onChange={(e) => setTrainerForm({...trainerForm, firstName: e.target.value})}
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Last Name *</label>
+                    <input
+                      type="text"
+                      value={trainerForm.lastName}
+                      onChange={(e) => setTrainerForm({...trainerForm, lastName: e.target.value})}
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <div className="form-group">
+                  <label>Email *</label>
+                  <input
+                    type="email"
+                    value={trainerForm.email}
+                    onChange={(e) => setTrainerForm({...trainerForm, email: e.target.value})}
+                    required
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Phone</label>
+                  <input
+                    type="tel"
+                    value={trainerForm.phone}
+                    onChange={(e) => setTrainerForm({...trainerForm, phone: e.target.value})}
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>Password *</label>
+                  <input
+                    type="password"
+                    value={trainerForm.password}
+                    onChange={(e) => setTrainerForm({...trainerForm, password: e.target.value})}
+                    required
+                  />
+                </div>
+                
+                <div className="form-actions">
+                  <button 
+                    type="button" 
+                    className="btn-secondary"
+                    onClick={() => setShowTrainerForm(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button type="submit" className="btn-primary">
+                    Create Trainer
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderAnalytics = () => (
     <div className="analytics-content">
       <div className="section-header">
@@ -352,6 +594,156 @@ const AdminHomePage = () => {
     </div>
   );
 
+  const renderTrainerApplications = () => (
+    <div className="applications-content">
+      <div className="section-header">
+        <h2>Trainer Applications</h2>
+        <div className="header-actions">
+          <input type="search" placeholder="Search applications..." className="search-input" />
+          <button 
+            className="btn-secondary"
+            onClick={fetchTrainerApplications}
+            disabled={applicationsLoading}
+          >
+            {applicationsLoading ? '🔄 Loading...' : '🔄 Refresh'}
+          </button>
+        </div>
+      </div>
+      
+      <div className="info-banner">
+        <div className="info-icon">ℹ️</div>
+        <div className="info-content">
+          <strong>Trainer Applications:</strong>
+          <p>All trainer applications now include complete professional information including experience, certifications, specializations, bio, and motivation. Review all details before approving.</p>
+        </div>
+      </div>
+
+      {applicationsLoading ? (
+        <div className="loading-state">
+          <div className="loading-spinner">🔄</div>
+          <p>Loading trainer applications...</p>
+        </div>
+      ) : trainerApplications.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-icon">📝</div>
+          <h3>No trainer applications</h3>
+          <p>New trainer applications will appear here for review.</p>
+        </div>
+      ) : (
+        <div className="applications-grid">
+          {trainerApplications.map(application => (
+            <div key={application.id} className={`application-card ${application.status}`}>
+              <div className="application-header">
+                <div className="applicant-info">
+                  <div className="applicant-avatar">
+                    {application.firstName.charAt(0)}{application.lastName.charAt(0)}
+                  </div>
+                  <div className="applicant-details">
+                    <h3>{application.firstName} {application.lastName}</h3>
+                    <p>{application.email}</p>
+                    <span className="phone">{application.phone}</span>
+                  </div>
+                </div>
+                <div className={`status-badge ${application.status}`}>
+                  {application.status === 'pending' && '⏳ Pending'}
+                  {application.status === 'approved' && '✅ Approved'}
+                  {application.status === 'rejected' && '❌ Rejected'}
+                </div>
+              </div>
+
+              <div className="application-details">
+                <div className="detail-row">
+                  <span className="label">📅 Applied:</span>
+                  <span className="value">{new Date(application.applied_at).toLocaleDateString()}</span>
+                </div>
+                <div className="detail-row">
+                  <span className="label">🎂 Age:</span>
+                  <span className="value">
+                    {application.dateOfBirth ? 
+                      new Date().getFullYear() - new Date(application.dateOfBirth).getFullYear() + ' years' : 
+                      'Not provided'
+                    }
+                  </span>
+                </div>
+                <div className="detail-row">
+                  <span className="label">⚧ Gender:</span>
+                  <span className="value">{application.gender || 'Not specified'}</span>
+                </div>
+                {application.experience && application.experience.trim() !== '' && (
+                  <div className="detail-row">
+                    <span className="label">💼 Experience:</span>
+                    <span className="value">{application.experience.substring(0, 100)}...</span>
+                  </div>
+                )}
+                {application.certifications && application.certifications.trim() !== '' && (
+                  <div className="detail-row">
+                    <span className="label">🏆 Certifications:</span>
+                    <span className="value">{application.certifications.substring(0, 100)}...</span>
+                  </div>
+                )}
+                {application.specializations && application.specializations.trim() !== '' && (
+                  <div className="detail-row">
+                    <span className="label">🎯 Specializations:</span>
+                    <span className="value">{application.specializations}</span>
+                  </div>
+                )}
+                {application.bio && application.bio.trim() !== '' && (
+                  <div className="detail-row">
+                    <span className="label">📝 Bio:</span>
+                    <span className="value">{application.bio.substring(0, 80)}...</span>
+                  </div>
+                )}
+                {application.motivation && application.motivation.trim() !== '' && (
+                  <div className="detail-row">
+                    <span className="label">💭 Motivation:</span>
+                    <span className="value">{application.motivation.substring(0, 80)}...</span>
+                  </div>
+                )}
+              </div>
+
+              {application.status === 'pending' && (
+                <div className="application-actions">
+                  <button 
+                    className="btn-success"
+                    onClick={() => handleApproveApplication(application.id)}
+                  >
+                    ✅ Approve
+                  </button>
+                  <button 
+                    className="btn-danger"
+                    onClick={() => handleRejectApplication(application.id)}
+                  >
+                    ❌ Reject
+                  </button>
+                </div>
+              )}
+
+              {application.status === 'approved' && application.reviewed_at && (
+                <div className="review-info">
+                  <p><strong>✅ Approved by:</strong> {application.reviewed_by}</p>
+                  <p><strong>📅 Approved on:</strong> {new Date(application.reviewed_at).toLocaleDateString()}</p>
+                  {application.admin_notes && (
+                    <p><strong>📝 Notes:</strong> {application.admin_notes}</p>
+                  )}
+                </div>
+              )}
+
+              {application.status === 'rejected' && application.reviewed_at && (
+                <div className="review-info rejected">
+                  <p><strong>❌ Rejected by:</strong> {application.reviewed_by}</p>
+                  <p><strong>📅 Rejected on:</strong> {new Date(application.reviewed_at).toLocaleDateString()}</p>
+                  {application.rejection_reason && (
+                    <p><strong>💬 Reason:</strong> {application.rejection_reason}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   if (!admin || loading) {
     return <div className="loading">Loading admin dashboard...</div>;
   }
@@ -380,6 +772,28 @@ const AdminHomePage = () => {
           >
             <span className="nav-icon">👥</span>
             Users
+          </button>
+          <button 
+            className={`nav-item ${activeTab === 'trainers' ? 'active' : ''}`}
+            onClick={() => setActiveTab('trainers')}
+          >
+            <span className="nav-icon">🏋️</span>
+            Trainers
+          </button>
+          <button 
+            className={`nav-item ${activeTab === 'applications' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('applications');
+              fetchTrainerApplications();
+            }}
+          >
+            <span className="nav-icon">📝</span>
+            Trainer Applications
+            {trainerApplications.filter(app => app.status === 'pending').length > 0 && (
+              <span className="notification-badge">
+                {trainerApplications.filter(app => app.status === 'pending').length}
+              </span>
+            )}
           </button>
           <button 
             className={`nav-item ${activeTab === 'analytics' ? 'active' : ''}`}
@@ -429,6 +843,8 @@ const AdminHomePage = () => {
         <div className="content-area">
           {activeTab === 'dashboard' && renderDashboard()}
           {activeTab === 'users' && renderUsers()}
+          {activeTab === 'trainers' && renderTrainers()}
+          {activeTab === 'applications' && renderTrainerApplications()}
           {activeTab === 'analytics' && renderAnalytics()}
           {activeTab === 'settings' && renderSettings()}
         </div>

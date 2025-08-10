@@ -331,7 +331,134 @@ select {
   border-color: #28a745;
 }
 
+/* Info text for trainer role */
+.info-text {
+  display: flex;
+  align-items: flex-start;
+  margin-top: 8px;
+  padding: 12px;
+  background-color: #e3f2fd;
+  border-radius: 6px;
+  border-left: 4px solid #2196f3;
+  font-size: 0.9rem;
+  color: #1565c0;
+  line-height: 1.4;
+}
+
+.info-icon {
+  margin-right: 8px;
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+/* Trainer-specific styles */
+.trainer-section {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 25px;
+  border: 2px solid #e9ecef;
+}
+
+.trainer-section h3 {
+  color: #495057;
+  border-bottom-color: #6c757d;
+}
+
+.trainer-info-banner {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 25px;
+}
+
+.banner-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.banner-content strong {
+  display: block;
+  font-size: 1.1rem;
+  margin-bottom: 5px;
+}
+
+.banner-content p {
+  margin: 0;
+  opacity: 0.9;
+  font-size: 0.95rem;
+}
+
+.trainer-section textarea {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #e9ecef;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 80px;
+  transition: border-color 0.3s ease;
+}
+
+.trainer-section textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.trainer-section textarea.error {
+  border-color: #dc3545;
+}
+
+.char-counter {
+  font-size: 0.8rem;
+  color: #6c757d;
+  text-align: right;
+  margin-top: 5px;
+}
+
+.trainer-section .form-group {
+  margin-bottom: 20px;
+}
+
+.trainer-section label {
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 8px;
+  display: block;
+}
+
+/* Enhanced form validation for trainer fields */
+.trainer-section textarea:valid:not(:placeholder-shown) {
+  border-color: #28a745;
+}
+
+.trainer-section textarea:invalid:not(:placeholder-shown) {
+  border-color: #dc3545;
+}
+
 /* Responsive adjustments */
+@media (max-width: 768px) {
+  .trainer-section {
+    padding: 20px 15px;
+  }
+  
+  .trainer-info-banner {
+    flex-direction: column;
+    text-align: center;
+    gap: 10px;
+  }
+  
+  .banner-icon {
+    font-size: 1.5rem;
+  }
+}
+
 @media (max-width: 480px) {
   .signup-header h2 {
     font-size: 1.8rem;
@@ -343,5 +470,9 @@ select {
   
   .form-section h3 {
     font-size: 1.2rem;
+  }
+  
+  .trainer-section {
+    padding: 15px 10px;
   }
 }

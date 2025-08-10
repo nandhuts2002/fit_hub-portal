@@ -13,8 +13,15 @@ const SignupPage = () => {
     confirmPassword: '',
     dateOfBirth: '',
     gender: '',
+    role: 'user',
     agreeToTerms: false,
-    subscribeNewsletter: false
+    subscribeNewsletter: false,
+    // Trainer-specific fields
+    experience: '',
+    certifications: '',
+    specializations: '',
+    bio: '',
+    motivation: ''
   });
   const [errors, setErrors] = useState({});
   const [validationStatus, setValidationStatus] = useState({});
@@ -83,6 +90,24 @@ case 'lastName':
         break;
       case 'agreeToTerms':
         if (!formData.agreeToTerms) error = 'You must agree to the terms and conditions';
+        break;
+      // Trainer-specific validations
+      case 'experience':
+        if (formData.role === 'trainer' && !value.trim()) error = 'Experience is required for trainers';
+        else if (formData.role === 'trainer' && value.trim().length < 50) error = 'Please provide at least 50 characters describing your experience';
+        break;
+      case 'certifications':
+        if (formData.role === 'trainer' && !value.trim()) error = 'Certifications are required for trainers';
+        break;
+      case 'specializations':
+        if (formData.role === 'trainer' && !value.trim()) error = 'Please specify your training specializations';
+        break;
+      case 'bio':
+        if (formData.role === 'trainer' && !value.trim()) error = 'Bio is required for trainers';
+        else if (formData.role === 'trainer' && value.trim().length < 30) error = 'Please provide at least 30 characters for your bio';
+        break;
+      case 'motivation':
+        if (formData.role === 'trainer' && !value.trim()) error = 'Please explain your motivation to join as a trainer';
         break;
       default:
         break;
@@ -174,16 +199,31 @@ case 'lastName':
         password: formData.password,
         dateOfBirth: formData.dateOfBirth,
         gender: formData.gender,
-        role: 'user',
-        subscribeNewsletter: formData.subscribeNewsletter
+        role: formData.role,
+        subscribeNewsletter: formData.subscribeNewsletter,
+        // Include trainer fields if role is trainer
+        ...(formData.role === 'trainer' && {
+          experience: formData.experience,
+          certifications: formData.certifications,
+          specializations: formData.specializations,
+          bio: formData.bio,
+          motivation: formData.motivation
+        })
       };
 
-      await axios.post('http://localhost:5000/signup', signupData);
-      alert('Account created successfully! Please log in.');
+      const response = await axios.post('http://localhost:5000/signup', signupData);
+      
+      // Handle different success messages
+      if (formData.role === 'trainer') {
+        alert('Trainer application submitted! Please wait for admin approval.');
+      } else {
+        alert('Account created successfully! Please log in.');
+      }
       navigate('/');
     } catch (err) {
+      console.error('Signup error:', err);
       setErrors({
-        submit: err.response?.data?.message || 'Signup failed. Please try again.'
+        submit: err.response?.data?.msg || err.response?.data?.message || 'Signup failed. Please try again.'
       });
     } finally {
       setIsLoading(false);
@@ -313,7 +353,126 @@ case 'lastName':
               {errors.gender && <span className="error-text">{errors.gender}</span>}
             </div>
           </div>
+
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="role">Account Type *</label>
+              <select
+                id="role"
+                name="role"
+                value={formData.role}
+                onChange={handleInputChange}
+                onBlur={handleBlur}
+                className={errors.role ? 'error' : ''}
+              >
+                <option value="user">User - Access fitness content and ask questions</option>
+                <option value="trainer">Trainer - Create tutorials and answer user queries</option>
+              </select>
+              {errors.role && <span className="error-text">{errors.role}</span>}
+              {formData.role === 'trainer' && (
+                <div className="info-text">
+                  <span className="info-icon">ℹ️</span>
+                  As a trainer, you'll be able to create tutorials, upload content, and help users with their fitness questions.
+                </div>
+              )}
+            </div>
+          </div>
         </div>
+
+        {/* Trainer-Specific Information */}
+        {formData.role === 'trainer' && (
+          <div className="form-section trainer-section">
+            <h3>Professional Information</h3>
+            <div className="trainer-info-banner">
+              <div className="banner-icon">🏋️</div>
+              <div className="banner-content">
+                <strong>Trainer Application</strong>
+                <p>Please provide your professional details to help us review your application.</p>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="experience">Professional Experience *</label>
+              <textarea
+                id="experience"
+                name="experience"
+                value={formData.experience}
+                onChange={handleInputChange}
+                onBlur={handleBlur}
+                className={errors.experience ? 'error' : ''}
+                placeholder="Describe your fitness/training experience, background, and qualifications. Include years of experience, types of training you've done, and any relevant work history. (Minimum 50 characters)"
+                rows="4"
+              />
+              {errors.experience && <span className="error-text">{errors.experience}</span>}
+              <div className="char-counter">
+                {formData.experience.length}/50 minimum
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="certifications">Certifications & Qualifications *</label>
+              <textarea
+                id="certifications"
+                name="certifications"
+                value={formData.certifications}
+                onChange={handleInputChange}
+                onBlur={handleBlur}
+                className={errors.certifications ? 'error' : ''}
+                placeholder="List your fitness certifications, degrees, and qualifications. Include certification bodies, dates, and any specializations. (e.g., NASM-CPT, ACE, ACSM, etc.)"
+                rows="3"
+              />
+              {errors.certifications && <span className="error-text">{errors.certifications}</span>}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="specializations">Training Specializations *</label>
+              <input
+                type="text"
+                id="specializations"
+                name="specializations"
+                value={formData.specializations}
+                onChange={handleInputChange}
+                onBlur={handleBlur}
+                className={errors.specializations ? 'error' : ''}
+                placeholder="e.g., Strength Training, Weight Loss, Yoga, HIIT, Sports Performance, Rehabilitation"
+              />
+              {errors.specializations && <span className="error-text">{errors.specializations}</span>}
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="bio">Professional Bio *</label>
+              <textarea
+                id="bio"
+                name="bio"
+                value={formData.bio}
+                onChange={handleInputChange}
+                onBlur={handleBlur}
+                className={errors.bio ? 'error' : ''}
+                placeholder="Write a brief professional bio that will be shown to users. Describe your training philosophy, approach, and what makes you unique as a trainer. (Minimum 30 characters)"
+                rows="3"
+              />
+              {errors.bio && <span className="error-text">{errors.bio}</span>}
+              <div className="char-counter">
+                {formData.bio.length}/30 minimum
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="motivation">Why do you want to join Fit-Hub? *</label>
+              <textarea
+                id="motivation"
+                name="motivation"
+                value={formData.motivation}
+                onChange={handleInputChange}
+                onBlur={handleBlur}
+                className={errors.motivation ? 'error' : ''}
+                placeholder="Tell us why you want to become a trainer on our platform and how you plan to help our users achieve their fitness goals."
+                rows="3"
+              />
+              {errors.motivation && <span className="error-text">{errors.motivation}</span>}
+            </div>
+          </div>
+        )}
 
         {/* Account Security */}
         <div className="form-section">

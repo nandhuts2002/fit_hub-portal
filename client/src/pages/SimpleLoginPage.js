@@ -28,9 +28,15 @@ const LoginPage = () => {
       });
 
       localStorage.setItem('token', res.data.token);
+      localStorage.setItem('user', JSON.stringify(res.data.user));
       localStorage.setItem('userName', res.data.user.name);
 
-      const redirectPath = role === 'admin' ? '/admin-home' : '/user-home';
+      let redirectPath = '/user-home';
+      if (role === 'admin') {
+        redirectPath = '/admin-home';
+      } else if (role === 'trainer') {
+        redirectPath = '/trainer-home';
+      }
       navigate(redirectPath);
     } catch (err) {
       setError('Invalid credentials. Please try again.');
@@ -132,6 +138,7 @@ const LoginPage = () => {
                 className="form-select"
               >
                 <option value="user">User</option>
+                <option value="trainer">Trainer</option>
                 <option value="admin">Admin</option>
               </select>
               <div className="select-arrow">▼</div>
