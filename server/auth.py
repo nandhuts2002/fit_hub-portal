@@ -31,9 +31,53 @@ def signup():
 
     if users_collection.find_one({'email': email}):
         return jsonify({'msg': 'User already exists'}), 409
-
+    
     # Hash password
     hashed_pw = bcrypt.generate_password_hash(password).decode('utf-8')
+    
+    # Special handling for trainer registration
+    if role == 'trainer':
+        print(f"🏋️ TRAINER SIGNUP: {email} - Creating pending application")
+        # Create trainer application instead of direct trainer account
+        from models import trainer_applications_collection
+        
+        # Check if application already exists
+        if trainer_applications_collection.find_one({'email': email}):
+            return jsonify({'msg': 'Trainer application already exists'}), 409
+        
+        # Create application document
+        application = {
+            'email': email,
+            'password': hashed_pw,  # Already hashed
+            'firstName': data.get('firstName', ''),
+            'lastName': data.get('lastName', ''),
+            'phone': data.get('phone', ''),
+            'dateOfBirth': data.get('dateOfBirth', ''),
+            'gender': data.get('gender', ''),
+            
+            # Trainer professional info from signup
+            'experience': data.get('experience', ''),
+            'certifications': data.get('certifications', ''),
+            'specializations': data.get('specializations', ''),
+            'bio': data.get('bio', ''),
+            'motivation': data.get('motivation', ''),
+            
+            # Application metadata
+            'status': 'pending',
+            'applied_at': datetime.utcnow(),
+            'reviewed_at': None,
+            'reviewed_by': None,
+            'admin_notes': '',
+            'rejection_reason': ''
+        }
+        
+        try:
+            # Insert application instead of user
+            trainer_applications_collection.insert_one(application)
+            return jsonify({'msg': 'Trainer application submitted! Please wait for admin approval.'}), 201
+        except Exception as e:
+            print(f"❌ Error creating trainer application: {str(e)}")
+            return jsonify({'msg': 'Failed to submit trainer application'}), 500
 
     # Create user document with all provided fields
     user_doc = {
@@ -144,6 +188,7 @@ def get_admin_stats():
         total_users = users_collection.count_documents({})
         admin_users = users_collection.count_documents({'role': 'admin'})
         regular_users = users_collection.count_documents({'role': 'user'})
+        trainer_users = users_collection.count_documents({'role': 'trainer'})
         
         # Mock some additional stats (in real app, you'd calculate these)
         stats = {
@@ -151,6 +196,7 @@ def get_admin_stats():
             'activeUsers': max(0, total_users - 2),  # Mock active users
             'adminUsers': admin_users,
             'regularUsers': regular_users,
+            'trainerUsers': trainer_users,
             'totalWorkouts': total_users * 8,  # Mock workout count
             'newSignups': 5,  # Mock new signups
             'revenue': 15420,  # Mock revenue
