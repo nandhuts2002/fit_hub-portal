@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 // ✅ Import all actual components
+import YogaIndexPage from './pages/YogaIndexPage';
 import SimpleLoginPage from './pages/SimpleLoginPage';
 import SignupPage from './pages/SignupPage';
 import UserHomePage from './pages/UserHomePage';
@@ -15,7 +16,7 @@ function App() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<SimpleLoginPage />} />
+        <Route path="/" element={<YogaIndexPage />} />
         <Route path="/login" element={<SimpleLoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
         <Route path="/user-home" element={<UserHomePage />} />
