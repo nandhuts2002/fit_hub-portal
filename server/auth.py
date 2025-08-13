@@ -104,32 +104,32 @@ def login():
     data = request.json
     email = data.get('email')
     password = data.get('password')
-    role = data.get('role')
     
     print(f"🔍 LOGIN ATTEMPT:")
     print(f"   Email: {email}")
-    print(f"   Role: {role}")
     print(f"   Password provided: {'Yes' if password else 'No'}")
 
-    user = users_collection.find_one({'email': email, 'role': role})
+    # Find user by email only (let the system determine the role)
+    user = users_collection.find_one({'email': email})
     print(f"   User found: {'Yes' if user else 'No'}")
     
     if not user:
-        print(f"   ❌ No user found with email '{email}' and role '{role}'")
-        # Let's also check if user exists with different role
-        user_any_role = users_collection.find_one({'email': email})
-        if user_any_role:
-            print(f"   ℹ️  User exists with role: {user_any_role.get('role')}")
+        print(f"   ❌ No user found with email '{email}'")
         return jsonify({'msg': 'Invalid credentials'}), 401
     
-    password_valid = bcrypt.check_password_hash(user['password'], password)
-    print(f"   Password valid: {'Yes' if password_valid else 'No'}")
-    
-    if not password_valid:
-        print(f"   ❌ Password verification failed")
+    # Check if user has a password (Google users might not have one)
+    if user.get('password'):
+        password_valid = bcrypt.check_password_hash(user['password'], password)
+        print(f"   Password valid: {'Yes' if password_valid else 'No'}")
+        
+        if not password_valid:
+            print(f"   ❌ Password verification failed")
+            return jsonify({'msg': 'Invalid credentials'}), 401
+    else:
+        print(f"   ❌ User has no password (Google user trying regular login)")
         return jsonify({'msg': 'Invalid credentials'}), 401
 
-    print(f"   ✅ Login successful for {email}")
+    print(f"   ✅ Login successful for {email} with role: {user.get('role', 'user')}")
     token = create_access_token(identity={'email': user['email'], 'role': user['role']})
     
     # Return user data along with token
