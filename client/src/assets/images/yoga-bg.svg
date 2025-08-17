@@ -1,0 +1,50 @@
+<svg width="1920" height="1080" viewBox="0 0 1920 1080" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#87a96b;stop-opacity:1" />
+      <stop offset="30%" style="stop-color:#d4af37;stop-opacity:0.9" />
+      <stop offset="70%" style="stop-color:#2c2c2c;stop-opacity:0.8" />
+      <stop offset="100%" style="stop-color:#87a96b;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Yoga pose silhouettes -->
+    <g id="yogaPose1">
+      <path d="M100 200 Q120 180 140 200 L140 250 Q120 270 100 250 Z" fill="rgba(255,255,255,0.1)"/>
+      <circle cx="120" cy="170" r="15" fill="rgba(255,255,255,0.1)"/>
+    </g>
+    
+    <g id="yogaPose2">
+      <path d="M50 180 L70 160 L90 180 L90 220 L70 240 L50 220 Z" fill="rgba(255,255,255,0.08)"/>
+      <circle cx="70" cy="150" r="12" fill="rgba(255,255,255,0.08)"/>
+    </g>
+  </defs>
+  
+  <!-- Main background -->
+  <rect width="1920" height="1080" fill="url(#bgGradient)"/>
+  
+  <!-- Decorative elements -->
+  <circle cx="200" cy="200" r="3" fill="rgba(212,175,55,0.3)"/>
+  <circle cx="1700" cy="300" r="4" fill="rgba(212,175,55,0.2)"/>
+  <circle cx="300" cy="800" r="2" fill="rgba(212,175,55,0.4)"/>
+  <circle cx="1600" cy="700" r="3" fill="rgba(212,175,55,0.3)"/>
+  
+  <!-- Yoga poses scattered -->
+  <use href="#yogaPose1" transform="translate(200,300) scale(0.8)"/>
+  <use href="#yogaPose2" transform="translate(1500,200) scale(1.2)"/>
+  <use href="#yogaPose1" transform="translate(100,700) scale(0.6) rotate(45)"/>
+  <use href="#yogaPose2" transform="translate(1700,600) scale(0.9) rotate(-30)"/>
+  
+  <!-- Subtle lotus patterns -->
+  <g opacity="0.1">
+    <path d="M960 100 Q980 80 1000 100 Q980 120 960 100" fill="white"/>
+    <path d="M960 100 Q940 80 920 100 Q940 120 960 100" fill="white"/>
+    <path d="M960 100 Q960 80 960 60 Q960 80 960 100" fill="white"/>
+  </g>
+  
+  <g opacity="0.08" transform="translate(400,900)">
+    <path d="M0 0 Q20 -20 40 0 Q20 20 0 0" fill="white"/>
+    <path d="M0 0 Q-20 -20 -40 0 Q-20 20 0 0" fill="white"/>
+    <path d="M0 0 Q0 -20 0 -40 Q0 -20 0 0" fill="white"/>
+  </g>
+</svg>
