@@ -153,10 +153,7 @@ def login():
 def get_all_users():
     """Get all users (admin only)"""
     try:
-        # In a real app, you'd verify JWT token and check if user is admin
         users = list(users_collection.find({}, {'password': 0}))  # Exclude passwords
-        
-        # Convert ObjectId to string and format data
         formatted_users = []
         for user in users:
             formatted_users.append({
@@ -170,16 +167,78 @@ def get_all_users():
                 'dateOfBirth': user.get('dateOfBirth', ''),
                 'gender': user.get('gender', ''),
                 'joinDate': user.get('createdAt', '2024-01-01'),
-                'status': 'active',  # You can add logic to determine this
-                'workouts': 0  # You can add logic to count workouts
+                'status': user.get('status', 'active'),
+                'workouts': 0
             })
-        
         print(f"📊 Retrieved {len(formatted_users)} users for admin dashboard")
         return jsonify({'users': formatted_users}), 200
-        
     except Exception as e:
         print(f"❌ Error fetching users: {str(e)}")
         return jsonify({'msg': 'Error fetching users'}), 500
+
+@auth_bp.route('/users/<user_id>', methods=['PUT'])
+def update_user(user_id):
+    """Update basic user fields (admin only): firstName, lastName, phone, email, role, status"""
+    try:
+        from bson import ObjectId
+        data = request.get_json() or {}
+        # Allow role updates from admin UI as it's exposed in the editor
+        allowed = ['firstName', 'lastName', 'phone', 'email', 'role', 'status']
+        update = {k: v for k, v in data.items() if k in allowed}
+        if not update:
+            return jsonify({'success': False, 'msg': 'No valid fields provided'}), 400
+        result = users_collection.update_one({'_id': ObjectId(user_id)}, {'$set': update})
+        if result.matched_count == 0:
+            return jsonify({'success': False, 'msg': 'User not found'}), 404
+        return jsonify({'success': True, 'msg': 'User updated'}), 200
+    except Exception as e:
+        print(f"❌ Error updating user: {str(e)}")
+        return jsonify({'success': False, 'msg': 'Error updating user'}), 500
+
+@auth_bp.route('/users/<user_id>/status', methods=['POST'])
+def set_user_status(user_id):
+    """Set user status (active/inactive). Soft deactivate/activate."""
+    try:
+        from bson import ObjectId
+        data = request.get_json() or {}
+        status = data.get('status')
+        if status not in ['active', 'inactive']:
+            return jsonify({'msg': 'Invalid status'}), 400
+        result = users_collection.update_one({'_id': ObjectId(user_id)}, {'$set': {'status': status}})
+        if result.matched_count == 0:
+            return jsonify({'msg': 'User not found'}), 404
+        return jsonify({'msg': 'Status updated', 'status': status}), 200
+    except Exception as e:
+        print(f"❌ Error updating status: {str(e)}")
+        return jsonify({'msg': 'Error updating status'}), 500
+
+@auth_bp.route('/users/<user_id>', methods=['DELETE'])
+def delete_user(user_id):
+    """Delete a user permanently (admin only)"""
+    try:
+        from bson import ObjectId
+        
+        # Check if user exists first
+        user = users_collection.find_one({'_id': ObjectId(user_id)})
+        if not user:
+            return jsonify({'success': False, 'message': 'User not found'}), 404
+        
+        # Prevent deletion of admin users (safety measure)
+        if user.get('role') == 'admin':
+            return jsonify({'success': False, 'message': 'Cannot delete admin users'}), 403
+        
+        # Delete the user
+        result = users_collection.delete_one({'_id': ObjectId(user_id)})
+        
+        if result.deleted_count == 1:
+            print(f"✅ User deleted successfully: {user.get('email', 'Unknown')}")
+            return jsonify({'success': True, 'message': 'User deleted successfully'}), 200
+        else:
+            return jsonify({'success': False, 'message': 'Failed to delete user'}), 500
+            
+    except Exception as e:
+        print(f"❌ Error deleting user: {str(e)}")
+        return jsonify({'success': False, 'message': f'Error deleting user: {str(e)}'}), 500
 
 @auth_bp.route('/stats', methods=['GET'])
 def get_admin_stats():

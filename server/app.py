@@ -3,6 +3,7 @@ from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from auth import auth_bp
 from trainer import trainer_bp
+from admin import admin_bp
 from dotenv import load_dotenv
 import os
 
@@ -17,6 +18,7 @@ jwt = JWTManager(app)
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(trainer_bp, url_prefix='/trainer')
+app.register_blueprint(admin_bp, url_prefix='/admin')
 
 if __name__ == '__main__':
     app.run(debug=True)

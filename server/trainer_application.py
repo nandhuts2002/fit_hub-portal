@@ -1,7 +1,10 @@
 from models import trainer_applications_collection, users_collection
-from werkzeug.security import generate_password_hash
+from flask_bcrypt import Bcrypt
 from datetime import datetime
 import re
+
+# Use the same hashing algorithm as auth.py for consistency
+bcrypt = Bcrypt()
 
 def validate_email(email):
     """Validate email format"""
@@ -43,7 +46,8 @@ def submit_trainer_application(application_data):
         # Create application document
         application = {
             'email': application_data['email'].lower().strip(),
-            'password': generate_password_hash(application_data['password']),
+            # Store bcrypt hash to match auth.py checks
+            'password': bcrypt.generate_password_hash(application_data['password']).decode('utf-8'),
             'firstName': application_data['firstName'].strip(),
             'lastName': application_data['lastName'].strip(),
             'phone': application_data['phone'].strip(),
