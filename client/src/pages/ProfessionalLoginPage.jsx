@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import '../styles/AuthPages.css';
+import SessionManager from '../utils/sessionManager';
 
 import { signInWithPopup } from 'firebase/auth';
 import { auth, provider } from '../firebase';
@@ -52,6 +53,7 @@ const LoginPage = () => {
   const [errors, setErrors] = useState({});
   const [touchedFields, setTouchedFields] = useState({});
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Form validation
   const validateField = (name, value) => {
@@ -105,17 +107,16 @@ const LoginPage = () => {
         password: formData.password
       });
 
-      localStorage.setItem('token', res.data.token);
-      localStorage.setItem('user', JSON.stringify(res.data.user));
-      localStorage.setItem('userName', res.data.user.name);
+      // Use SessionManager to handle session
+      SessionManager.setSession({
+        token: res.data.token,
+        name: res.data.user.name,
+        email: res.data.user.email,
+        role: res.data.user.role
+      });
 
-      // Backend determines the role and provides redirect path
-      let redirectPath = '/user-home';
-      if (res.data.user.role === 'admin') {
-        redirectPath = '/admin-home';
-      } else if (res.data.user.role === 'trainer') {
-        redirectPath = '/trainer-home';
-      }
+      // Get redirect path based on role
+      const redirectPath = SessionManager.getRedirectPath(res.data.user.role);
       navigate(redirectPath);
     } catch (err) {
       setErrors({ submit: 'Invalid credentials. Please try again.' });
@@ -146,18 +147,27 @@ const LoginPage = () => {
           photoURL: user.photoURL
         });
         
-        // Store the backend token
-        localStorage.setItem('token', response.data.token);
-        localStorage.setItem('userName', response.data.user.name);
+        // Use SessionManager for backend auth
+        SessionManager.setSession({
+          token: response.data.token,
+          name: response.data.user.name,
+          email: response.data.user.email,
+          role: response.data.user.role || 'user'
+        });
         
         console.log('✅ Backend authentication successful');
-        navigate('/user-home');
+        const redirectPath = SessionManager.getRedirectPath(response.data.user.role || 'user');
+        navigate(redirectPath);
         
       } catch (backendError) {
         console.log('⚠️ Backend auth failed, using client-only auth');
         // Fallback: just use Google auth without backend verification
-        localStorage.setItem('userName', user.displayName || 'Google User');
-        localStorage.setItem('token', 'google-temp-token'); // Temporary token
+        SessionManager.setSession({
+          token: 'google-temp-token',
+          name: user.displayName || 'Google User',
+          email: user.email,
+          role: 'user'
+        });
         navigate('/user-home');
       }
       
@@ -178,8 +188,21 @@ const LoginPage = () => {
     }
   };
 
+  const handleBackToHome = () => {
+    const from = location.state?.from || '/';
+    navigate(from, { replace: true });
+  };
+
   return (
     <div className="auth-page">
+      {/* Back to Home Button */}
+      <button onClick={handleBackToHome} className="back-to-home-btn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        Back to Home
+      </button>
+      
       <div className="auth-container">
         {/* Left Side - Branding */}
         <div className="auth-branding">
@@ -352,7 +375,7 @@ const LoginPage = () => {
             <div className="auth-footer">
               <p className="auth-footer-text">
                 Don't have an account?{' '}
-                <Link to="/signup" className="auth-footer-link">
+                <Link to="/signup" state={{ from: location.state?.from || '/' }} className="auth-footer-link">
                   Sign up here
                 </Link>
               </p>

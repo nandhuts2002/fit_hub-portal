@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
+import { FaUser, FaDumbbell } from 'react-icons/fa';
 import '../styles/SignupPage.css';
 
 const SignupPage = () => {
@@ -27,6 +28,7 @@ const SignupPage = () => {
   const [validationStatus, setValidationStatus] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const validateField = (name, value) => {
     let error = '';
@@ -216,10 +218,11 @@ case 'lastName':
       // Handle different success messages
       if (formData.role === 'trainer') {
         alert('Trainer application submitted! Please wait for admin approval.');
+        navigate('/login');
       } else {
         alert('Account created successfully! Please log in.');
+        navigate('/login');
       }
-      navigate('/');
     } catch (err) {
       console.error('Signup error:', err);
       setErrors({
@@ -230,12 +233,26 @@ case 'lastName':
     }
   };
 
+  const handleBackToHome = () => {
+    const from = location.state?.from || '/';
+    navigate(from, { replace: true });
+  };
+
   return (
-    <div className="signup-container">
-      <div className="signup-header">
-        <h2>Join Fit-Hub Portal</h2>
-        <p>Create your account to get started</p>
-      </div>
+    <div className="signup-page">
+      {/* Back to Home Button */}
+      <button onClick={handleBackToHome} className="back-to-home-btn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        Back to Home
+      </button>
+      
+      <div className="signup-container">
+        <div className="signup-header">
+          <h2>Join Fit-Hub Portal</h2>
+          <p>Create your account to get started</p>
+        </div>
 
       {errors.submit && <div className="error-message">{errors.submit}</div>}
 
@@ -356,19 +373,37 @@ case 'lastName':
 
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="role">Account Type *</label>
-              <select
-                id="role"
-                name="role"
-                value={formData.role}
-                onChange={handleInputChange}
-                onBlur={handleBlur}
-                className={errors.role ? 'error' : ''}
-              >
-                <option value="user">User - Access fitness content and ask questions</option>
-                <option value="trainer">Trainer - Create tutorials and answer user queries</option>
-              </select>
-              {errors.role && <span className="error-text">{errors.role}</span>}
+              <label>Account Type *</label>
+              <div className="role-toggle" role="tablist" aria-label="Account type">
+                <button
+                  type="button"
+                  className={`role-option ${formData.role === 'user' ? 'active' : ''}`}
+                  onClick={() => setFormData(prev => ({ ...prev, role: 'user' }))}
+                  role="tab"
+                  aria-selected={formData.role === 'user'}
+                >
+                  <span className="role-emoji" aria-hidden="true"><FaUser /></span>
+                  <div className="role-text">
+                    <span className="role-title">User</span>
+                    <span className="role-subtitle">Access fitness content</span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  className={`role-option ${formData.role === 'trainer' ? 'active' : ''}`}
+                  onClick={() => setFormData(prev => ({ ...prev, role: 'trainer' }))}
+                  role="tab"
+                  aria-selected={formData.role === 'trainer'}
+                >
+                  <span className="role-emoji" aria-hidden="true"><FaDumbbell /></span>
+                  <div className="role-text">
+                    <span className="role-title">Trainer</span>
+                    <span className="role-subtitle">Create tutorials & help users</span>
+                  </div>
+                </button>
+              </div>
+
               {formData.role === 'trainer' && (
                 <div className="info-text">
                   <span className="info-icon">ℹ️</span>
@@ -550,8 +585,9 @@ case 'lastName':
         </button>
       </form>
 
-      <div className="login-link">
-        <p>Already have an account? <Link to="/">Sign In</Link></p>
+        <div className="login-link">
+          <p>Already have an account? <Link to="/login" state={{ from: location.state?.from || '/' }}>Sign In</Link></p>
+        </div>
       </div>
     </div>
   );
