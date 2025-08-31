@@ -6,6 +6,7 @@ from trainer import trainer_bp
 from admin import admin_bp
 from dotenv import load_dotenv
 import os
+from datetime import timedelta
 
 load_dotenv()
 
@@ -14,6 +15,8 @@ CORS(app)
 
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET')
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')
+# Extend access token lifetime (default often 15 mins). Set to 7 days here.
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=7)
 jwt = JWTManager(app)
 
 app.register_blueprint(auth_bp)

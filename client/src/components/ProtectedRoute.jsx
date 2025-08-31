@@ -12,6 +12,9 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
+  // If token expired on any API call, backend will return 401. We can optionally detect and redirect.
+  // For now, just ensure pages requiring auth always re-check via SessionManager.
+
   // If specific role is required and user doesn't have it
   if (requiredRole && (!currentUser || currentUser.role !== requiredRole)) {
     // Redirect to appropriate dashboard based on user's actual role

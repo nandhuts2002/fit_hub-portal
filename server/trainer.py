@@ -450,6 +450,75 @@ def submit_query():
         print(f"❌ Error submitting query: {str(e)}")
         return jsonify({'msg': 'Error submitting query'}), 500
 
+@trainer_bp.route('/public/queries', methods=['GET'])
+@jwt_required()
+def get_my_queries():
+    """Get all queries created by the current user (with trainer responses if any)"""
+    try:
+        current_user = get_jwt_identity()
+        email = current_user.get('email') if isinstance(current_user, dict) else None
+        if not email:
+            return jsonify({'msg': 'Invalid user'}), 401
+
+        queries = list(queries_collection.find({
+            'user_email': email
+        }).sort('created_at', -1))
+
+        formatted = []
+        for q in queries:
+            formatted.append({
+                'id': str(q['_id']),
+                'title': q.get('title', ''),
+                'description': q.get('description', ''),
+                'category': q.get('category', 'general'),
+                'priority': q.get('priority', 'medium'),
+                'status': q.get('status', 'open'),
+                'assigned_trainer': q.get('assigned_trainer'),
+                'response': q.get('response', ''),
+                'created_at': q.get('created_at').isoformat() if q.get('created_at') else None,
+                'updated_at': q.get('updated_at').isoformat() if q.get('updated_at') else None,
+                'responded_at': q.get('responded_at').isoformat() if q.get('responded_at') else None
+            })
+
+        return jsonify({'queries': formatted}), 200
+
+    except Exception as e:
+        print(f"❌ Error fetching user queries: {str(e)}")
+        return jsonify({'msg': 'Error fetching queries'}), 500
+
+@trainer_bp.route('/public/queries/<query_id>', methods=['GET'])
+@jwt_required()
+def get_my_query_detail(query_id):
+    """Get a single query by ID (must belong to current user)"""
+    try:
+        current_user = get_jwt_identity()
+        email = current_user.get('email') if isinstance(current_user, dict) else None
+        if not email:
+            return jsonify({'msg': 'Invalid user'}), 401
+
+        q = queries_collection.find_one({'_id': ObjectId(query_id), 'user_email': email})
+        if not q:
+            return jsonify({'msg': 'Query not found'}), 404
+
+        query = {
+            'id': str(q['_id']),
+            'title': q.get('title', ''),
+            'description': q.get('description', ''),
+            'category': q.get('category', 'general'),
+            'priority': q.get('priority', 'medium'),
+            'status': q.get('status', 'open'),
+            'assigned_trainer': q.get('assigned_trainer'),
+            'response': q.get('response', ''),
+            'created_at': q.get('created_at').isoformat() if q.get('created_at') else None,
+            'updated_at': q.get('updated_at').isoformat() if q.get('updated_at') else None,
+            'responded_at': q.get('responded_at').isoformat() if q.get('responded_at') else None
+        }
+        return jsonify({'query': query}), 200
+
+    except Exception as e:
+        print(f"❌ Error fetching query detail: {str(e)}")
+        return jsonify({'msg': 'Error fetching query'}), 500
+
 # TRAINER APPLICATION MANAGEMENT ROUTES (Admin only)
 
 @trainer_bp.route('/applications', methods=['GET'])

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import '../styles/AdminHomePage.css';
+import SessionManager from '../utils/sessionManager';
 
 const AdminHomePage = () => {
   // Get initial tab from URL parameters
@@ -62,17 +62,21 @@ const AdminHomePage = () => {
 
   useEffect(() => {
     const fetchAdminData = async () => {
-      const token = localStorage.getItem('token');
-      const userName = localStorage.getItem('userName');
-      
-      if (!token) {
-        navigate('/');
+      // Check authentication using SessionManager
+      if (!SessionManager.isAuthenticated()) {
+        navigate('/login');
+        return;
+      }
+
+      const currentUser = SessionManager.getCurrentUser();
+      if (!currentUser || currentUser.role !== 'admin') {
+        navigate('/login');
         return;
       }
 
       setAdmin({
-        name: userName || 'Admin',
-        email: 'admin@fithub.com',
+        name: currentUser.name || 'Admin',
+        email: currentUser.email || 'admin@fithub.com',
         role: 'Administrator',
         lastLogin: new Date().toLocaleDateString()
       });
@@ -229,7 +233,7 @@ const AdminHomePage = () => {
     return () => {
       window.removeEventListener('popstate', handlePopState);
     };
-  }, []);
+  }, [activeTab]);
 
   // Update URL when activeTab changes (for direct navigation)
   useEffect(() => {
@@ -240,10 +244,75 @@ const AdminHomePage = () => {
   }, [activeTab]);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('userName');
-    navigate('/');
+    console.log('🚪 handleLogout function called');
+
+    try {
+      console.log('🔄 Starting logout process...');
+
+      // Use SessionManager to properly clear session
+      console.log('🧹 Clearing session with SessionManager...');
+      if (SessionManager && SessionManager.clearSession) {
+        SessionManager.clearSession();
+        console.log('✅ SessionManager.clearSession() completed');
+      } else {
+        console.log('⚠️ SessionManager not available, clearing manually...');
+        localStorage.removeItem('token');
+        localStorage.removeItem('userName');
+        localStorage.removeItem('userRole');
+        localStorage.removeItem('userEmail');
+      }
+
+      // Clear any additional session storage
+      console.log('🧹 Clearing sessionStorage...');
+      sessionStorage.clear();
+
+      // Clear any remaining localStorage items
+      console.log('🧹 Clearing additional localStorage items...');
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('userId');
+
+      console.log('🔄 Navigating to home page...');
+      console.log('Navigate function available:', typeof navigate);
+
+      // Navigate to home page with a small delay to ensure cleanup
+      setTimeout(() => {
+        navigate('/', { replace: true });
+        console.log('✅ Navigation completed');
+      }, 100);
+
+      console.log('✅ User logged out successfully');
+
+    } catch (error) {
+      console.error('❌ Error during logout:', error);
+      console.error('Error stack:', error.stack);
+
+      // Force logout even if there's an error
+      console.log('🔄 Force clearing all storage...');
+      localStorage.clear();
+      sessionStorage.clear();
+
+      // Try navigation with window.location as fallback
+      try {
+        navigate('/', { replace: true });
+      } catch (navError) {
+        console.error('❌ Navigate failed, using window.location:', navError);
+        window.location.href = '/';
+      }
+    }
   };
+
+  // Add global logout function for emergency access
+  useEffect(() => {
+    window.adminLogout = () => {
+      console.log('🚨 Emergency logout called from window.adminLogout');
+      handleLogout();
+    };
+    console.log('✅ window.adminLogout function attached');
+    return () => {
+      delete window.adminLogout;
+      console.log('🧹 window.adminLogout function removed');
+    };
+  }, []);
 
   const handleTabChange = (tab) => {
     console.log('🎯 Changing tab to:', tab);
@@ -280,6 +349,14 @@ const AdminHomePage = () => {
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       errors.email = 'Email is invalid';
     }
+
+    // Phone: required and must be valid Indian number
+    if (!formData.phone?.toString().trim()) {
+      errors.phone = 'Phone is required';
+    } else {
+      const msg = validateIndianPhone(formData.phone);
+      if (msg) errors.phone = msg;
+    }
     
     if (!isEdit && !formData.password?.trim()) {
       errors.password = 'Password is required';
@@ -288,6 +365,53 @@ const AdminHomePage = () => {
     }
     
     return errors;
+  };
+
+  // Per-field validation used for onFocus/onBlur UX in Edit modal
+  const validateField = (name, value, isEdit = false) => {
+    switch (name) {
+      case 'firstName':
+        if (!value?.trim()) return 'First name is required';
+        return '';
+      case 'lastName':
+        if (!value?.trim()) return 'Last name is required';
+        return '';
+      case 'email':
+        if (!value?.trim()) return 'Email is required';
+        if (!/\S+@\S+\.\S+/.test(value)) return 'Email is invalid';
+        return '';
+      case 'phone': {
+        if (!value?.toString().trim()) return 'Phone is required';
+        const msg = validateIndianPhone(value);
+        return msg || '';
+      }
+      case 'password':
+        if (!isEdit && !value?.trim()) return 'Password is required';
+        if (!isEdit && value.length < 6) return 'Password must be at least 6 characters';
+        return '';
+      default:
+        return '';
+    }
+  };
+
+  // Helper to clear a single field error when user focuses the input
+  const clearFieldError = (name) => {
+    setFormErrors((prev) => {
+      const { [name]: _removed, ...rest } = prev;
+      return rest;
+    });
+  };
+
+  // --- Phone helpers: normalize & validate Indian numbers ---
+  const normalizePhone = (raw) => (raw || '').replace(/[^0-9]/g, '');
+  const validateIndianPhone = (value) => {
+    const digits = normalizePhone(value);
+    // Accept: 10-digit starting 6-9 OR 91 + 10-digit OR 0 + 10-digit
+    const reTen = /^[6-9][0-9]{9}$/;
+    if (reTen.test(digits)) return '';
+    if (/^0[6-9][0-9]{9}$/.test(digits)) return '';
+    if (/^91[6-9][0-9]{9}$/.test(digits)) return '';
+    return 'Enter a valid Indian mobile number (start with 6-9, 10 digits; or 0/91 prefix)';
   };
 
   // Refresh users list
@@ -374,9 +498,11 @@ const AdminHomePage = () => {
         status: editingUser.status
       };
 
-      const response = await axios.put(`http://localhost:5000/users/${editingUser.id}`, updateData);
+      const token = localStorage.getItem('token');
+      const headers = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+      const response = await axios.put(`http://localhost:5000/users/${editingUser.id}`, updateData, headers);
       
-      if (response.status === 200) {
+      if (response.status === 200 || response.data?.success) {
         alert('User updated successfully!');
         setEditingUser(null);
         setFormErrors({});
@@ -427,12 +553,16 @@ const AdminHomePage = () => {
     console.log('Modal state set - showUserDetails:', true);
   };
 
-  // Edit user
+  // Edit user (works for users and trainers)
   const handleEditUser = (user) => {
+    const fullName = (user && user.name) ? String(user.name) : '';
+    const parts = fullName.trim().split(/\s+/);
+    const firstName = parts[0] || '';
+    const lastName = parts.slice(1).join(' ') || '';
     setEditingUser({
       ...user,
-      firstName: user.name.split(' ')[0] || '',
-      lastName: user.name.split(' ').slice(1).join(' ') || ''
+      firstName,
+      lastName
     });
   };
 
@@ -509,7 +639,7 @@ const AdminHomePage = () => {
         role: 'trainer'
       };
 
-      const response = await axios.post('http://localhost:5000/signup', trainerData);
+      await axios.post('http://localhost:5000/signup', trainerData);
       alert('Trainer created successfully!');
       setTrainerForm({
         firstName: '',
@@ -538,67 +668,114 @@ const AdminHomePage = () => {
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
   const renderDashboard = () => (
-    <div className="dashboard-content">
-      <div className="stats-overview">
-        <div className="stat-card primary">
-          <div className="stat-icon">👥</div>
-          <div className="stat-info">
-            <h3>{stats.totalUsers?.toLocaleString() || users.length}</h3>
-            <p>Total Users</p>
-            <span className="stat-change positive">+{stats.newSignups || 0} this week</span>
+    <div className="space-y-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Total Users Card */}
+        <div className="group bg-gradient-to-br from-blue-50 to-primary-100 rounded-2xl border border-primary-200 p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-primary-600 rounded-xl shadow-lg">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+              </svg>
+            </div>
+            <div className="text-right">
+              <h3 className="text-3xl font-bold text-secondary-900 mb-1">{stats.totalUsers?.toLocaleString() || users.length}</h3>
+              <p className="text-secondary-600 text-sm font-medium">Total Users</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+              ↗ +{stats.newSignups || 0} this week
+            </span>
           </div>
         </div>
-        <div className="stat-card success">
-          <div className="stat-icon">🟢</div>
-          <div className="stat-info">
-            <h3>{stats.activeUsers?.toLocaleString() || users.filter(u => u.status === 'active').length}</h3>
-            <p>Active Users</p>
-            <span className="stat-change positive">+5.2% from last month</span>
+
+        {/* Active Users Card */}
+        <div className="group bg-gradient-to-br from-green-50 to-emerald-100 rounded-2xl border border-green-200 p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-green-600 rounded-xl shadow-lg">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="text-right">
+              <h3 className="text-3xl font-bold text-secondary-900 mb-1">{stats.activeUsers?.toLocaleString() || users.filter(u => u.status === 'active').length}</h3>
+              <p className="text-secondary-600 text-sm font-medium">Active Users</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+              ↗ +5.2% from last month
+            </span>
           </div>
         </div>
-        <div className="stat-card info">
-          <div className="stat-icon">💪</div>
-          <div className="stat-info">
-            <h3>{stats.totalWorkouts?.toLocaleString() || 0}</h3>
-            <p>Total Workouts</p>
-            <span className="stat-change positive">+12% this month</span>
+
+        {/* Total Workouts Card */}
+        <div className="group bg-gradient-to-br from-purple-50 to-indigo-100 rounded-2xl border border-purple-200 p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-purple-600 rounded-xl shadow-lg">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <div className="text-right">
+              <h3 className="text-3xl font-bold text-secondary-900 mb-1">{stats.totalWorkouts?.toLocaleString() || 0}</h3>
+              <p className="text-secondary-600 text-sm font-medium">Total Workouts</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+              ↗ +12% this month
+            </span>
           </div>
         </div>
-        <div className="stat-card warning">
-          <div className="stat-icon">💰</div>
-          <div className="stat-info">
-            <h3>${stats.revenue?.toLocaleString() || 0}</h3>
-            <p>Monthly Revenue</p>
-            <span className="stat-change positive">+8.3% from last month</span>
+
+        {/* Revenue Card */}
+        <div className="group bg-gradient-to-br from-yellow-50 to-orange-100 rounded-2xl border border-yellow-200 p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+          <div className="flex items-center justify-between mb-4">
+            <div className="p-3 bg-yellow-600 rounded-xl shadow-lg">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+              </svg>
+            </div>
+            <div className="text-right">
+              <h3 className="text-3xl font-bold text-secondary-900 mb-1">${stats.revenue?.toLocaleString() || 0}</h3>
+              <p className="text-secondary-600 text-sm font-medium">Monthly Revenue</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+              ↗ +8.3% from last month
+            </span>
           </div>
         </div>
       </div>
 
-      <div className="dashboard-charts">
-        <div className="chart-section">
-          <h3>User Activity Overview</h3>
-          <div className="chart-placeholder">
-            <div className="chart-bars">
-              <div className="bar" style={{height: '60%'}}><span>Mon</span></div>
-              <div className="bar" style={{height: '80%'}}><span>Tue</span></div>
-              <div className="bar" style={{height: '45%'}}><span>Wed</span></div>
-              <div className="bar" style={{height: '90%'}}><span>Thu</span></div>
-              <div className="bar" style={{height: '70%'}}><span>Fri</span></div>
-              <div className="bar" style={{height: '55%'}}><span>Sat</span></div>
-              <div className="bar" style={{height: '40%'}}><span>Sun</span></div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+        <div className="bg-white rounded-xl border border-secondary-200 p-6">
+          <h3 className="text-lg font-semibold text-secondary-900 mb-4">User Activity Overview</h3>
+          <div className="h-64 bg-secondary-50 rounded-lg flex items-end justify-center p-4">
+            <div className="flex items-end gap-2 h-full">
+              <div className="bg-primary-600 rounded-t-md w-8 flex items-end justify-center pb-2" style={{height: '60%'}}><span className="text-xs text-white font-medium">Mon</span></div>
+              <div className="bg-primary-600 rounded-t-md w-8 flex items-end justify-center pb-2" style={{height: '80%'}}><span className="text-xs text-white font-medium">Tue</span></div>
+              <div className="bg-primary-600 rounded-t-md w-8 flex items-end justify-center pb-2" style={{height: '45%'}}><span className="text-xs text-white font-medium">Wed</span></div>
+              <div className="bg-primary-600 rounded-t-md w-8 flex items-end justify-center pb-2" style={{height: '90%'}}><span className="text-xs text-white font-medium">Thu</span></div>
+              <div className="bg-primary-600 rounded-t-md w-8 flex items-end justify-center pb-2" style={{height: '70%'}}><span className="text-xs text-white font-medium">Fri</span></div>
+              <div className="bg-primary-600 rounded-t-md w-8 flex items-end justify-center pb-2" style={{height: '55%'}}><span className="text-xs text-white font-medium">Sat</span></div>
+              <div className="bg-primary-600 rounded-t-md w-8 flex items-end justify-center pb-2" style={{height: '40%'}}><span className="text-xs text-white font-medium">Sun</span></div>
             </div>
           </div>
         </div>
-        
-        <div className="recent-activity">
-          <h3>Recent Activity</h3>
-          <div className="activity-list">
+
+        <div className="bg-white rounded-xl border border-secondary-200 p-6">
+          <h3 className="text-lg font-semibold text-secondary-900 mb-4">Recent Activity</h3>
+          <div className="space-y-3">
             {users.slice(0, 4).map((user, index) => (
-              <div key={user.id} className="activity-item">
-                <div className="activity-icon">👤</div>
-                <div className="activity-info">
-                  <p><strong>User registered:</strong> {user.name}</p>
-                  <span>{user.joinDate || 'Recently'}</span>
+              <div key={user.id} className="flex items-center gap-3 p-3 bg-secondary-50 rounded-lg">
+                <div className="text-2xl">👤</div>
+                <div>
+                  <p className="text-secondary-900 font-medium"><strong>User registered:</strong> {user.name}</p>
+                  <span className="text-xs text-secondary-500">{user.joinDate || 'Recently'}</span>
                 </div>
               </div>
             ))}
@@ -724,13 +901,15 @@ const AdminHomePage = () => {
                     >
                       <span>👁️</span>
                     </button>
-                    <button 
-                      className="btn-action edit" 
-                      title="Edit User"
-                      onClick={() => handleEditUser(user)}
-                    >
-                      <span>✏️</span>
-                    </button>
+                    {user.role !== 'admin' && (
+                      <button 
+                        className="btn-action edit" 
+                        title="Edit User"
+                        onClick={() => handleEditUser(user)}
+                      >
+                        <span>✏️</span>
+                      </button>
+                    )}
                     <button 
                       className="btn-action delete" 
                       title="Delete User"
@@ -801,7 +980,21 @@ const AdminHomePage = () => {
                   <input
                     type="text"
                     value={userForm.firstName}
-                    onChange={(e) => setUserForm({...userForm, firstName: e.target.value})}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setUserForm({ ...userForm, firstName: val });
+                      const msg = validateField('firstName', val, false);
+                      setFormErrors((prev) => {
+                        if (msg) return { ...prev, firstName: msg };
+                        const { firstName, ...rest } = prev;
+                        return rest;
+                      });
+                    }}
+                    onFocus={() => clearFieldError('firstName')}
+                    onBlur={(e) => {
+                      const msg = validateField('firstName', e.target.value, false);
+                      if (msg) setFormErrors((prev) => ({ ...prev, firstName: msg }));
+                    }}
                     className={formErrors.firstName ? 'error' : ''}
                   />
                   {formErrors.firstName && <span className="error-text">{formErrors.firstName}</span>}
@@ -811,7 +1004,21 @@ const AdminHomePage = () => {
                   <input
                     type="text"
                     value={userForm.lastName}
-                    onChange={(e) => setUserForm({...userForm, lastName: e.target.value})}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setUserForm({ ...userForm, lastName: val });
+                      const msg = validateField('lastName', val, false);
+                      setFormErrors((prev) => {
+                        if (msg) return { ...prev, lastName: msg };
+                        const { lastName, ...rest } = prev;
+                        return rest;
+                      });
+                    }}
+                    onFocus={() => clearFieldError('lastName')}
+                    onBlur={(e) => {
+                      const msg = validateField('lastName', e.target.value, false);
+                      if (msg) setFormErrors((prev) => ({ ...prev, lastName: msg }));
+                    }}
                     className={formErrors.lastName ? 'error' : ''}
                   />
                   {formErrors.lastName && <span className="error-text">{formErrors.lastName}</span>}
@@ -823,19 +1030,59 @@ const AdminHomePage = () => {
                 <input
                   type="email"
                   value={userForm.email}
-                  onChange={(e) => setUserForm({...userForm, email: e.target.value})}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setUserForm({ ...userForm, email: val });
+                    const msg = validateField('email', val, false);
+                    setFormErrors((prev) => {
+                      if (msg) return { ...prev, email: msg };
+                      const { email, ...rest } = prev;
+                      return rest;
+                    });
+                  }}
+                  onFocus={() => clearFieldError('email')}
+                  onBlur={(e) => {
+                    const msg = validateField('email', e.target.value, false);
+                    if (msg) setFormErrors((prev) => ({ ...prev, email: msg }));
+                  }}
                   className={formErrors.email ? 'error' : ''}
                 />
                 {formErrors.email && <span className="error-text">{formErrors.email}</span>}
               </div>
               
               <div className="form-group">
-                <label>Phone</label>
+                <label>Phone *</label>
                 <input
                   type="tel"
+                  inputMode="numeric"
+                  placeholder="e.g., 9876543210 or +91 98765 43210"
                   value={userForm.phone}
-                  onChange={(e) => setUserForm({...userForm, phone: e.target.value})}
+                  onChange={(e) => {
+                    const val = normalizePhone(e.target.value);
+                    setUserForm({ ...userForm, phone: val });
+                    const msg = validateField('phone', val, false);
+                    setFormErrors((prev) => {
+                      if (msg) return { ...prev, phone: msg };
+                      const { phone, ...rest } = prev;
+                      return rest;
+                    });
+                  }}
+                  onFocus={() => {
+                    // Validate immediately on focus if value exists
+                    if (userForm.phone) {
+                      const msg = validateField('phone', userForm.phone, false);
+                      if (msg) setFormErrors((prev) => ({ ...prev, phone: msg }));
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const msg = validateField('phone', e.target.value, false);
+                    if (msg) setFormErrors((prev) => ({ ...prev, phone: msg }));
+                  }}
+                  pattern="[0-9]*"
+                  maxLength={12}
+                  className={formErrors.phone ? 'error' : ''}
                 />
+                {formErrors.phone && <span className="error-text">{formErrors.phone}</span>}
               </div>
               
               <div className="form-group">
@@ -843,7 +1090,16 @@ const AdminHomePage = () => {
                 <input
                   type="password"
                   value={userForm.password}
-                  onChange={(e) => setUserForm({...userForm, password: e.target.value})}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setUserForm({ ...userForm, password: val });
+                    const msg = validateField('password', val, false);
+                    setFormErrors((prev) => {
+                      if (msg) return { ...prev, password: msg };
+                      const { password, ...rest } = prev;
+                      return rest;
+                    });
+                  }}
                   className={formErrors.password ? 'error' : ''}
                 />
                 {formErrors.password && <span className="error-text">{formErrors.password}</span>}
@@ -899,8 +1155,8 @@ const AdminHomePage = () => {
         </div>
       )}
 
-      {/* User Details Modal */}
-      {showUserDetails && selectedUser && (
+      {/* User Details Modal (rendered globally below) */}
+      {false && showUserDetails && selectedUser && (
         <div className="modal-overlay" onClick={() => setShowUserDetails(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
@@ -942,6 +1198,14 @@ const AdminHomePage = () => {
                   <span>{selectedUser.phone || 'Not provided'}</span>
                 </div>
                 <div className="detail-item">
+                  <label>Role:</label>
+                  <span>{selectedUser.role}</span>
+                </div>
+                <div className="detail-item">
+                  <label>Status:</label>
+                  <span>{selectedUser.status || 'active'}</span>
+                </div>
+                <div className="detail-item">
                   <label>Join Date:</label>
                   <span>{selectedUser.joinDate || 'N/A'}</span>
                 </div>
@@ -952,15 +1216,17 @@ const AdminHomePage = () => {
               </div>
               
               <div className="user-actions">
-                <button 
-                  className="btn btn-primary"
-                  onClick={() => {
-                    setShowUserDetails(false);
-                    handleEditUser(selectedUser);
-                  }}
-                >
-                  Edit User
-                </button>
+                {selectedUser.role !== 'admin' && (
+                  <button 
+                    className="btn btn-primary"
+                    onClick={() => {
+                      setShowUserDetails(false);
+                      handleEditUser(selectedUser);
+                    }}
+                  >
+                    Edit User
+                  </button>
+                )}
                 <button 
                   className="btn btn-danger"
                   onClick={() => {
@@ -976,7 +1242,7 @@ const AdminHomePage = () => {
         </div>
       )}
 
-      {/* User Edit Modal */}
+      {/* User Edit Modal (rendered globally below) */}
       {editingUser && (
         <div className="modal-overlay" onClick={() => setEditingUser(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -1000,7 +1266,14 @@ const AdminHomePage = () => {
                   <input
                     type="text"
                     value={editingUser.firstName}
-                    onChange={(e) => setEditingUser({...editingUser, firstName: e.target.value})}
+                    onChange={(e) => {
+                      setEditingUser({ ...editingUser, firstName: e.target.value });
+                    }}
+                    onFocus={() => clearFieldError('firstName')}
+                    onBlur={(e) => {
+                      const msg = validateField('firstName', e.target.value, true);
+                      if (msg) setFormErrors((prev) => ({ ...prev, firstName: msg }));
+                    }}
                     className={formErrors.firstName ? 'error' : ''}
                   />
                   {formErrors.firstName && <span className="error-text">{formErrors.firstName}</span>}
@@ -1011,6 +1284,11 @@ const AdminHomePage = () => {
                     type="text"
                     value={editingUser.lastName}
                     onChange={(e) => setEditingUser({...editingUser, lastName: e.target.value})}
+                    onFocus={() => clearFieldError('lastName')}
+                    onBlur={(e) => {
+                      const msg = validateField('lastName', e.target.value, true);
+                      if (msg) setFormErrors((prev) => ({ ...prev, lastName: msg }));
+                    }}
                     className={formErrors.lastName ? 'error' : ''}
                   />
                   {formErrors.lastName && <span className="error-text">{formErrors.lastName}</span>}
@@ -1022,33 +1300,70 @@ const AdminHomePage = () => {
                 <input
                   type="email"
                   value={editingUser.email}
-                  onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
-                  className={formErrors.email ? 'error' : ''}
+                  readOnly
+                  className="read-only"
+                  onFocus={() => clearFieldError('email')}
+                  onBlur={() => {
+                    const msg = validateField('email', editingUser.email, true);
+                    if (msg) setFormErrors((prev) => ({ ...prev, email: msg }));
+                  }}
                 />
+                <small className="help-text">Email cannot be edited.</small>
                 {formErrors.email && <span className="error-text">{formErrors.email}</span>}
               </div>
               
               <div className="form-group">
-                <label>Phone</label>
+                <label>Phone *</label>
                 <input
                   type="tel"
+                  inputMode="numeric"
+                  placeholder="e.g., 9876543210 or +91 98765 43210"
                   value={editingUser.phone || ''}
-                  onChange={(e) => setEditingUser({...editingUser, phone: e.target.value})}
+                  onChange={(e) => {
+                    const val = normalizePhone(e.target.value);
+                    setEditingUser({ ...editingUser, phone: val });
+                    const msg = validateField('phone', val, true);
+                    setFormErrors((prev) => {
+                      if (msg) return { ...prev, phone: msg };
+                      const { phone, ...rest } = prev;
+                      return rest;
+                    });
+                  }}
+                  onFocus={() => {
+                    if (editingUser.phone) {
+                      const msg = validateField('phone', editingUser.phone, true);
+                      if (msg) setFormErrors((prev) => ({ ...prev, phone: msg }));
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const msg = validateField('phone', e.target.value, true);
+                    if (msg) setFormErrors((prev) => ({ ...prev, phone: msg }));
+                  }}
+                  pattern="[0-9]*"
+                  maxLength={12}
+                  className={formErrors.phone ? 'error' : ''}
                 />
+                {formErrors.phone && <span className="error-text">{formErrors.phone}</span>}
               </div>
 
               <div className="form-row">
-                <div className="form-group">
-                  <label>Role</label>
-                  <select
-                    value={editingUser.role}
-                    onChange={(e) => setEditingUser({...editingUser, role: e.target.value})}
-                  >
-                    <option value="user">User</option>
-                    <option value="trainer">Trainer</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </div>
+                {editingUser.role === 'user' && (
+                  <div className="form-group">
+                    <label>Role</label>
+                    <select
+                      value={editingUser.role}
+                      onChange={(e) => setEditingUser({...editingUser, role: e.target.value})}
+                      onFocus={() => clearFieldError('role')}
+                      onBlur={(e) => {
+                        if (!e.target.value) setFormErrors((prev) => ({ ...prev, role: 'Role is required' }));
+                      }}
+                    >
+                      <option value="user">User</option>
+                      <option value="trainer">Trainer</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                )}
                 <div className="form-group">
                   <label>Status</label>
                   <select
@@ -1093,22 +1408,22 @@ const AdminHomePage = () => {
     const trainers = users.filter(user => user.role === 'trainer');
 
     return (
-      <div className="section-content">
-        <div className="section-header">
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h2 className="section-title">Trainer Management</h2>
-            <p className="section-subtitle">Manage fitness trainers and their profiles ({trainers.length} total)</p>
+            <h2 className="text-2xl font-bold text-secondary-900">Trainer Management</h2>
+            <p className="text-secondary-600">Manage fitness trainers and their profiles ({trainers.length} total)</p>
           </div>
-          <div className="section-actions">
+          <div className="flex gap-3">
             <input
               type="search"
               placeholder="Search trainers..."
-              className="search-input"
+              className="input-field w-64"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
             <button
-              className="btn btn-primary"
+              className="btn-primary flex items-center gap-2"
               onClick={() => setShowTrainerForm(true)}
             >
               <span>+</span>
@@ -1118,72 +1433,92 @@ const AdminHomePage = () => {
         </div>
 
         {trainers.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">🏋️</div>
-            <h3>No trainers found</h3>
-            <p>Start by adding your first trainer to the platform.</p>
+          <div className="text-center py-12">
+            <div className="text-6xl mb-4">🏋️</div>
+            <h3 className="text-xl font-semibold text-secondary-900 mb-2">No trainers found</h3>
+            <p className="text-secondary-600 mb-6">Start by adding your first trainer to the platform.</p>
             <button
-              className="btn btn-primary"
+              className="btn-primary"
               onClick={() => setShowTrainerForm(true)}
             >
               Add First Trainer
             </button>
           </div>
         ) : (
-          <div className="trainers-grid">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {trainers.map(trainer => (
-              <div key={trainer.id} className="trainer-card">
-                <div className="trainer-header">
-                  <div className="trainer-avatar">
-                    {trainer.name.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="trainer-info">
-                    <h3 className="trainer-name">{trainer.name}</h3>
-                    <p className="trainer-email">{trainer.email}</p>
-                    <span className="trainer-phone">{trainer.phone || 'No phone provided'}</span>
-                  </div>
-                  <div className="trainer-status">
-                    <span className={`status-badge ${trainer.status || 'active'}`}>
+              <div key={trainer.id} className="group bg-white rounded-2xl border border-secondary-200 p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+                {/* Header with Avatar and Status */}
+                <div className="relative mb-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="relative">
+                        <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-700 text-white rounded-2xl flex items-center justify-center font-bold text-xl shadow-lg">
+                          {trainer.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white ${
+                          (trainer.status || 'active') === 'active' ? 'bg-green-500' : 'bg-red-500'
+                        }`}></div>
+                      </div>
+                      <div>
+                        <h3 className="text-xl font-bold text-secondary-900 mb-1">{trainer.name}</h3>
+                        <p className="text-secondary-600 text-sm font-medium">{trainer.email}</p>
+                        <span className="text-secondary-500 text-xs">{trainer.phone || 'No phone provided'}</span>
+                      </div>
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      (trainer.status || 'active') === 'active'
+                        ? 'bg-green-100 text-green-800 border border-green-200'
+                        : 'bg-red-100 text-red-800 border border-red-200'
+                    }`}>
                       {trainer.status || 'Active'}
                     </span>
                   </div>
                 </div>
 
-                <div className="trainer-stats">
-                  <div className="stat-item">
-                    <span className="stat-value">0</span>
-                    <span className="stat-label">Tutorials</span>
-                  </div>
-                  <div className="stat-item">
-                    <span className="stat-value">0</span>
-                    <span className="stat-label">Clients</span>
-                  </div>
-                  <div className="stat-item">
-                    <span className="stat-value">4.8</span>
-                    <span className="stat-label">Rating</span>
+                {/* Stats Section */}
+                <div className="bg-gradient-to-r from-secondary-50 to-primary-50 rounded-xl p-4 mb-6">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-primary-600 mb-1">0</div>
+                      <div className="text-xs font-medium text-secondary-600 uppercase tracking-wide">Tutorials</div>
+                    </div>
+                    <div className="text-center border-x border-secondary-200">
+                      <div className="text-2xl font-bold text-primary-600 mb-1">0</div>
+                      <div className="text-xs font-medium text-secondary-600 uppercase tracking-wide">Clients</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-yellow-500 mb-1">4.8</div>
+                      <div className="text-xs font-medium text-secondary-600 uppercase tracking-wide">Rating</div>
+                    </div>
                   </div>
                 </div>
 
-                <div className="trainer-actions">
-                  <button 
-                    className="btn btn-secondary"
+                {/* Action Buttons */}
+                <div className="flex gap-3">
+                  <button
+                    className="flex-1 bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white px-4 py-3 rounded-xl font-semibold transition-all duration-200 shadow-md hover:shadow-lg"
                     onClick={() => handleViewUser(trainer)}
                   >
                     View Profile
                   </button>
-                  <button 
-                    className="btn-action edit" 
+                  <button
+                    className="p-3 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md"
                     title="Edit Trainer"
                     onClick={() => handleEditUser(trainer)}
                   >
-                    <span>✏️</span>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
                   </button>
-                  <button 
-                    className="btn-action delete" 
+                  <button
+                    className="p-3 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md"
                     title="Remove Trainer"
                     onClick={() => handleDeleteUser(trainer.id, trainer.name)}
                   >
-                    <span>🗑️</span>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
                   </button>
                 </div>
               </div>
@@ -1215,7 +1550,21 @@ const AdminHomePage = () => {
                     <input
                       type="text"
                       value={trainerForm.firstName}
-                      onChange={(e) => setTrainerForm({...trainerForm, firstName: e.target.value})}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setTrainerForm({ ...trainerForm, firstName: val });
+                        const msg = validateField('firstName', val, false);
+                        setFormErrors((prev) => {
+                          if (msg) return { ...prev, firstName: msg };
+                          const { firstName, ...rest } = prev;
+                          return rest;
+                        });
+                      }}
+                      onFocus={() => clearFieldError('firstName')}
+                      onBlur={(e) => {
+                        const msg = validateField('firstName', e.target.value, false);
+                        if (msg) setFormErrors((prev) => ({ ...prev, firstName: msg }));
+                      }}
                       className={formErrors.firstName ? 'error' : ''}
                     />
                     {formErrors.firstName && <span className="error-text">{formErrors.firstName}</span>}
@@ -1225,7 +1574,21 @@ const AdminHomePage = () => {
                     <input
                       type="text"
                       value={trainerForm.lastName}
-                      onChange={(e) => setTrainerForm({...trainerForm, lastName: e.target.value})}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setTrainerForm({ ...trainerForm, lastName: val });
+                        const msg = validateField('lastName', val, false);
+                        setFormErrors((prev) => {
+                          if (msg) return { ...prev, lastName: msg };
+                          const { lastName, ...rest } = prev;
+                          return rest;
+                        });
+                      }}
+                      onFocus={() => clearFieldError('lastName')}
+                      onBlur={(e) => {
+                        const msg = validateField('lastName', e.target.value, false);
+                        if (msg) setFormErrors((prev) => ({ ...prev, lastName: msg }));
+                      }}
                       className={formErrors.lastName ? 'error' : ''}
                     />
                     {formErrors.lastName && <span className="error-text">{formErrors.lastName}</span>}
@@ -1237,19 +1600,58 @@ const AdminHomePage = () => {
                   <input
                     type="email"
                     value={trainerForm.email}
-                    onChange={(e) => setTrainerForm({...trainerForm, email: e.target.value})}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setTrainerForm({ ...trainerForm, email: val });
+                      const msg = validateField('email', val, false);
+                      setFormErrors((prev) => {
+                        if (msg) return { ...prev, email: msg };
+                        const { email, ...rest } = prev;
+                        return rest;
+                      });
+                    }}
+                    onFocus={() => clearFieldError('email')}
+                    onBlur={(e) => {
+                      const msg = validateField('email', e.target.value, false);
+                      if (msg) setFormErrors((prev) => ({ ...prev, email: msg }));
+                    }}
                     className={formErrors.email ? 'error' : ''}
                   />
                   {formErrors.email && <span className="error-text">{formErrors.email}</span>}
                 </div>
                 
                 <div className="form-group">
-                  <label>Phone</label>
+                  <label>Phone *</label>
                   <input
                     type="tel"
+                    inputMode="numeric"
+                    placeholder="e.g., 9876543210 or +91 98765 43210"
                     value={trainerForm.phone}
-                    onChange={(e) => setTrainerForm({...trainerForm, phone: e.target.value})}
+                    onChange={(e) => {
+                      const val = normalizePhone(e.target.value);
+                      setTrainerForm({ ...trainerForm, phone: val });
+                      const msg = validateField('phone', val, false);
+                      setFormErrors((prev) => {
+                        if (msg) return { ...prev, phone: msg };
+                        const { phone, ...rest } = prev;
+                        return rest;
+                      });
+                    }}
+                    onFocus={() => {
+                      if (trainerForm.phone) {
+                        const msg = validateField('phone', trainerForm.phone, false);
+                        if (msg) setFormErrors((prev) => ({ ...prev, phone: msg }));
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const msg = validateField('phone', e.target.value, false);
+                      if (msg) setFormErrors((prev) => ({ ...prev, phone: msg }));
+                    }}
+                    pattern="[0-9]*"
+                    maxLength={12}
+                    className={formErrors.phone ? 'error' : ''}
                   />
+                  {formErrors.phone && <span className="error-text">{formErrors.phone}</span>}
                 </div>
                 
                 <div className="form-group">
@@ -1257,7 +1659,21 @@ const AdminHomePage = () => {
                   <input
                     type="password"
                     value={trainerForm.password}
-                    onChange={(e) => setTrainerForm({...trainerForm, password: e.target.value})}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setTrainerForm({ ...trainerForm, password: val });
+                      const msg = validateField('password', val, false);
+                      setFormErrors((prev) => {
+                        if (msg) return { ...prev, password: msg };
+                        const { password, ...rest } = prev;
+                        return rest;
+                      });
+                    }}
+                    onFocus={() => clearFieldError('password')}
+                    onBlur={(e) => {
+                      const msg = validateField('password', e.target.value, false);
+                      if (msg) setFormErrors((prev) => ({ ...prev, password: msg }));
+                    }}
                     className={formErrors.password ? 'error' : ''}
                   />
                   {formErrors.password && <span className="error-text">{formErrors.password}</span>}
@@ -1388,7 +1804,7 @@ const AdminHomePage = () => {
     };
 
     const deleteTutorial = async (id, title) => {
-      if (!window.confirm(`Delete tutorial \"${title}\"?`)) return;
+      if (!window.confirm(`Delete tutorial "${title}"?`)) return;
       try {
         await axios.delete(`http://localhost:5000/admin/tutorials/${id}`, authHeaders);
         setTutorials(tutorials.filter(t => t.id !== id));
@@ -1567,20 +1983,20 @@ const AdminHomePage = () => {
   );
 
   const renderTrainerApplications = () => (
-    <div className="section-content">
-      <div className="section-header">
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="section-title">Trainer Applications</h2>
-          <p className="section-subtitle">Review and approve new trainer applications</p>
+          <h2 className="text-2xl font-bold text-secondary-900">Trainer Applications</h2>
+          <p className="text-secondary-600">Review and approve new trainer applications</p>
         </div>
-        <div className="section-actions">
+        <div className="flex gap-3">
           <input
             type="search"
             placeholder="Search applications..."
-            className="search-input"
+            className="input-field w-64"
           />
           <button
-            className="btn btn-secondary"
+            className="bg-secondary-200 hover:bg-secondary-300 text-secondary-800 px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
             onClick={fetchTrainerApplications}
             disabled={applicationsLoading}
           >
@@ -1590,107 +2006,115 @@ const AdminHomePage = () => {
         </div>
       </div>
 
-      <div className="info-banner">
-        <div className="info-icon">ℹ️</div>
-        <div className="info-content">
-          <strong>Application Review Process:</strong>
-          <p>Each application includes professional information, experience, certifications, and specializations. Review all details carefully before making a decision.</p>
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex gap-3">
+        <div className="text-2xl text-blue-600">ℹ️</div>
+        <div className="flex-1">
+          <strong className="text-blue-900">Application Review Process:</strong>
+          <p className="text-blue-700 text-sm mt-1">Each application includes professional information, experience, certifications, and specializations. Review all details carefully before making a decision.</p>
         </div>
       </div>
 
       {applicationsLoading ? (
-        <div className="loading-state">
-          <div className="loading-spinner">🔄</div>
-          <p>Loading trainer applications...</p>
+        <div className="text-center py-12">
+          <div className="text-4xl mb-4 animate-spin">🔄</div>
+          <p className="text-secondary-600">Loading trainer applications...</p>
         </div>
       ) : trainerApplications.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-icon">📝</div>
-          <h3>No trainer applications</h3>
-          <p>New trainer applications will appear here for review.</p>
+        <div className="text-center py-12">
+          <div className="text-6xl mb-4">📝</div>
+          <h3 className="text-xl font-semibold text-secondary-900 mb-2">No trainer applications</h3>
+          <p className="text-secondary-600">New trainer applications will appear here for review.</p>
         </div>
       ) : (
-        <div className="applications-grid">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {trainerApplications.map(application => (
-            <div key={application.id} className={`application-card ${application.status}`}>
-              <div className="application-header">
-                <div className="applicant-info">
-                  <div className="applicant-avatar">
+            <div key={application.id} className={`bg-white rounded-xl border p-6 shadow-sm ${
+              application.status === 'pending' ? 'border-yellow-300 bg-yellow-50' :
+              application.status === 'approved' ? 'border-green-300 bg-green-50' :
+              'border-red-300 bg-red-50'
+            }`}>
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-secondary-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
                     {application.firstName.charAt(0)}{application.lastName.charAt(0)}
                   </div>
-                  <div className="applicant-details">
-                    <h3>{application.firstName} {application.lastName}</h3>
-                    <p>{application.email}</p>
-                    <span className="phone">{application.phone}</span>
+                  <div>
+                    <h3 className="font-semibold text-secondary-900">{application.firstName} {application.lastName}</h3>
+                    <p className="text-secondary-600 text-sm">{application.email}</p>
+                    <span className="text-secondary-500 text-xs">{application.phone}</span>
                   </div>
                 </div>
-                <div className={`status-badge ${application.status}`}>
+                <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  application.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                  application.status === 'approved' ? 'bg-green-100 text-green-800' :
+                  'bg-red-100 text-red-800'
+                }`}>
                   {application.status === 'pending' && '⏳ Pending'}
                   {application.status === 'approved' && '✅ Approved'}
                   {application.status === 'rejected' && '❌ Rejected'}
                 </div>
               </div>
 
-              <div className="application-details">
-                <div className="detail-row">
-                  <span className="label">📅 Applied:</span>
-                  <span className="value">{new Date(application.applied_at).toLocaleDateString()}</span>
+              <div className="space-y-2 mb-4">
+                <div className="flex justify-between items-start">
+                  <span className="text-secondary-600 text-sm font-medium">📅 Applied:</span>
+                  <span className="text-secondary-900 text-sm">{new Date(application.applied_at).toLocaleDateString()}</span>
                 </div>
-                <div className="detail-row">
-                  <span className="label">🎂 Age:</span>
-                  <span className="value">
-                    {application.dateOfBirth ? 
-                      new Date().getFullYear() - new Date(application.dateOfBirth).getFullYear() + ' years' : 
+                <div className="flex justify-between items-start">
+                  <span className="text-secondary-600 text-sm font-medium">🎂 Age:</span>
+                  <span className="text-secondary-900 text-sm">
+                    {application.dateOfBirth ?
+                      new Date().getFullYear() - new Date(application.dateOfBirth).getFullYear() + ' years' :
                       'Not provided'
                     }
                   </span>
                 </div>
-                <div className="detail-row">
-                  <span className="label">⚧ Gender:</span>
-                  <span className="value">{application.gender || 'Not specified'}</span>
+                <div className="flex justify-between items-start">
+                  <span className="text-secondary-600 text-sm font-medium">⚧ Gender:</span>
+                  <span className="text-secondary-900 text-sm">{application.gender || 'Not specified'}</span>
                 </div>
                 {application.experience && application.experience.trim() !== '' && (
-                  <div className="detail-row">
-                    <span className="label">💼 Experience:</span>
-                    <span className="value">{application.experience.substring(0, 100)}...</span>
+                  <div className="flex justify-between items-start">
+                    <span className="text-secondary-600 text-sm font-medium">💼 Experience:</span>
+                    <span className="text-secondary-900 text-sm">{application.experience.substring(0, 100)}...</span>
                   </div>
                 )}
                 {application.certifications && application.certifications.trim() !== '' && (
-                  <div className="detail-row">
-                    <span className="label">🏆 Certifications:</span>
-                    <span className="value">{application.certifications.substring(0, 100)}...</span>
+                  <div className="flex justify-between items-start">
+                    <span className="text-secondary-600 text-sm font-medium">🏆 Certifications:</span>
+                    <span className="text-secondary-900 text-sm">{application.certifications.substring(0, 100)}...</span>
                   </div>
                 )}
                 {application.specializations && application.specializations.trim() !== '' && (
-                  <div className="detail-row">
-                    <span className="label">🎯 Specializations:</span>
-                    <span className="value">{application.specializations}</span>
+                  <div className="flex justify-between items-start">
+                    <span className="text-secondary-600 text-sm font-medium">🎯 Specializations:</span>
+                    <span className="text-secondary-900 text-sm">{application.specializations}</span>
                   </div>
                 )}
                 {application.bio && application.bio.trim() !== '' && (
-                  <div className="detail-row">
-                    <span className="label">📝 Bio:</span>
-                    <span className="value">{application.bio.substring(0, 80)}...</span>
+                  <div className="flex justify-between items-start">
+                    <span className="text-secondary-600 text-sm font-medium">📝 Bio:</span>
+                    <span className="text-secondary-900 text-sm">{application.bio.substring(0, 80)}...</span>
                   </div>
                 )}
                 {application.motivation && application.motivation.trim() !== '' && (
-                  <div className="detail-row">
-                    <span className="label">💭 Motivation:</span>
-                    <span className="value">{application.motivation.substring(0, 80)}...</span>
+                  <div className="flex justify-between items-start">
+                    <span className="text-secondary-600 text-sm font-medium">💭 Motivation:</span>
+                    <span className="text-secondary-900 text-sm">{application.motivation.substring(0, 80)}...</span>
                   </div>
                 )}
               </div>
 
               {application.status === 'pending' && (
-                <div className="application-actions">
-                  <button 
-                    className="btn-success"
+                <div className="flex gap-2">
+                  <button
+                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-1"
                     onClick={() => handleApproveApplication(application.id)}
                   >
                     ✅ Approve
                   </button>
-                  <button 
-                    className="btn-danger"
+                  <button
+                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-1"
                     onClick={() => handleRejectApplication(application.id)}
                   >
                     ❌ Reject
@@ -1699,21 +2123,21 @@ const AdminHomePage = () => {
               )}
 
               {application.status === 'approved' && application.reviewed_at && (
-                <div className="review-info">
-                  <p><strong>✅ Approved by:</strong> {application.reviewed_by}</p>
-                  <p><strong>📅 Approved on:</strong> {new Date(application.reviewed_at).toLocaleDateString()}</p>
+                <div className="bg-white/50 rounded-lg p-3 mt-4">
+                  <p className="text-sm"><strong>✅ Approved by:</strong> {application.reviewed_by}</p>
+                  <p className="text-sm"><strong>📅 Approved on:</strong> {new Date(application.reviewed_at).toLocaleDateString()}</p>
                   {application.admin_notes && (
-                    <p><strong>📝 Notes:</strong> {application.admin_notes}</p>
+                    <p className="text-sm"><strong>📝 Notes:</strong> {application.admin_notes}</p>
                   )}
                 </div>
               )}
 
               {application.status === 'rejected' && application.reviewed_at && (
-                <div className="review-info rejected">
-                  <p><strong>❌ Rejected by:</strong> {application.reviewed_by}</p>
-                  <p><strong>📅 Rejected on:</strong> {new Date(application.reviewed_at).toLocaleDateString()}</p>
+                <div className="bg-red-50 rounded-lg p-3 mt-4">
+                  <p className="text-sm"><strong>❌ Rejected by:</strong> {application.reviewed_by}</p>
+                  <p className="text-sm"><strong>📅 Rejected on:</strong> {new Date(application.reviewed_at).toLocaleDateString()}</p>
                   {application.rejection_reason && (
-                    <p><strong>💬 Reason:</strong> {application.rejection_reason}</p>
+                    <p className="text-sm"><strong>💬 Reason:</strong> {application.rejection_reason}</p>
                   )}
                 </div>
               )}
@@ -1725,26 +2149,33 @@ const AdminHomePage = () => {
   );
 
   if (!admin || loading) {
-    return <div className="loading">Loading admin dashboard...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-secondary-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-secondary-600">Loading admin dashboard...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="admin-home">
+    <div className="min-h-screen bg-secondary-50">
       {/* Header */}
       <header className="admin-header">
-        <div className="header-left">
-          <h1>FitHub Admin Portal</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-2xl font-bold text-secondary-900">FitHub Admin Portal</h1>
           {activeTab !== 'dashboard' && (
-            <div className="breadcrumb">
-              <button 
-                className="breadcrumb-btn"
+            <div className="flex items-center gap-2 text-sm">
+              <button
+                className="flex items-center gap-1 px-3 py-1 text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded-md transition-colors duration-200"
                 onClick={() => handleTabChange('dashboard')}
                 title="Back to Dashboard"
               >
                 🏠 Dashboard
               </button>
-              <span className="breadcrumb-separator">›</span>
-              <span className="breadcrumb-current">
+              <span className="text-secondary-400">›</span>
+              <span className="text-secondary-700 font-medium">
                 {activeTab === 'users' && '👥 Users'}
                 {activeTab === 'trainers' && '🏋️ Trainers'}
                 {activeTab === 'applications' && '📝 Applications'}
@@ -1755,41 +2186,111 @@ const AdminHomePage = () => {
             </div>
           )}
         </div>
-        <div className="header-right">
-          <span>Hello, {admin?.name}</span>
-          <div className="profile-menu">
-            <div
-              className="admin-avatar"
+        <div className="flex items-center gap-4">
+          <span className="text-slate-600 font-medium text-sm">Welcome back, {admin?.name}</span>
+
+          <div className="relative">
+            <button
+              className="flex items-center gap-3 px-4 py-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 shadow-sm"
               onClick={() => setShowProfileMenu(!showProfileMenu)}
             >
-              {admin?.name?.charAt(0).toUpperCase()}
-            </div>
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                {admin?.name?.charAt(0).toUpperCase()}
+              </div>
+              <span className="text-slate-700 font-medium text-sm">{admin?.name}</span>
+              <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
             {showProfileMenu && (
               <>
-                <div className="profile-backdrop" onClick={() => setShowProfileMenu(false)}></div>
-                <div className="profile-dropdown">
-                  <div className="profile-card-header">
-                    <div className="profile-avatar-lg">{admin?.name?.charAt(0).toUpperCase()}</div>
-                    <div className="profile-meta">
-                      <div className="profile-name">{admin?.name}</div>
-                      <div className="profile-email">{admin?.email || 'admin@fithub.com'}</div>
-                      <div className="profile-role-badge">Administrator</div>
+                <div
+                  className="fixed inset-0 z-30"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowProfileMenu(false);
+                  }}
+                ></div>
+                <div className="absolute right-0 top-14 w-64 bg-white rounded-lg shadow-xl border border-slate-200 z-40 overflow-hidden">
+                  {/* Profile Header */}
+                  <div className="p-4 border-b border-slate-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-full flex items-center justify-center font-semibold text-lg">
+                        {admin?.name?.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-slate-900 truncate">{admin?.name || 'Administrator'}</h3>
+                        <p className="text-slate-500 text-sm truncate">{admin?.email || 'admin@fithub.com'}</p>
+                      </div>
                     </div>
                   </div>
-                  <div className="profile-divider"></div>
-                  <button className="profile-menu-item" onClick={() => { setShowProfileMenu(false); handleTabChange('settings'); }}>
-                    <span className="menu-icon">⚙️</span>
-                    Settings
-                  </button>
-                  <button className="profile-menu-item" onClick={() => { setShowProfileMenu(false); handleTabChange('analytics'); }}>
-                    <span className="menu-icon">📊</span>
-                    Analytics
-                  </button>
-                  <div className="profile-divider"></div>
-                  <button className="logout-btn" onClick={() => { setShowProfileMenu(false); handleLogout(); }}>
-                    <span className="menu-icon">🚪</span>
-                    Sign out
-                  </button>
+                  {/* Menu Items */}
+                  <div className="py-1">
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-3 text-left text-slate-700 hover:bg-slate-50 transition-colors"
+                      onClick={() => { setShowProfileMenu(false); handleTabChange('settings'); }}
+                    >
+                      <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      <span className="font-medium">Settings</span>
+                    </button>
+
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-3 text-left text-slate-700 hover:bg-slate-50 transition-colors"
+                      onClick={() => { setShowProfileMenu(false); handleTabChange('analytics'); }}
+                    >
+                      <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                      <span className="font-medium">Analytics</span>
+                    </button>
+
+                    <button
+                      className="w-full flex items-center gap-3 px-4 py-3 text-left text-slate-700 hover:bg-slate-50 transition-colors"
+                      onClick={() => { setShowProfileMenu(false); handleTabChange('dashboard'); }}
+                    >
+                      <svg className="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5a2 2 0 012-2h4a2 2 0 012 2v2H8V5z" />
+                      </svg>
+                      <span className="font-medium">Dashboard</span>
+                    </button>
+
+                    <div className="border-t border-slate-100 my-1"></div>
+
+                    <div
+                      className="w-full flex items-center gap-3 px-4 py-3 text-left text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                      onMouseDown={() => {
+                        console.log('🖱️ MOUSEDOWN: Logout button pressed');
+                        setShowProfileMenu(false);
+                        setTimeout(() => {
+                          console.log('🚪 EXECUTING: handleLogout from dropdown');
+                          handleLogout();
+                        }, 100);
+                      }}
+                      onClick={() => {
+                        console.log('🖱️ CLICK: Logout button clicked');
+                        setShowProfileMenu(false);
+                        setTimeout(() => {
+                          console.log('🚪 EXECUTING: handleLogout from dropdown');
+                          handleLogout();
+                        }, 100);
+                      }}
+                      style={{
+                        zIndex: 50,
+                        userSelect: 'none',
+                        position: 'relative'
+                      }}
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      <span className="font-medium">Sign out</span>
+                    </div>
+                  </div>
+
                 </div>
               </>
             )}
@@ -1798,84 +2299,86 @@ const AdminHomePage = () => {
       </header>
 
       {/* Main Content */}
-      <main className="admin-main">
+      <main className="p-6">
         {activeTab === 'dashboard' && (
-          <div className="dashboard-home">
+          <div className="space-y-8">
             {/* Navigation Cards */}
-            <div className="nav-cards">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div
-                className={`nav-card dashboard-card ${activeTab === 'dashboard' ? 'active' : ''}`}
+                className={`nav-card ${activeTab === 'dashboard' ? 'ring-2 ring-primary-500 bg-primary-50' : ''}`}
                 onClick={() => handleTabChange('dashboard')}
               >
-                <div className="card-icon">📊</div>
-                <div className="card-content">
-                  <h3>Dashboard</h3>
-                  <p>Overview & stats</p>
+                <div className="text-3xl mb-3">📊</div>
+                <div>
+                  <h3 className="text-lg font-semibold text-secondary-900 mb-1">Dashboard</h3>
+                  <p className="text-sm text-secondary-600">Overview & stats</p>
                 </div>
               </div>
 
               <div
-                className="nav-card users-card"
+                className="nav-card"
                 onClick={() => handleTabChange('users')}
               >
-                <div className="card-icon">👥</div>
-                <div className="card-content">
-                  <h3>Users</h3>
-                  <p>Manage accounts ({users.length})</p>
+                <div className="text-3xl mb-3">👥</div>
+                <div>
+                  <h3 className="text-lg font-semibold text-secondary-900 mb-1">Users</h3>
+                  <p className="text-sm text-secondary-600">Manage accounts ({users.length})</p>
                 </div>
               </div>
 
               <div
-                className="nav-card trainers-card"
+                className="nav-card"
                 onClick={() => handleTabChange('trainers')}
               >
-                <div className="card-icon">🏋️</div>
-                <div className="card-content">
-                  <h3>Trainers</h3>
-                  <p>Profiles & status ({users.filter(u => u.role === 'trainer').length})</p>
+                <div className="text-3xl mb-3">🏋️</div>
+                <div>
+                  <h3 className="text-lg font-semibold text-secondary-900 mb-1">Trainers</h3>
+                  <p className="text-sm text-secondary-600">Profiles & status ({users.filter(u => u.role === 'trainer').length})</p>
                 </div>
               </div>
 
               <div
-                className="nav-card applications-card"
+                className="nav-card relative"
                 onClick={() => {
                   handleTabChange('applications');
                   fetchTrainerApplications();
                 }}
               >
-                <div className="card-icon">📝</div>
-                <div className="card-content">
-                  <h3>Applications</h3>
-                  <p>Review & approve</p>
+                <div className="text-3xl mb-3">📝</div>
+                <div>
+                  <h3 className="text-lg font-semibold text-secondary-900 mb-1">Applications</h3>
+                  <p className="text-sm text-secondary-600">Review & approve</p>
                 </div>
                 {trainerApplications.filter(app => app.status === 'pending').length > 0 && (
-                  <div className="notification-badge">
+                  <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center">
                     {trainerApplications.filter(app => app.status === 'pending').length}
                   </div>
                 )}
               </div>
 
               <div
-                className="nav-card tutorials-card"
+                className="nav-card"
                 onClick={() => handleTabChange('tutorials')}
               >
-                <div className="card-icon">🎓</div>
-                <div className="card-content">
-                  <h3>Tutorials</h3>
-                  <p>Moderate content</p>
+                <div className="text-3xl mb-3">🎓</div>
+                <div>
+                  <h3 className="text-lg font-semibold text-secondary-900 mb-1">Tutorials</h3>
+                  <p className="text-sm text-secondary-600">Moderate content</p>
                 </div>
               </div>
             </div>
 
             {/* Welcome Section */}
-            <div className="welcome-section">
-              <div className="welcome-content">
-                <h2>Welcome back, {admin?.name}!</h2>
-                <p>Here's what's happening with your fitness platform today.</p>
+            <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-xl p-8 text-white">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h2 className="text-2xl font-bold mb-2">Welcome back, {admin?.name}!</h2>
+                  <p className="text-primary-100">Here's what's happening with your fitness platform today.</p>
+                </div>
+                <div className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg">
+                  <span className="text-sm font-medium">System Administrator</span>
+                </div>
               </div>
-              <button className="system-admin-btn">
-                System Administrator
-              </button>
             </div>
 
             {/* Dashboard Content */}
@@ -1890,6 +2393,222 @@ const AdminHomePage = () => {
         {activeTab === 'tutorials' && renderAdminTutorials()}
         {activeTab === 'analytics' && renderAnalytics()}
         {activeTab === 'settings' && renderSettings()}
+
+        {/* Global Modals */}
+        {showUserDetails && selectedUser && (
+          <div className="modal-overlay" onClick={() => setShowUserDetails(false)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>User Details</h3>
+                <button 
+                  className="close-btn"
+                  onClick={() => setShowUserDetails(false)}
+                >
+                  ×
+                </button>
+              </div>
+              <div className="user-details-content">
+                <div className="user-profile">
+                  <div className="user-avatar-large">
+                    {selectedUser.name?.charAt(0)?.toUpperCase?.() || 'U'}
+                  </div>
+                  <div className="user-info-detailed">
+                    <h3>{selectedUser.name}</h3>
+                    <p>{selectedUser.email}</p>
+                    <div className="user-badges">
+                      <span className={`status-badge ${selectedUser.status || 'active'}`}>
+                        {selectedUser.status || 'active'}
+                      </span>
+                      <span className={`role-badge ${selectedUser.role}`}>
+                        {selectedUser.role}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="user-details-grid">
+                  <div className="detail-item">
+                    <label>Phone:</label>
+                    <span>{selectedUser.phone || 'Not provided'}</span>
+                  </div>
+                  <div className="detail-item">
+                    <label>Date of Birth:</label>
+                    <span>{selectedUser.dateOfBirth || 'N/A'}</span>
+                  </div>
+                  <div className="detail-item">
+                    <label>Gender:</label>
+                    <span>{selectedUser.gender || 'N/A'}</span>
+                  </div>
+                  <div className="detail-item">
+                    <label>Join Date:</label>
+                    <span>{selectedUser.joinDate || 'N/A'}</span>
+                  </div>
+                </div>
+                <div className="user-actions">
+                  {selectedUser.role !== 'admin' && (
+                    <button 
+                      className="btn btn-primary"
+                      onClick={() => {
+                        setShowUserDetails(false);
+                        handleEditUser(selectedUser);
+                      }}
+                    >
+                      Edit
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {editingUser && (
+          <div className="modal-overlay" onClick={() => setEditingUser(null)}>
+            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-header">
+                <h3>Edit User</h3>
+                <button 
+                  className="close-btn"
+                  onClick={() => {
+                    setEditingUser(null);
+                    setFormErrors({});
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+              <form onSubmit={handleUpdateUser} className="user-form">
+                <div className="form-row">
+                  <div className="form-group">
+                    <label>First Name *</label>
+                    <input
+                      type="text"
+                      value={editingUser.firstName || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setEditingUser({ ...editingUser, firstName: val });
+                        const msg = validateField('firstName', val, true);
+                        setFormErrors((prev) => {
+                          if (msg) return { ...prev, firstName: msg };
+                          const { firstName, ...rest } = prev;
+                          return rest;
+                        });
+                      }}
+                      onFocus={() => clearFieldError('firstName')}
+                      onBlur={(e) => {
+                        const msg = validateField('firstName', e.target.value, true);
+                        if (msg) setFormErrors((prev) => ({ ...prev, firstName: msg }));
+                      }}
+                      className={formErrors.firstName ? 'error' : ''}
+                    />
+                    {formErrors.firstName && <span className="error-text">{formErrors.firstName}</span>}
+                  </div>
+                  <div className="form-group">
+                    <label>Last Name *</label>
+                    <input
+                      type="text"
+                      value={editingUser.lastName || ''}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setEditingUser({ ...editingUser, lastName: val });
+                        const msg = validateField('lastName', val, true);
+                        setFormErrors((prev) => {
+                          if (msg) return { ...prev, lastName: msg };
+                          const { lastName, ...rest } = prev;
+                          return rest;
+                        });
+                      }}
+                      onFocus={() => clearFieldError('lastName')}
+                      onBlur={(e) => {
+                        const msg = validateField('lastName', e.target.value, true);
+                        if (msg) setFormErrors((prev) => ({ ...prev, lastName: msg }));
+                      }}
+                      className={formErrors.lastName ? 'error' : ''}
+                    />
+                    {formErrors.lastName && <span className="error-text">{formErrors.lastName}</span>}
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Email *</label>
+                  <input
+                    type="email"
+                    value={editingUser.email || ''}
+                    readOnly
+                    className="read-only"
+                    onFocus={() => clearFieldError('email')}
+                    onBlur={() => {
+                      const msg = validateField('email', editingUser.email, true);
+                      if (msg) setFormErrors((prev) => ({ ...prev, email: msg }));
+                    }}
+                  />
+                  {formErrors.email && <span className="error-text">{formErrors.email}</span>}
+                </div>
+                <div className="form-group">
+                  <label>Phone *</label>
+                  <input
+                    type="tel"
+                    inputMode="numeric"
+                    placeholder="e.g., 9876543210 or +91 98765 43210"
+                    value={editingUser.phone || ''}
+                    onChange={(e) => {
+                      const val = normalizePhone(e.target.value);
+                      setEditingUser({ ...editingUser, phone: val });
+                      const msg = validateField('phone', val, true);
+                      setFormErrors((prev) => {
+                        if (msg) return { ...prev, phone: msg };
+                        const { phone, ...rest } = prev;
+                        return rest;
+                      });
+                    }}
+                    onFocus={() => {
+                      if (editingUser.phone) {
+                        const msg = validateField('phone', editingUser.phone, true);
+                        if (msg) setFormErrors((prev) => ({ ...prev, phone: msg }));
+                      }
+                    }}
+                    onBlur={(e) => {
+                      const msg = validateField('phone', e.target.value, true);
+                      if (msg) setFormErrors((prev) => ({ ...prev, phone: msg }));
+                    }}
+                    pattern="[0-9]*"
+                    maxLength={12}
+                    className={formErrors.phone ? 'error' : ''}
+                  />
+                  {formErrors.phone && <span className="error-text">{formErrors.phone}</span>}
+                </div>
+                <div className="form-row">
+                  {editingUser.role === 'user' && (
+                    <div className="form-group">
+                      <label>Role</label>
+                      <select
+                        value={editingUser.role}
+                        onChange={(e) => setEditingUser({...editingUser, role: e.target.value})}
+                      >
+                        <option value="user">User</option>
+                        <option value="trainer">Trainer</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </div>
+                  )}
+                  <div className="form-group">
+                    <label>Status</label>
+                    <select
+                      value={editingUser.status || 'active'}
+                      onChange={(e) => setEditingUser({...editingUser, status: e.target.value})}
+                    >
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                      <option value="suspended">Suspended</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="form-actions">
+                  <button type="button" className="btn-secondary" onClick={() => setEditingUser(null)}>Cancel</button>
+                  <button type="submit" className="btn-primary">Update</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

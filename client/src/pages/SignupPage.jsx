@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { FaUser, FaDumbbell } from 'react-icons/fa';
-import '../styles/SignupPage.css';
 
 const SignupPage = () => {
   const [formData, setFormData] = useState({
@@ -239,62 +238,73 @@ case 'lastName':
   };
 
   return (
-    <div className="signup-page">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-secondary-100 py-8 px-4">
       {/* Back to Home Button */}
-      <button onClick={handleBackToHome} className="back-to-home-btn">
+      <button
+        onClick={handleBackToHome}
+        className="fixed top-6 left-6 flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm text-secondary-700 rounded-lg hover:bg-white hover:text-secondary-900 transition-all duration-200 shadow-sm hover:shadow-md z-10"
+      >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M19 12H5M12 19l-7-7 7-7"/>
         </svg>
         Back to Home
       </button>
-      
-      <div className="signup-container">
-        <div className="signup-header">
-          <h2>Join Fit-Hub Portal</h2>
-          <p>Create your account to get started</p>
+
+      <div className="max-w-2xl mx-auto">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-secondary-900 mb-2">Join Fit-Hub Portal</h2>
+          <p className="text-secondary-600">Create your account to get started</p>
         </div>
 
-      {errors.submit && <div className="error-message">{errors.submit}</div>}
-
-      <form onSubmit={handleSignup} className="signup-form">
-        {/* Personal Information */}
-        <div className="form-section">
-          <h3>Personal Information</h3>
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="firstName">First Name *</label>
-              <input
-                type="text"
-                id="firstName"
-                name="firstName"
-                value={formData.firstName}
-                onChange={handleInputChange}
-                onBlur={handleBlur}
-                className={errors.firstName ? 'error' : ''}
-                placeholder="Enter your first name"
-              />
-              {errors.firstName && <span className="error-text">{errors.firstName}</span>}
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="lastName">Last Name *</label>
-              <input
-                type="text"
-                id="lastName"
-                name="lastName"
-                value={formData.lastName}
-                onChange={handleInputChange}
-                onBlur={handleBlur}
-                className={errors.lastName ? 'error' : ''}
-                placeholder="Enter your last name"
-              />
-              {errors.lastName && <span className="error-text">{errors.lastName}</span>}
-            </div>
+        {errors.submit && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+            {errors.submit}
           </div>
+        )}
 
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="email">Email Address *</label>
+        <form onSubmit={handleSignup} className="bg-white rounded-xl shadow-lg p-8 space-y-8">
+          {/* Personal Information */}
+          <div className="space-y-6">
+            <h3 className="text-xl font-semibold text-secondary-900 border-b border-secondary-200 pb-2">Personal Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label htmlFor="firstName" className="block text-sm font-medium text-secondary-700 mb-2">
+                  First Name *
+                </label>
+                <input
+                  type="text"
+                  id="firstName"
+                  name="firstName"
+                  value={formData.firstName}
+                  onChange={handleInputChange}
+                  onBlur={handleBlur}
+                  className={`input-field ${errors.firstName ? 'border-red-300 focus:ring-red-500' : ''}`}
+                  placeholder="Enter your first name"
+                />
+                {errors.firstName && <span className="text-sm text-red-600 mt-1 block">{errors.firstName}</span>}
+              </div>
+
+              <div>
+                <label htmlFor="lastName" className="block text-sm font-medium text-secondary-700 mb-2">
+                  Last Name *
+                </label>
+                <input
+                  type="text"
+                  id="lastName"
+                  name="lastName"
+                  value={formData.lastName}
+                  onChange={handleInputChange}
+                  onBlur={handleBlur}
+                  className={`input-field ${errors.lastName ? 'border-red-300 focus:ring-red-500' : ''}`}
+                  placeholder="Enter your last name"
+                />
+                {errors.lastName && <span className="text-sm text-red-600 mt-1 block">{errors.lastName}</span>}
+              </div>
+            </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex flex-col gap-2">
+              <label htmlFor="email" className="block text-sm font-medium text-secondary-700 mb-2">Email Address *</label>
               <input
                 type="email"
                 id="email"
@@ -302,15 +312,15 @@ case 'lastName':
                 value={formData.email}
                 onChange={handleInputChange}
                 onBlur={handleBlur}
-                className={errors.email ? 'error' : ''}
+                className={`input-field ${errors.email ? 'border-red-300 focus:ring-red-500' : ''}`}
                 placeholder="Enter your email address"
               />
-              {errors.email && <span className="error-text">{errors.email}</span>}
+              {errors.email && <span className="text-sm text-red-600 mt-1 block">{errors.email}</span>}
             </div>
 
-            <div className="form-group">
-              <label htmlFor="phone">Phone Number *</label>
-              <div className="phone-input-container">
+            <div className="flex flex-col gap-2">
+              <label htmlFor="phone" className="block text-sm font-medium text-secondary-700 mb-2">Phone Number *</label>
+              <div className="relative">
                 <input
                   type="tel"
                   id="phone"
@@ -318,26 +328,26 @@ case 'lastName':
                   value={formData.phone}
                   onChange={handleInputChange}
                   onBlur={handleBlur}
-                  className={`phone-input ${errors.phone ? 'error' : ''} ${validationStatus.phone || ''}`}
+                  className={`input-field pr-10 ${errors.phone ? 'border-red-300 focus:ring-red-500' : ''}`}
                   placeholder="Enter your 10-digit Indian number"
                   maxLength="10"
                 />
-                <div className="phone-validation-indicator">
-                  {validationStatus.phone === 'valid' && <span className="valid-icon">✓</span>}
-                  {validationStatus.phone === 'invalid' && <span className="invalid-icon">✗</span>}
-                  {validationStatus.phone === 'partial' && <span className="partial-icon">⏳</span>}
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 text-secondary-400">
+                  {validationStatus.phone === 'valid' && <span className="text-green-600">✓</span>}
+                  {validationStatus.phone === 'invalid' && <span className="text-red-600">✗</span>}
+                  {validationStatus.phone === 'partial' && <span className="text-yellow-500">⏳</span>}
                 </div>
               </div>
-              {errors.phone && <span className="error-text">{errors.phone}</span>}
+              {errors.phone && <span className="text-sm text-red-600 mt-1 block">{errors.phone}</span>}
               {!errors.phone && formData.phone.length > 0 && validationStatus.phone === 'valid' && (
-                <span className="success-text">✓ Valid Indian phone number</span>
+                <span className="text-sm text-green-600 mt-1 block">✓ Valid Indian phone number</span>
               )}
             </div>
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="dateOfBirth">Date of Birth *</label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex flex-col gap-2">
+              <label htmlFor="dateOfBirth" className="block text-sm font-medium text-secondary-700 mb-2">Date of Birth *</label>
               <input
                 type="date"
                 id="dateOfBirth"
@@ -346,20 +356,20 @@ case 'lastName':
                 onChange={handleInputChange}
                 onBlur={handleBlur}
                 max={new Date().toISOString().split('T')[0]}
-                className={errors.dateOfBirth ? 'error' : ''}
+                className={`input-field ${errors.dateOfBirth ? 'border-red-300 focus:ring-red-500' : ''}`}
               />
-              {errors.dateOfBirth && <span className="error-text">{errors.dateOfBirth}</span>}
+              {errors.dateOfBirth && <span className="text-sm text-red-600 mt-1 block">{errors.dateOfBirth}</span>}
             </div>
 
-            <div className="form-group">
-              <label htmlFor="gender">Gender *</label>
+            <div className="flex flex-col gap-2">
+              <label htmlFor="gender" className="block text-sm font-medium text-secondary-700 mb-2">Gender *</label>
               <select
                 id="gender"
                 name="gender"
                 value={formData.gender}
                 onChange={handleInputChange}
                 onBlur={handleBlur}
-                className={errors.gender ? 'error' : ''}
+                className={`input-field ${errors.gender ? 'border-red-300 focus:ring-red-500' : ''}`}
               >
                 <option value="">Select your gender</option>
                 <option value="male">Male</option>
@@ -367,47 +377,57 @@ case 'lastName':
                 <option value="other">Other</option>
                 <option value="prefer-not-to-say">Prefer not to say</option>
               </select>
-              {errors.gender && <span className="error-text">{errors.gender}</span>}
+              {errors.gender && <span className="text-sm text-red-600 mt-1 block">{errors.gender}</span>}
             </div>
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label>Account Type *</label>
-              <div className="role-toggle" role="tablist" aria-label="Account type">
+          <div className="space-y-4">
+            <div className="flex flex-col gap-2">
+              <label className="block text-sm font-medium text-secondary-700 mb-2">Account Type *</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4" role="tablist" aria-label="Account type">
                 <button
                   type="button"
-                  className={`role-option ${formData.role === 'user' ? 'active' : ''}`}
+                  className={`p-4 border-2 rounded-xl transition-all duration-200 flex items-center gap-3 ${
+                    formData.role === 'user'
+                      ? 'border-primary-500 bg-primary-50 text-primary-700'
+                      : 'border-secondary-200 bg-white text-secondary-700 hover:border-secondary-300'
+                  }`}
                   onClick={() => setFormData(prev => ({ ...prev, role: 'user' }))}
                   role="tab"
                   aria-selected={formData.role === 'user'}
                 >
-                  <span className="role-emoji" aria-hidden="true"><FaUser /></span>
-                  <div className="role-text">
-                    <span className="role-title">User</span>
-                    <span className="role-subtitle">Access fitness content</span>
+                  <span className="text-2xl" aria-hidden="true"><FaUser /></span>
+                  <div className="text-left">
+                    <span className="block font-semibold">User</span>
+                    <span className="block text-sm opacity-75">Access fitness content</span>
                   </div>
                 </button>
 
                 <button
                   type="button"
-                  className={`role-option ${formData.role === 'trainer' ? 'active' : ''}`}
+                  className={`p-4 border-2 rounded-xl transition-all duration-200 flex items-center gap-3 ${
+                    formData.role === 'trainer'
+                      ? 'border-primary-500 bg-primary-50 text-primary-700'
+                      : 'border-secondary-200 bg-white text-secondary-700 hover:border-secondary-300'
+                  }`}
                   onClick={() => setFormData(prev => ({ ...prev, role: 'trainer' }))}
                   role="tab"
                   aria-selected={formData.role === 'trainer'}
                 >
-                  <span className="role-emoji" aria-hidden="true"><FaDumbbell /></span>
-                  <div className="role-text">
-                    <span className="role-title">Trainer</span>
-                    <span className="role-subtitle">Create tutorials & help users</span>
+                  <span className="text-2xl" aria-hidden="true"><FaDumbbell /></span>
+                  <div className="text-left">
+                    <span className="block font-semibold">Trainer</span>
+                    <span className="block text-sm opacity-75">Create tutorials & help users</span>
                   </div>
                 </button>
               </div>
 
               {formData.role === 'trainer' && (
-                <div className="info-text">
-                  <span className="info-icon">ℹ️</span>
-                  As a trainer, you'll be able to create tutorials, upload content, and help users with their fitness questions.
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex gap-2">
+                  <span className="text-blue-600">ℹ️</span>
+                  <span className="text-blue-700 text-sm">
+                    As a trainer, you'll be able to create tutorials, upload content, and help users with their fitness questions.
+                  </span>
                 </div>
               )}
             </div>
@@ -416,51 +436,51 @@ case 'lastName':
 
         {/* Trainer-Specific Information */}
         {formData.role === 'trainer' && (
-          <div className="form-section trainer-section">
-            <h3>Professional Information</h3>
-            <div className="trainer-info-banner">
-              <div className="banner-icon">🏋️</div>
-              <div className="banner-content">
-                <strong>Trainer Application</strong>
-                <p>Please provide your professional details to help us review your application.</p>
+          <div className="bg-white rounded-xl border border-secondary-200 p-6 space-y-6">
+            <h3 className="text-xl font-semibold text-secondary-900 border-b border-secondary-200 pb-2">Professional Information</h3>
+            <div className="bg-gradient-to-r from-primary-50 to-secondary-50 border border-primary-200 rounded-lg p-4 flex gap-3">
+              <div className="text-2xl">🏋️</div>
+              <div className="flex-1">
+                <strong className="text-primary-900">Trainer Application</strong>
+                <p className="text-primary-700 text-sm mt-1">Please provide your professional details to help us review your application.</p>
               </div>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="experience">Professional Experience *</label>
+            <div className="flex flex-col gap-2">
+              <label htmlFor="experience" className="block text-sm font-medium text-secondary-700 mb-2">Professional Experience *</label>
               <textarea
                 id="experience"
                 name="experience"
                 value={formData.experience}
                 onChange={handleInputChange}
                 onBlur={handleBlur}
-                className={errors.experience ? 'error' : ''}
+                className={`input-field ${errors.experience ? 'border-red-300 focus:ring-red-500' : ''}`}
                 placeholder="Describe your fitness/training experience, background, and qualifications. Include years of experience, types of training you've done, and any relevant work history. (Minimum 50 characters)"
                 rows="4"
               />
-              {errors.experience && <span className="error-text">{errors.experience}</span>}
-              <div className="char-counter">
+              {errors.experience && <span className="text-sm text-red-600 mt-1 block">{errors.experience}</span>}
+              <div className="text-xs text-secondary-500">
                 {formData.experience.length}/50 minimum
               </div>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="certifications">Certifications & Qualifications *</label>
+            <div className="flex flex-col gap-2">
+              <label htmlFor="certifications" className="block text-sm font-medium text-secondary-700 mb-2">Certifications & Qualifications *</label>
               <textarea
                 id="certifications"
                 name="certifications"
                 value={formData.certifications}
                 onChange={handleInputChange}
                 onBlur={handleBlur}
-                className={errors.certifications ? 'error' : ''}
+                className={`input-field ${errors.certifications ? 'border-red-300 focus:ring-red-500' : ''}`}
                 placeholder="List your fitness certifications, degrees, and qualifications. Include certification bodies, dates, and any specializations. (e.g., NASM-CPT, ACE, ACSM, etc.)"
                 rows="3"
               />
-              {errors.certifications && <span className="error-text">{errors.certifications}</span>}
+              {errors.certifications && <span className="text-sm text-red-600 mt-1 block">{errors.certifications}</span>}
             </div>
 
-            <div className="form-group">
-              <label htmlFor="specializations">Training Specializations *</label>
+            <div className="flex flex-col gap-2">
+              <label htmlFor="specializations" className="block text-sm font-medium text-secondary-700 mb-2">Training Specializations *</label>
               <input
                 type="text"
                 id="specializations"
@@ -468,53 +488,53 @@ case 'lastName':
                 value={formData.specializations}
                 onChange={handleInputChange}
                 onBlur={handleBlur}
-                className={errors.specializations ? 'error' : ''}
+                className={`input-field ${errors.specializations ? 'border-red-300 focus:ring-red-500' : ''}`}
                 placeholder="e.g., Strength Training, Weight Loss, Yoga, HIIT, Sports Performance, Rehabilitation"
               />
-              {errors.specializations && <span className="error-text">{errors.specializations}</span>}
+              {errors.specializations && <span className="text-sm text-red-600 mt-1 block">{errors.specializations}</span>}
             </div>
 
-            <div className="form-group">
-              <label htmlFor="bio">Professional Bio *</label>
+            <div className="flex flex-col gap-2">
+              <label htmlFor="bio" className="block text-sm font-medium text-secondary-700 mb-2">Professional Bio *</label>
               <textarea
                 id="bio"
                 name="bio"
                 value={formData.bio}
                 onChange={handleInputChange}
                 onBlur={handleBlur}
-                className={errors.bio ? 'error' : ''}
+                className={`input-field ${errors.bio ? 'border-red-300 focus:ring-red-500' : ''}`}
                 placeholder="Write a brief professional bio that will be shown to users. Describe your training philosophy, approach, and what makes you unique as a trainer. (Minimum 30 characters)"
                 rows="3"
               />
-              {errors.bio && <span className="error-text">{errors.bio}</span>}
-              <div className="char-counter">
+              {errors.bio && <span className="text-sm text-red-600 mt-1 block">{errors.bio}</span>}
+              <div className="text-xs text-secondary-500">
                 {formData.bio.length}/30 minimum
               </div>
             </div>
 
-            <div className="form-group">
-              <label htmlFor="motivation">Why do you want to join Fit-Hub? *</label>
+            <div className="flex flex-col gap-2">
+              <label htmlFor="motivation" className="block text-sm font-medium text-secondary-700 mb-2">Why do you want to join Fit-Hub? *</label>
               <textarea
                 id="motivation"
                 name="motivation"
                 value={formData.motivation}
                 onChange={handleInputChange}
                 onBlur={handleBlur}
-                className={errors.motivation ? 'error' : ''}
+                className={`input-field ${errors.motivation ? 'border-red-300 focus:ring-red-500' : ''}`}
                 placeholder="Tell us why you want to become a trainer on our platform and how you plan to help our users achieve their fitness goals."
                 rows="3"
               />
-              {errors.motivation && <span className="error-text">{errors.motivation}</span>}
+              {errors.motivation && <span className="text-sm text-red-600 mt-1 block">{errors.motivation}</span>}
             </div>
           </div>
         )}
 
         {/* Account Security */}
-        <div className="form-section">
-          <h3>Account Security</h3>
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="password">Password *</label>
+        <div className="bg-white rounded-xl border border-secondary-200 p-6 space-y-6">
+          <h3 className="text-xl font-semibold text-secondary-900 border-b border-secondary-200 pb-2">Account Security</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex flex-col gap-2">
+              <label htmlFor="password" className="block text-sm font-medium text-secondary-700 mb-2">Password *</label>
               <input
                 type="password"
                 id="password"
@@ -522,14 +542,14 @@ case 'lastName':
                 value={formData.password}
                 onChange={handleInputChange}
                 onBlur={handleBlur}
-                className={errors.password ? 'error' : ''}
+                className={`input-field ${errors.password ? 'border-red-300 focus:ring-red-500' : ''}`}
                 placeholder="Create a strong password"
               />
-              {errors.password && <span className="error-text">{errors.password}</span>}
+              {errors.password && <span className="text-sm text-red-600 mt-1 block">{errors.password}</span>}
             </div>
 
-            <div className="form-group">
-              <label htmlFor="confirmPassword">Confirm Password *</label>
+            <div className="flex flex-col gap-2">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-secondary-700 mb-2">Confirm Password *</label>
               <input
                 type="password"
                 id="confirmPassword"
@@ -537,56 +557,62 @@ case 'lastName':
                 value={formData.confirmPassword}
                 onChange={handleInputChange}
                 onBlur={handleBlur}
-                className={errors.confirmPassword ? 'error' : ''}
+                className={`input-field ${errors.confirmPassword ? 'border-red-300 focus:ring-red-500' : ''}`}
                 placeholder="Confirm your password"
               />
-              {errors.confirmPassword && <span className="error-text">{errors.confirmPassword}</span>}
+              {errors.confirmPassword && <span className="text-sm text-red-600 mt-1 block">{errors.confirmPassword}</span>}
             </div>
           </div>
         </div>
 
         {/* Terms */}
-        <div className="form-section">
-          <div className="checkbox-group">
-            <label className="checkbox-label">
+        <div className="bg-white rounded-xl border border-secondary-200 p-6 space-y-4">
+          <div className="space-y-4">
+            <label className="flex items-start gap-3 text-secondary-700 cursor-pointer">
               <input
                 type="checkbox"
                 name="agreeToTerms"
                 checked={formData.agreeToTerms}
                 onChange={handleInputChange}
                 onBlur={handleBlur}
+                className="mt-1 w-4 h-4 text-primary-600 border-secondary-300 rounded focus:ring-primary-500"
               />
-              <span className="checkmark"></span>
-              I agree to the <a href="/terms" target="_blank">Terms and Conditions</a> and <a href="/privacy" target="_blank">Privacy Policy</a> *
+              <span className="text-sm">
+                I agree to the <a href="/terms" target="_blank" className="text-primary-600 hover:text-primary-700 underline">Terms and Conditions</a> and <a href="/privacy" target="_blank" className="text-primary-600 hover:text-primary-700 underline">Privacy Policy</a> *
+              </span>
             </label>
-            {errors.agreeToTerms && <span className="error-text">{errors.agreeToTerms}</span>}
+            {errors.agreeToTerms && <span className="text-sm text-red-600 block">{errors.agreeToTerms}</span>}
           </div>
 
-          <div className="checkbox-group">
-            <label className="checkbox-label">
+          <div className="space-y-2">
+            <label className="flex items-start gap-3 text-secondary-700 cursor-pointer">
               <input
                 type="checkbox"
                 name="subscribeNewsletter"
                 checked={formData.subscribeNewsletter}
                 onChange={handleInputChange}
+                className="mt-1 w-4 h-4 text-primary-600 border-secondary-300 rounded focus:ring-primary-500"
               />
-              <span className="checkmark"></span>
-              Subscribe to our newsletter for fitness tips and updates
+              <span className="text-sm">
+                Subscribe to our newsletter for fitness tips and updates
+              </span>
             </label>
           </div>
         </div>
 
         <button
           type="submit"
-          className="signup-button"
+          className="btn-primary w-full py-3 text-base font-semibold"
           disabled={isLoading}
         >
           {isLoading ? 'Creating Account...' : 'Create Account'}
         </button>
       </form>
 
-        <div className="login-link">
-          <p>Already have an account? <Link to="/login" state={{ from: location.state?.from || '/' }}>Sign In</Link></p>
+        <div className="text-center mt-6">
+          <p className="text-secondary-600">
+            Already have an account? <Link to="/login" state={{ from: location.state?.from || '/' }} className="text-primary-600 hover:text-primary-700 font-medium">Sign In</Link>
+          </p>
         </div>
       </div>
     </div>

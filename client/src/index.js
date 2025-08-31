@@ -1,7 +1,8 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import './index.css';
+// Use the generated Tailwind CSS build
+import './generated.css';
 import './debug.js';
 
 console.log('Index.js loaded - React app starting...');

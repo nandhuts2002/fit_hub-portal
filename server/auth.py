@@ -182,6 +182,12 @@ def update_user(user_id):
     try:
         from bson import ObjectId
         data = request.get_json() or {}
+        # Do not allow editing admin users
+        existing = users_collection.find_one({'_id': ObjectId(user_id)})
+        if not existing:
+            return jsonify({'success': False, 'msg': 'User not found'}), 404
+        if existing.get('role') == 'admin':
+            return jsonify({'success': False, 'msg': 'Editing admin users is not allowed'}), 403
         # Allow role updates from admin UI as it's exposed in the editor
         allowed = ['firstName', 'lastName', 'phone', 'email', 'role', 'status']
         update = {k: v for k, v in data.items() if k in allowed}

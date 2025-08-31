@@ -8,7 +8,6 @@
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^13.5.0",
     "axios": "^1.11.0",
-    "bootstrap": "^5.3.7",
     "firebase": "^12.0.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
@@ -21,7 +20,9 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "tw:build": "tailwindcss -i ./src/index.css -o ./src/generated.css",
+    "tw:watch": "tailwindcss -i ./src/index.css -o ./src/generated.css --watch"
   },
   "eslintConfig": {
     "extends": [
@@ -40,5 +41,10 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.0"
   }
 }

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import '../styles/TutorialsPage.css';
 
 const TutorialsPage = () => {
   const [tutorials, setTutorials] = useState([]);
@@ -69,6 +68,14 @@ const TutorialsPage = () => {
         body: JSON.stringify(queryData)
       });
 
+      if (response.status === 401) {
+        alert('Your session has expired. Please log in again.');
+        // Clear session and redirect
+        localStorage.clear();
+        window.location.href = '/login';
+        return;
+      }
+
       if (response.ok) {
         alert('Query submitted successfully! A trainer will respond soon.');
         setQueryForm({
@@ -99,140 +106,176 @@ const TutorialsPage = () => {
   const categories = ['all', ...new Set(tutorials.map(t => t.category))];
 
   if (loading) {
-    return <div className="loading">Loading tutorials...</div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-secondary-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-secondary-600">Loading tutorials...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="tutorials-page">
-      <header className="tutorials-header">
-        <h1>Fitness Tutorials</h1>
-        <p>Learn from our expert trainers</p>
-        <button 
-          className="ask-trainer-btn"
-          onClick={() => setShowQueryForm(true)}
-        >
-          Ask a Trainer
-        </button>
+    <div className="min-h-screen bg-secondary-50">
+      <header className="bg-gradient-to-r from-primary-600 to-primary-800 text-white py-16">
+        <div className="max-w-7xl mx-auto px-6 text-center">
+          <h1 className="text-4xl font-bold mb-4">Fitness Tutorials</h1>
+          <p className="text-xl text-primary-100 mb-8">Learn from our expert trainers</p>
+          <button
+            className="bg-white text-primary-600 px-6 py-3 rounded-lg font-semibold hover:bg-primary-50 transition-colors duration-200"
+            onClick={() => setShowQueryForm(true)}
+          >
+            Ask a Trainer
+          </button>
+        </div>
       </header>
 
-      {/* Filters and Search */}
-      <div className="tutorials-controls">
-        <div className="search-bar">
-          <input
-            type="text"
-            placeholder="Search tutorials..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="category-filters">
-          {categories.map(category => (
-            <button
-              key={category}
-              className={filter === category ? 'active' : ''}
-              onClick={() => setFilter(category)}
-            >
-              {category.charAt(0).toUpperCase() + category.slice(1)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Tutorials Grid */}
-      <div className="tutorials-grid">
-        {filteredTutorials.length === 0 ? (
-          <p className="no-tutorials">No tutorials found matching your criteria.</p>
-        ) : (
-          filteredTutorials.map(tutorial => (
-            <div key={tutorial.id} className="tutorial-card">
-              {tutorial.imageUrl && (
-                <img src={tutorial.imageUrl} alt={tutorial.title} className="tutorial-image" />
-              )}
-              <div className="tutorial-content">
-                <h3>{tutorial.title}</h3>
-                <p>{tutorial.description}</p>
-                <div className="tutorial-meta">
-                  <span className="category">{tutorial.category}</span>
-                  <span className="difficulty">{tutorial.difficulty}</span>
-                  {tutorial.duration && <span className="duration">{tutorial.duration}</span>}
-                </div>
-                <div className="tutorial-stats">
-                  <span>👁️ {tutorial.views} views</span>
-                  <span>❤️ {tutorial.likes} likes</span>
-                  <span>👨‍🏫 {tutorial.trainer_name}</span>
-                </div>
-                <div className="tutorial-tags">
-                  {tutorial.tags.map(tag => (
-                    <span key={tag} className="tag">{tag}</span>
-                  ))}
-                </div>
-                <button 
-                  className="view-tutorial-btn"
-                  onClick={() => fetchTutorialDetails(tutorial.id)}
-                >
-                  View Tutorial
-                </button>
-              </div>
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Filters and Search */}
+        <div className="mb-8 space-y-4">
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+            <div className="w-full md:w-96">
+              <input
+                type="text"
+                placeholder="Search tutorials..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="input-field"
+              />
             </div>
-          ))
-        )}
+            <div className="flex flex-wrap gap-2">
+              {categories.map(category => (
+                <button
+                  key={category}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
+                    filter === category
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-white text-secondary-700 hover:bg-primary-50 hover:text-primary-600 border border-secondary-200'
+                  }`}
+                  onClick={() => setFilter(category)}
+                >
+                  {category.charAt(0).toUpperCase() + category.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Tutorials Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredTutorials.length === 0 ? (
+            <div className="col-span-full text-center py-12">
+              <p className="text-secondary-600 text-lg">No tutorials found matching your criteria.</p>
+            </div>
+          ) : (
+            filteredTutorials.map(tutorial => (
+              <div key={tutorial.id} className="card hover:shadow-lg transition-shadow duration-200">
+                {tutorial.imageUrl && (
+                  <img
+                    src={tutorial.imageUrl}
+                    alt={tutorial.title}
+                    className="w-full h-48 object-cover rounded-t-xl"
+                  />
+                )}
+                <div className="p-6">
+                  <h3 className="text-xl font-semibold text-secondary-900 mb-2">{tutorial.title}</h3>
+                  <p className="text-secondary-600 mb-4 line-clamp-3">{tutorial.description}</p>
+
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    <span className="badge badge-info">{tutorial.category}</span>
+                    <span className="badge badge-warning">{tutorial.difficulty}</span>
+                    {tutorial.duration && <span className="badge bg-secondary-100 text-secondary-800">{tutorial.duration}</span>}
+                  </div>
+
+                  <div className="flex items-center justify-between text-sm text-secondary-500 mb-4">
+                    <span className="flex items-center gap-1">👁️ {tutorial.views} views</span>
+                    <span className="flex items-center gap-1">❤️ {tutorial.likes} likes</span>
+                    <span className="flex items-center gap-1">👨‍🏫 {tutorial.trainer_name}</span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1 mb-4">
+                    {tutorial.tags.map(tag => (
+                      <span key={tag} className="px-2 py-1 bg-secondary-100 text-secondary-600 text-xs rounded-md">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+
+                  <button
+                    className="btn-primary w-full"
+                    onClick={() => fetchTutorialDetails(tutorial.id)}
+                  >
+                    View Tutorial
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
       </div>
 
       {/* Tutorial Modal */}
       {selectedTutorial && (
-        <div className="tutorial-modal" onClick={() => setSelectedTutorial(null)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <button 
-              className="close-btn"
-              onClick={() => setSelectedTutorial(null)}
-            >
-              ×
-            </button>
-            <h2>{selectedTutorial.title}</h2>
-            <div className="tutorial-details">
-              <div className="tutorial-meta">
-                <span className="category">{selectedTutorial.category}</span>
-                <span className="difficulty">{selectedTutorial.difficulty}</span>
-                {selectedTutorial.duration && <span className="duration">{selectedTutorial.duration}</span>}
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => setSelectedTutorial(null)}>
+          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b border-secondary-200 p-4 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-secondary-900">{selectedTutorial.title}</h2>
+              <button
+                className="text-secondary-400 hover:text-secondary-600 text-2xl"
+                onClick={() => setSelectedTutorial(null)}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="flex flex-wrap gap-2 mb-4">
+                <span className="badge badge-info">{selectedTutorial.category}</span>
+                <span className="badge badge-warning">{selectedTutorial.difficulty}</span>
+                {selectedTutorial.duration && <span className="badge bg-secondary-100 text-secondary-800">{selectedTutorial.duration}</span>}
               </div>
-              <p className="description">{selectedTutorial.description}</p>
-              
+
+              <p className="text-secondary-700 mb-6">{selectedTutorial.description}</p>
+
               {selectedTutorial.videoUrl && (
-                <div className="video-container">
+                <div className="aspect-video mb-6">
                   <iframe
                     src={selectedTutorial.videoUrl}
                     title={selectedTutorial.title}
-                    frameBorder="0"
+                    className="w-full h-full rounded-lg"
                     allowFullScreen
                   ></iframe>
                 </div>
               )}
-              
+
               {selectedTutorial.imageUrl && !selectedTutorial.videoUrl && (
-                <img 
-                  src={selectedTutorial.imageUrl} 
+                <img
+                  src={selectedTutorial.imageUrl}
                   alt={selectedTutorial.title}
-                  className="tutorial-detail-image"
+                  className="w-full h-64 object-cover rounded-lg mb-6"
                 />
               )}
-              
-              <div className="tutorial-content-text">
-                <h3>Tutorial Content</h3>
-                <div className="content-text">
+
+              <div className="mb-6">
+                <h3 className="text-xl font-semibold text-secondary-900 mb-4">Tutorial Content</h3>
+                <div className="prose prose-secondary max-w-none">
                   {selectedTutorial.content.split('\n').map((paragraph, index) => (
-                    <p key={index}>{paragraph}</p>
+                    <p key={index} className="mb-3 text-secondary-700">{paragraph}</p>
                   ))}
                 </div>
               </div>
-              
-              <div className="tutorial-footer">
-                <div className="tutorial-stats">
-                  <span>👁️ {selectedTutorial.views} views</span>
-                  <span>❤️ {selectedTutorial.likes} likes</span>
-                </div>
-                <div className="trainer-info">
-                  <span>By: {selectedTutorial.trainer_name}</span>
-                  <span>Created: {new Date(selectedTutorial.created_at).toLocaleDateString()}</span>
+
+              <div className="border-t border-secondary-200 pt-4">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div className="flex items-center gap-4 text-sm text-secondary-500">
+                    <span className="flex items-center gap-1">👁️ {selectedTutorial.views} views</span>
+                    <span className="flex items-center gap-1">❤️ {selectedTutorial.likes} likes</span>
+                  </div>
+                  <div className="text-sm text-secondary-600">
+                    <div>By: <span className="font-medium">{selectedTutorial.trainer_name}</span></div>
+                    <div>Created: {new Date(selectedTutorial.created_at).toLocaleDateString()}</div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -242,72 +285,81 @@ const TutorialsPage = () => {
 
       {/* Query Form Modal */}
       {showQueryForm && (
-        <div className="query-modal" onClick={() => setShowQueryForm(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <button 
-              className="close-btn"
-              onClick={() => setShowQueryForm(false)}
-            >
-              ×
-            </button>
-            <h2>Ask a Trainer</h2>
-            <form onSubmit={handleSubmitQuery} className="query-form">
-              <div className="form-group">
-                <label>Question Title *</label>
-                <input
-                  type="text"
-                  value={queryForm.title}
-                  onChange={(e) => setQueryForm({...queryForm, title: e.target.value})}
-                  placeholder="What would you like to ask?"
-                  required
-                />
-              </div>
-              
-              <div className="form-group">
-                <label>Description *</label>
-                <textarea
-                  value={queryForm.description}
-                  onChange={(e) => setQueryForm({...queryForm, description: e.target.value})}
-                  placeholder="Provide more details about your question..."
-                  rows="5"
-                  required
-                />
-              </div>
-
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Category</label>
-                  <select
-                    value={queryForm.category}
-                    onChange={(e) => setQueryForm({...queryForm, category: e.target.value})}
-                  >
-                    <option value="general">General</option>
-                    <option value="fitness">Fitness</option>
-                    <option value="nutrition">Nutrition</option>
-                    <option value="yoga">Yoga</option>
-                    <option value="cardio">Cardio</option>
-                    <option value="strength">Strength Training</option>
-                    <option value="wellness">Wellness</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label>Priority</label>
-                  <select
-                    value={queryForm.priority}
-                    onChange={(e) => setQueryForm({...queryForm, priority: e.target.value})}
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                  </select>
-                </div>
-              </div>
-
-              <button type="submit" className="submit-query-btn">
-                Submit Question
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => setShowQueryForm(false)}>
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white border-b border-secondary-200 p-4 flex justify-between items-center">
+              <h2 className="text-2xl font-bold text-secondary-900">Ask a Trainer</h2>
+              <button
+                className="text-secondary-400 hover:text-secondary-600 text-2xl"
+                onClick={() => setShowQueryForm(false)}
+              >
+                ×
               </button>
-            </form>
+            </div>
+
+            <div className="p-6">
+              <form onSubmit={handleSubmitQuery} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-secondary-700 mb-2">Question Title *</label>
+                  <input
+                    type="text"
+                    value={queryForm.title}
+                    onChange={(e) => setQueryForm({...queryForm, title: e.target.value})}
+                    placeholder="What would you like to ask?"
+                    className="input-field"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-secondary-700 mb-2">Description *</label>
+                  <textarea
+                    value={queryForm.description}
+                    onChange={(e) => setQueryForm({...queryForm, description: e.target.value})}
+                    placeholder="Provide more details about your question..."
+                    rows="5"
+                    className="input-field"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-secondary-700 mb-2">Category</label>
+                    <select
+                      value={queryForm.category}
+                      onChange={(e) => setQueryForm({...queryForm, category: e.target.value})}
+                      className="input-field"
+                    >
+                      <option value="general">General</option>
+                      <option value="fitness">Fitness</option>
+                      <option value="nutrition">Nutrition</option>
+                      <option value="yoga">Yoga</option>
+                      <option value="cardio">Cardio</option>
+                      <option value="strength">Strength Training</option>
+                      <option value="wellness">Wellness</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-secondary-700 mb-2">Priority</label>
+                    <select
+                      value={queryForm.priority}
+                      onChange={(e) => setQueryForm({...queryForm, priority: e.target.value})}
+                      className="input-field"
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                    </select>
+                  </div>
+                </div>
+
+                <button type="submit" className="btn-primary w-full">
+                  Submit Question
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       )}
