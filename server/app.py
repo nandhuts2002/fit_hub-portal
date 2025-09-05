@@ -4,6 +4,7 @@ from flask_jwt_extended import JWTManager
 from auth import auth_bp
 from trainer import trainer_bp
 from admin import admin_bp
+from shop import shop_bp
 from dotenv import load_dotenv
 import os
 from datetime import timedelta
@@ -22,6 +23,7 @@ jwt = JWTManager(app)
 app.register_blueprint(auth_bp)
 app.register_blueprint(trainer_bp, url_prefix='/trainer')
 app.register_blueprint(admin_bp, url_prefix='/admin')
+app.register_blueprint(shop_bp, url_prefix='/shop')
 
 if __name__ == '__main__':
     app.run(debug=True)

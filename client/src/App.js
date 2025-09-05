@@ -10,6 +10,12 @@ import AdminHomePage from './pages/AdminHomePage';
 import TrainerHomePage from './pages/TrainerHomePage';
 import TutorialsPage from './components/TutorialsPage';
 import ProtectedRoute from './components/ProtectedRoute';
+import MyQueriesChat from './pages/MyQueriesChat';
+import ShopPage from './pages/ShopPage';
+import WishlistPage from './pages/WishlistPage';
+import CartPage from './pages/CartPage';
+import CommunityPage from './pages/CommunityPage';
+import QueryDetailPage from './pages/QueryDetailPage';
 
 function App() {
   console.log('App component rendering...');
@@ -43,6 +49,36 @@ function App() {
         <Route path="/tutorials" element={
           <ProtectedRoute>
             <TutorialsPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/queries" element={
+          <ProtectedRoute>
+            <MyQueriesChat />
+          </ProtectedRoute>
+        } />
+        <Route path="/queries/:id" element={
+          <ProtectedRoute>
+            <QueryDetailPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/shop" element={
+          <ProtectedRoute>
+            <ShopPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/wishlist" element={
+          <ProtectedRoute>
+            <WishlistPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/cart" element={
+          <ProtectedRoute>
+            <CartPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/community" element={
+          <ProtectedRoute>
+            <CommunityPage />
           </ProtectedRoute>
         } />
         

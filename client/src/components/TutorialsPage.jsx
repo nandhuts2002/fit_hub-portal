@@ -107,23 +107,23 @@ const TutorialsPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-secondary-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-purple-950 via-purple-900 to-slate-950">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-          <p className="text-secondary-600">Loading tutorials...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-400 mx-auto mb-4"></div>
+          <p className="text-gray-200">Loading tutorials...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-secondary-50">
-      <header className="bg-gradient-to-r from-primary-600 to-primary-800 text-white py-16">
+    <div className="min-h-screen bg-gradient-to-b from-purple-950 via-purple-900 to-slate-950">
+      <header className="bg-gradient-to-r from-pink-600 to-purple-700 text-white py-16">
         <div className="max-w-7xl mx-auto px-6 text-center">
           <h1 className="text-4xl font-bold mb-4">Fitness Tutorials</h1>
-          <p className="text-xl text-primary-100 mb-8">Learn from our expert trainers</p>
+          <p className="text-xl text-white/90 mb-8">Learn from our expert trainers</p>
           <button
-            className="bg-white text-primary-600 px-6 py-3 rounded-lg font-semibold hover:bg-primary-50 transition-colors duration-200"
+            className="px-6 py-3 rounded-xl font-semibold bg-white/15 hover:bg-white/25 border border-white/30"
             onClick={() => setShowQueryForm(true)}
           >
             Ask a Trainer
@@ -141,17 +141,17 @@ const TutorialsPage = () => {
                 placeholder="Search tutorials..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="input-field"
+                className="w-full px-3 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-pink-300"
               />
             </div>
             <div className="flex flex-wrap gap-2">
               {categories.map(category => (
                 <button
                   key={category}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors duration-200 ${
+                  className={`px-4 py-2 rounded-xl font-medium transition-colors duration-200 border ${
                     filter === category
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-white text-secondary-700 hover:bg-primary-50 hover:text-primary-600 border border-secondary-200'
+                      ? 'bg-gradient-to-r from-pink-600 to-purple-700 text-white border-transparent'
+                      : 'bg-white text-gray-700 hover:bg-pink-50 hover:text-pink-700 border-gray-200'
                   }`}
                   onClick={() => setFilter(category)}
                 >
@@ -166,7 +166,7 @@ const TutorialsPage = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredTutorials.length === 0 ? (
             <div className="col-span-full text-center py-12">
-              <p className="text-secondary-600 text-lg">No tutorials found matching your criteria.</p>
+              <p className="text-gray-300 text-lg">No tutorials found matching your criteria.</p>
             </div>
           ) : (
             filteredTutorials.map(tutorial => (
@@ -203,7 +203,7 @@ const TutorialsPage = () => {
                   </div>
 
                   <button
-                    className="btn-primary w-full"
+                    className="w-full bg-gradient-to-r from-pink-600 to-purple-700 hover:from-pink-700 hover:to-purple-800 text-white rounded-xl px-4 py-2 font-semibold shadow-md"
                     onClick={() => fetchTutorialDetails(tutorial.id)}
                   >
                     View Tutorial

@@ -1,390 +1,366 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import SessionManager from '../utils/sessionManager';
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  User,
+  Settings,
+  LogOut,
+  BookOpen,
+  ShoppingBag,
+  MessageCircle,
+} from "lucide-react";
+import SessionManager from "../utils/sessionManager";
 
-// Yoga-focused User Home: clean top nav + hero + tutorials grid
 const UserHomePage = () => {
   const navigate = useNavigate();
-
-  // User/session
   const [user, setUser] = useState(null);
-
-  // UI
   const [menuOpen, setMenuOpen] = useState(false);
-  const [queriesMenuOpen, setQueriesMenuOpen] = useState(false);
-
-  // Data
-  const [tutorials, setTutorials] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  // User queries (for viewing trainer replies)
-  const [myQueries, setMyQueries] = useState([]);
-  const [qLoading, setQLoading] = useState(false);
-  const [qError, setQError] = useState('');
-
-  // Animated stats (count up)
-  const [stats] = useState({ sessions: 3, minutes: 72, streak: 4 });
-  const [displayStats, setDisplayStats] = useState({ sessions: 0, minutes: 0, streak: 0 });
 
   useEffect(() => {
-    // Get user from session; redirect if missing
     const currentUser = SessionManager.getCurrentUser();
     if (!currentUser) {
-      navigate('/login');
+      navigate("/login");
       return;
     }
-
-    setUser({
-      name: currentUser.name || (currentUser.firstName && currentUser.lastName ? `${currentUser.firstName} ${currentUser.lastName}` : '') || currentUser.email?.split('@')[0] || 'Member',
-      email: currentUser.email || 'member@fithub.com',
-      firstName: currentUser.firstName || '',
-    });
-
-    // Load tutorials from API with safe fallback
-    const fetchTutorials = async () => {
-      try {
-        setLoading(true);
-        const res = await fetch('http://localhost:5000/trainer/public/tutorials');
-        if (!res.ok) throw new Error('Failed to load tutorials');
-        const data = await res.json();
-        setTutorials(Array.isArray(data.tutorials) ? data.tutorials : []);
-      } catch (e) {
-        console.error('Error fetching tutorials:', e);
-        setError('Unable to load tutorials right now. Showing sample content.');
-        // Fallback sample tutorials
-        setTutorials([
-          {
-            id: 1,
-            title: 'Morning Sun Salutation',
-            description: 'Start your day with this energizing yoga flow',
-            category: 'yoga',
-            difficulty: 'Beginner',
-            duration: '20 min',
-            trainer_name: 'Sarah Chen',
-            views: 1250,
-            likes: 89,
-            imageUrl:
-              'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=1200&q=80',
-          },
-          {
-            id: 2,
-            title: 'Deep Stretch & Relax',
-            description: 'Wind down with gentle stretches for flexibility',
-            category: 'yoga',
-            difficulty: 'All Levels',
-            duration: '25 min',
-            trainer_name: 'Marcus Johnson',
-            views: 990,
-            likes: 142,
-            imageUrl:
-              'https://images.unsplash.com/photo-1517341721224-3248aee0b2c5?auto=format&fit=crop&w=1200&q=80',
-          },
-        ]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTutorials();
-
-    // Fetch user's queries (to see trainer replies)
-    const fetchMyQueries = async () => {
-      try {
-        setQLoading(true);
-        const { token } = SessionManager.getCurrentUser() || {};
-        if (!token) throw new Error('No auth token');
-        const res = await fetch('http://localhost:5000/trainer/public/queries', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.status === 401) {
-          alert('Your session has expired. Please log in again.');
-          SessionManager.clearSession();
-          navigate('/login');
-          return;
-        }
-        if (!res.ok) throw new Error(`Failed to load your queries (${res.status})`);
-        const data = await res.json();
-        setMyQueries(Array.isArray(data.queries) ? data.queries : []);
-      } catch (e) {
-        console.error('Error fetching user queries:', e);
-        setQError('Unable to load your queries right now.');
-      } finally {
-        setQLoading(false);
-      }
-    };
-
-    fetchMyQueries();
+    setUser(currentUser);
   }, [navigate]);
-
-  // Count-up animation for stats on mount
-  useEffect(() => {
-    const duration = 800; // ms
-    const start = performance.now();
-    const step = (ts) => {
-      const p = Math.min(1, (ts - start) / duration);
-      setDisplayStats({
-        sessions: Math.round(stats.sessions * p),
-        minutes: Math.round(stats.minutes * p),
-        streak: Math.round(stats.streak * p),
-      });
-      if (p < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  }, [stats]);
 
   const handleLogout = () => {
     SessionManager.clearSession();
-    navigate('/', { replace: true });
+    navigate("/", { replace: true });
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Top Navigation */}
-      <header className="bg-gradient-to-r from-primary-600 to-primary-800 shadow-lg sticky top-0 z-40">
+    <div className="relative min-h-screen bg-gradient-to-b from-purple-950 via-purple-900 to-slate-950">
+      {/* Subtle grid/texture background */}
+      <div className="pointer-events-none absolute inset-0 -z-10 opacity-10" aria-hidden>
+        <div className="absolute inset-0 bg-[radial-gradient(60rem_60rem_at_120%_-20%,rgba(255,255,255,0.08),transparent)]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(50rem_50rem_at_-10%_120%,rgba(255,192,203,0.04),transparent)]"></div>
+      </div>
+      {/* Darkening overlay */}
+      <div className="absolute inset-0 -z-10 bg-black/60"></div>
+
+      {/* Navbar */}
+      <header className="bg-white/5 backdrop-blur-md border-b border-white/10 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/')}>
+          {/* Logo */}
+          <motion.div
+            initial={{ opacity: 0, x: -50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, ease: "easeOut" }}
+            className="flex items-center gap-3 cursor-pointer"
+            onClick={() => navigate("/")}
+          >
             <span className="text-3xl">🧘‍♀️</span>
             <span className="text-xl font-bold text-white">FitHub Yoga</span>
-          </div>
+          </motion.div>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-2" aria-label="Primary">
-            <button className="px-3 py-2 rounded-md text-sm font-medium text-white/90 hover:bg-white/10 hover:text-white transition-colors">Home</button>
-            <button onClick={() => navigate('/tutorials')} className="px-3 py-2 rounded-md text-sm font-medium text-white/90 hover:bg-white/10 hover:text-white transition-colors">Tutorials</button>
-            <button className="px-3 py-2 rounded-md text-sm font-medium text-white/90 hover:bg-white/10 hover:text-white transition-colors">Shop</button>
-            <button className="px-3 py-2 rounded-md text-sm font-medium text-white/90 hover:bg-white/10 hover:text-white transition-colors">Community</button>
+          {/* Nav Links */}
+          <nav className="hidden md:flex gap-8">
+            {[
+              { label: "Home", path: "/user-home" },
+              { label: "Tutorials", path: "/tutorials" },
+              { label: "Shop", path: "/shop" },
+              { label: "Community", path: "/community" },
+              { label: "My Queries", path: "/queries" },
+            ].map((item, idx) => (
+              <motion.button
+                key={idx}
+                whileHover={{ scale: 1.1 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                onClick={() => navigate(item.path)}
+                className="text-white hover:text-pink-300 font-medium"
+              >
+                {item.label}
+              </motion.button>
+            ))}
           </nav>
 
-          <div className="flex items-center gap-4">
-            {/* Queries Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setQueriesMenuOpen(!queriesMenuOpen)}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-                My Queries
-                <svg className={`w-4 h-4 transition-transform ${queriesMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-              </button>
-              {queriesMenuOpen && (
-                <>
-                  <div className="fixed inset-0 z-30" onClick={() => setQueriesMenuOpen(false)}></div>
-                  <div className="absolute right-0 mt-2 w-96 bg-white rounded-xl shadow-2xl overflow-hidden border border-gray-200 z-40">
-                    <div className="p-4 bg-gradient-to-r from-primary-50 to-secondary-100 border-b border-gray-200">
-                      <div className="flex items-center gap-2">
-                        <svg className="w-5 h-5 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                        </svg>
-                        <h3 className="font-bold text-gray-800">My Queries</h3>
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1">View trainer responses and support</p>
+          {/* Profile Menu */}
+          <div className="relative">
+            <button
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="w-10 h-10 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 text-white font-bold flex items-center justify-center shadow-md hover:scale-105 transition"
+            >
+              {user?.firstName?.[0] || user?.email?.[0] || "U"}
+            </button>
+
+            <AnimatePresence>
+              {menuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
+                  className="absolute right-0 mt-3 w-64 bg-white shadow-2xl rounded-xl overflow-hidden border border-gray-100"
+                >
+                  {/* Profile Card */}
+                  <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-pink-100 to-purple-100">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-pink-500 to-purple-600 flex items-center justify-center text-white font-bold text-lg">
+                      {user?.firstName?.[0] || "U"}
                     </div>
-                    <div className="max-h-80 overflow-y-auto">
-                      {qLoading && (
-                        <div className="p-6 text-center">
-                          <div className="animate-spin w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full mx-auto mb-3"></div>
-                          <p className="text-gray-600 font-medium">Loading your queries...</p>
-                        </div>
-                      )}
-                      {qError && (
-                        <div className="p-6 text-center">
-                          <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                            <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                          </div>
-                          <p className="text-red-600 font-medium">{qError}</p>
-                        </div>
-                      )}
-                      {!qLoading && !qError && myQueries.length === 0 && (
-                        <div className="p-8 text-center">
-                          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <span className="text-3xl">💬</span>
-                          </div>
-                          <h4 className="font-semibold text-gray-800 mb-2">No queries yet</h4>
-                          <p className="text-gray-500 text-sm">Ask a trainer for help and guidance!</p>
-                        </div>
-                      )}
-                      {!qLoading && !qError && myQueries.length > 0 && (
-                        <div className="divide-y divide-gray-100">
-                          {myQueries.slice(0, 5).map((query, index) => (
-                            <div key={query.id || index} className="p-4 hover:bg-gray-50 transition-colors">
-                              <div className="flex items-start gap-3">
-                                <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0 mt-1">
-                                  <svg className="w-4 h-4 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                  </svg>
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="font-semibold text-gray-800 mb-2 leading-tight">
-                                    {query.question || query.title || 'Untitled Query'}
-                                  </div>
-                                  <div className="flex items-center gap-2 text-xs text-gray-500 mb-3">
-                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                    </svg>
-                                    {query.created_at ? new Date(query.created_at).toLocaleDateString() : 'Recent'}
-                                  </div>
-                                  {query.response ? (
-                                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                                      <div className="flex items-center gap-2 mb-2">
-                                        <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                                          <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                          </svg>
-                                        </div>
-                                        <span className="text-sm font-semibold text-green-800">Trainer Response</span>
-                                      </div>
-                                      <p className="text-sm text-green-700 leading-relaxed">
-                                        {query.response.length > 120 ? `${query.response.substring(0, 120)}...` : query.response}
-                                      </p>
-                                    </div>
-                                  ) : (
-                                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-                                      <div className="flex items-center gap-2">
-                                        <div className="w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center">
-                                          <svg className="w-3 h-3 text-white animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                          </svg>
-                                        </div>
-                                        <span className="text-sm font-semibold text-orange-800">Waiting for trainer response...</span>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                          {myQueries.length > 5 && (
-                            <div className="p-4 bg-gray-50 text-center border-t">
-                              <button className="text-sm text-primary-600 hover:text-primary-700 font-semibold hover:underline transition-colors">
-                                View all {myQueries.length} queries →
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">
+                        {user?.firstName || "Yoga Member"}
+                      </p>
+                      <p className="text-xs text-gray-600">{user?.email}</p>
                     </div>
                   </div>
-                </>
-              )}
-            </div>
 
-            {/* User Avatar & Menu */}
-            <div className="relative">
-              <button
-                onClick={() => setMenuOpen(!menuOpen)}
-                className="w-10 h-10 bg-white/20 hover:bg-white/30 text-white rounded-full flex items-center justify-center text-lg font-bold transition-colors border-2 border-white/30 hover:border-white/50"
-              >
-                {user?.name?.charAt(0)?.toUpperCase() || 'U'}
-              </button>
-              {menuOpen && (
-                <>
-                  <div className="fixed inset-0 z-30" onClick={() => setMenuOpen(false)}></div>
-                  <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-xl py-1 border z-40">
-                    <div className="px-4 py-2 text-sm text-gray-700">
-                      <p className="font-semibold">{user?.name}</p>
-                      <p className="text-xs text-gray-500">{user?.email}</p>
-                    </div>
-                    <div className="border-t border-gray-100"></div>
-                    <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile</a>
-                    <a href="#" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Settings</a>
-                    <div className="border-t border-gray-100"></div>
+                  {/* Menu Options */}
+                  <div className="py-2">
                     <button
-                      onClick={handleLogout}
-                      className="w-full text-left block px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                      onClick={() => navigate("/profile")}
+                      className="flex items-center gap-3 px-4 py-2 w-full text-left hover:bg-gray-100 text-gray-700"
                     >
-                      Logout
+                      <User size={18} /> Profile
+                    </button>
+                    <button
+                      onClick={() => navigate("/tutorials")}
+                      className="flex items-center gap-3 px-4 py-2 w-full text-left hover:bg-gray-100 text-gray-700"
+                    >
+                      <BookOpen size={18} /> My Tutorials
+                    </button>
+                    <button
+                      onClick={() => navigate("/shop")}
+                      className="flex items-center gap-3 px-4 py-2 w-full text-left hover:bg-gray-100 text-gray-700"
+                    >
+                      <ShoppingBag size={18} /> Orders
+                    </button>
+                    <button
+                      onClick={() => navigate("/queries")}
+                      className="flex items-center gap-3 px-4 py-2 w-full text-left hover:bg-gray-100 text-gray-700"
+                    >
+                      <MessageCircle size={18} /> My Queries
+                    </button>
+                    <button
+                      onClick={() => navigate("/settings")}
+                      className="flex items-center gap-3 px-4 py-2 w-full text-left hover:bg-gray-100 text-gray-700"
+                    >
+                      <Settings size={18} /> Settings
                     </button>
                   </div>
-                </>
+
+                  {/* Logout */}
+                  <div className="border-t">
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center gap-3 px-4 py-3 w-full text-left text-red-600 hover:bg-red-50 font-medium"
+                    >
+                      <LogOut size={18} /> Logout
+                    </button>
+                  </div>
+                </motion.div>
               )}
-            </div>
+            </AnimatePresence>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Hero Section */}
-        <section className="relative bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl shadow-lg overflow-hidden mb-12">
-          <div className="p-8 md:p-12">
-            <h1 className="text-3xl md:text-4xl font-bold mb-3">Find Your Inner Peace</h1>
-            <p className="text-lg md:text-xl opacity-90 mb-6">Explore guided yoga and meditation sessions to fit your lifestyle.</p>
-            <button
-              onClick={() => navigate('/tutorials')}
-              className="bg-white text-primary-600 font-semibold px-6 py-3 rounded-lg shadow-md hover:bg-gray-100 transition-transform transform hover:scale-105"
-            >
-              Explore Tutorials
-            </button>
+      {/* Main Dashboard Content */}
+      <main className="max-w-7xl mx-auto px-6 py-16">
+        {/* Hero Section - Landing style without search */}
+        <motion.section
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1.0, ease: "easeOut" }}
+          className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center mb-20"
+        >
+          <div className="text-white bg-black/30 backdrop-blur-sm rounded-3xl p-6 md:p-8 border border-white/10">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-semibold text-gray-100 mb-5">
+              <span className="h-2 w-2 rounded-full bg-pink-400 inline-block"></span>
+              Holistic Yoga & Fitness Platform
+            </div>
+            <h1 className="text-5xl md:text-6xl font-extrabold leading-tight mb-6">
+              <span className="bg-gradient-to-r from-pink-300 via-rose-200 to-purple-300 bg-clip-text text-transparent">Transform your body</span>
+              <br className="hidden sm:block" />
+              and calm your mind
+            </h1>
+            <p className="text-lg md:text-xl text-gray-200 mb-8 max-w-xl">
+              Personalized tutorials, vibrant community, and curated gear — everything you need to thrive, in one place.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 px-8 py-4 rounded-xl shadow-2xl text-lg font-bold text-white"
+                onClick={() => navigate("/tutorials")}
+              >
+                🧘‍♀️ Start Yoga Journey
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+                className="bg-white/10 hover:bg-white/20 px-8 py-4 rounded-xl shadow-xl text-lg font-bold text-white border border-white/20"
+                onClick={() => navigate("/shop")}
+              >
+                🛍️ Explore Shop
+              </motion.button>
+            </div>
+            <div className="mt-8 flex flex-wrap items-center gap-4 text-gray-300 text-sm">
+              <div className="flex -space-x-2">
+                <div className="h-8 w-8 rounded-full bg-pink-400/80 border border-white/30"></div>
+                <div className="h-8 w-8 rounded-full bg-purple-400/80 border border-white/30"></div>
+                <div className="h-8 w-8 rounded-full bg-indigo-400/80 border border-white/30"></div>
+              </div>
+              <span>Trusted by 10k+ members</span>
+              <span className="h-1.5 w-1.5 rounded-full bg-white/30 inline-block"></span>
+              <span>4.8/5 average rating</span>
+            </div>
           </div>
-        </section>
 
-        {/* Stats Section */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          <div className="bg-white p-6 rounded-xl shadow-md flex items-center gap-4">
-            <div className="p-3 bg-blue-100 rounded-full"><svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
-            <div>
-              <div className="text-2xl font-bold text-gray-800">{displayStats.sessions}</div>
-              <div className="text-sm text-gray-500">Sessions Completed</div>
-            </div>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow-md flex items-center gap-4">
-            <div className="p-3 bg-green-100 rounded-full"><svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
-            <div>
-              <div className="text-2xl font-bold text-gray-800">{displayStats.minutes}</div>
-              <div className="text-sm text-gray-500">Minutes Practiced</div>
-            </div>
-          </div>
-          <div className="bg-white p-6 rounded-xl shadow-md flex items-center gap-4">
-            <div className="p-3 bg-red-100 rounded-full"><svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg></div>
-            <div>
-              <div className="text-2xl font-bold text-gray-800">{displayStats.streak}</div>
-              <div className="text-sm text-gray-500">Day Streak</div>
-            </div>
-          </div>
-        </section>
-
-        {/* Featured Tutorials */}
-        <section>
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-800">Featured Tutorials</h2>
-            <button
-              onClick={() => navigate('/tutorials')}
-              className="text-sm font-medium text-primary-600 hover:text-primary-700"
-            >
-              View All &rarr;
-            </button>
-          </div>
-          {loading && <div className="text-center py-12">Loading...</div>}
-          {error && <div className="text-center py-12 text-red-600">{error}</div>}
-          {!loading && !error && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {tutorials.slice(0, 3).map((tut) => (
-                <div key={tut.id} className="bg-white rounded-xl shadow-lg overflow-hidden transform hover:-translate-y-1 transition-transform duration-300">
-                  <img className="w-full h-48 object-cover" src={tut.imageUrl} alt={tut.title} />
-                  <div className="p-6">
-                    <h3 className="text-lg font-semibold text-gray-800 mb-2">{tut.title}</h3>
-                    <p className="text-sm text-gray-600 mb-4">{tut.description}</p>
-                    <div className="flex justify-between items-center text-xs text-gray-500">
-                      <span className="bg-gray-100 px-2 py-1 rounded-full">{tut.difficulty}</span>
-                      <span>{tut.duration}</span>
-                    </div>
-                  </div>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, ease: "easeOut", delay: 0.1 }}
+            className="relative"
+          >
+            <div className="absolute -inset-6 -z-10 bg-gradient-to-tr from-pink-500/30 via-purple-500/20 to-indigo-500/10 blur-2xl rounded-3xl"></div>
+            <div className="rounded-3xl overflow-hidden border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl">
+              <img
+                src={require("../assets/images/fitness-hero.jpg")}
+                alt="Yoga practice"
+                className="h-[420px] w-full object-cover"
+              />
+              <div className="p-4 flex items-center justify-between">
+                <div className="text-sm text-gray-200">
+                  Daily Mindfulness • Beginner to Advanced
                 </div>
-              ))}
+                <div className="px-3 py-1 rounded-full text-xs font-semibold bg-green-500/20 text-green-200 border border-green-400/30">
+                  New sessions
+                </div>
+              </div>
             </div>
-          )}
-        </section>
-      </main>
+          </motion.div>
+        </motion.section>
 
-      {/* Footer */}
-      <footer className="text-center py-8 text-sm text-gray-500">
-        <p>&copy; {new Date().getFullYear()} FitHub. All rights reserved.</p>
-      </footer>
+        {/* Quick Stats */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1.0, delay: 0.4, ease: "easeOut" }}
+          className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-16"
+        >
+          {[
+            { value: "12", label: "Sessions Completed", icon: "🧘‍♀️", color: "from-pink-400 to-rose-400" },
+            { value: "340", label: "Minutes Practiced", icon: "⏱️", color: "from-blue-400 to-cyan-400" },
+            { value: "7", label: "Day Streak", icon: "🔥", color: "from-orange-400 to-red-400" },
+            { value: "4.8", label: "Average Rating", icon: "⭐", color: "from-yellow-400 to-orange-400" },
+          ].map((stat, idx) => (
+            <motion.div
+              key={idx}
+              whileHover={{ scale: 1.05, y: -5 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-xl p-6 text-center border border-white/10"
+            >
+              <div className={`text-4xl mb-3 bg-gradient-to-r ${stat.color} bg-clip-text text-transparent`}>
+                {stat.icon}
+              </div>
+              <p className="text-3xl font-bold text-white mb-2">{stat.value}</p>
+              <p className="text-sm text-gray-200">{stat.label}</p>
+            </motion.div>
+          ))}
+        </motion.div>
+
+        {/* Feature Cards */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1.0, delay: 0.6, ease: "easeOut" }}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16"
+        >
+          {[
+            {
+              title: "Yoga Tutorials",
+              description: "Guided sessions for all levels",
+              icon: "🧘‍♀️",
+              color: "from-pink-500 to-purple-600",
+              action: () => navigate("/tutorials")
+            },
+            {
+              title: "Fitness Shop",
+              description: "Premium equipment & accessories",
+              icon: "🛍️",
+              color: "from-blue-500 to-cyan-600",
+              action: () => navigate("/shop")
+            },
+            {
+              title: "Community",
+              description: "Connect with like-minded people",
+              icon: "👥",
+              color: "from-green-500 to-emerald-600",
+              action: () => navigate("/community")
+            },
+            {
+              title: "My Queries",
+              description: "Get answers from experts",
+              icon: "💬",
+              color: "from-orange-500 to-red-600",
+              action: () => navigate("/queries")
+            },
+            {
+              title: "Progress Tracking",
+              description: "Monitor your wellness journey",
+              icon: "📊",
+              color: "from-purple-500 to-pink-600",
+              action: () => navigate("/progress")
+            },
+            {
+              title: "Settings",
+              description: "Customize your experience",
+              icon: "⚙️",
+              color: "from-gray-500 to-slate-600",
+              action: () => navigate("/settings")
+            }
+          ].map((feature, idx) => (
+            <motion.div
+              key={idx}
+              whileHover={{ scale: 1.05, y: -5 }}
+              whileTap={{ scale: 0.95 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="bg-white/10 backdrop-blur-xl rounded-2xl shadow-xl p-8 text-center border border-white/10 cursor-pointer"
+              onClick={feature.action}
+            >
+              <div className={`text-5xl mb-4 bg-gradient-to-r ${feature.color} bg-clip-text text-transparent`}>
+                {feature.icon}
+              </div>
+              <h3 className="text-xl font-bold text-white mb-3">{feature.title}</h3>
+              <p className="text-gray-200 mb-4">{feature.description}</p>
+              <div className={`inline-block px-4 py-2 rounded-lg bg-gradient-to-r ${feature.color} text-white text-sm font-semibold`}>
+                Explore →
+              </div>
+            </motion.div>
+          ))}
+        </motion.div>
+
+        {/* Recent Activity */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1.0, delay: 0.8, ease: "easeOut" }}
+          className="bg-white/10 backdrop-blur-xl rounded-2xl shadow-xl p-8 border border-white/10"
+        >
+          <h2 className="text-2xl font-bold text-white mb-6 text-center">Recent Activity</h2>
+          <div className="space-y-4">
+            {[
+              { action: "Completed Morning Yoga Session", time: "2 hours ago", icon: "🧘‍♀️" },
+              { action: "Added 3 items to cart", time: "Yesterday", icon: "🛍️" },
+              { action: "Asked a question about meditation", time: "2 days ago", icon: "💬" },
+              { action: "Achieved 7-day streak!", time: "3 days ago", icon: "🔥" },
+            ].map((activity, idx) => (
+              <div key={idx} className="flex items-center gap-4 p-4 bg-white/10 rounded-xl">
+                <div className="text-2xl">{activity.icon}</div>
+                <div className="flex-1">
+                  <p className="text-white font-medium">{activity.action}</p>
+                  <p className="text-gray-300 text-sm">{activity.time}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      </main>
     </div>
   );
 };

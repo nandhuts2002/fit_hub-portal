@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { FaUser, FaDumbbell } from 'react-icons/fa';
@@ -28,6 +28,14 @@ const SignupPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Prefill selected role if navigated from homepage CTA
+  useEffect(() => {
+    const preselectedRole = location.state?.role;
+    if (preselectedRole && (preselectedRole === 'user' || preselectedRole === 'trainer')) {
+      setFormData(prev => ({ ...prev, role: preselectedRole }));
+    }
+  }, [location.state]);
 
   const validateField = (name, value) => {
     let error = '';
@@ -238,7 +246,12 @@ case 'lastName':
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-secondary-100 py-8 px-4">
+    <div className="min-h-screen bg-gradient-to-b from-purple-950 via-purple-900 to-slate-950 py-8 px-4 relative">
+      {/* background accents */}
+      <div className="pointer-events-none absolute inset-0 opacity-10" aria-hidden>
+        <div className="absolute inset-0 bg-[radial-gradient(60rem_60rem_at_120%_-20%,rgba(255,255,255,0.08),transparent)]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(50rem_50rem_at_-10%_120%,rgba(255,192,203,0.05),transparent)]"></div>
+      </div>
       {/* Back to Home Button */}
       <button
         onClick={handleBackToHome}
@@ -250,10 +263,10 @@ case 'lastName':
         Back to Home
       </button>
 
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-3xl mx-auto">
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-secondary-900 mb-2">Join Fit-Hub Portal</h2>
-          <p className="text-secondary-600">Create your account to get started</p>
+          <h2 className="text-3xl font-extrabold bg-gradient-to-r from-pink-200 to-purple-200 bg-clip-text text-transparent mb-2">Join Fit-Hub Portal</h2>
+          <p className="text-gray-200">Create your account to get started</p>
         </div>
 
         {errors.submit && (
@@ -262,10 +275,10 @@ case 'lastName':
           </div>
         )}
 
-        <form onSubmit={handleSignup} className="bg-white rounded-xl shadow-lg p-8 space-y-8">
+        <form onSubmit={handleSignup} className="bg-white rounded-2xl shadow-xl p-8 space-y-8 border border-gray-200">
           {/* Personal Information */}
           <div className="space-y-6">
-            <h3 className="text-xl font-semibold text-secondary-900 border-b border-secondary-200 pb-2">Personal Information</h3>
+            <h3 className="text-xl font-semibold text-gray-900 border-b border-gray-200 pb-2">Personal Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label htmlFor="firstName" className="block text-sm font-medium text-secondary-700 mb-2">
@@ -436,9 +449,9 @@ case 'lastName':
 
         {/* Trainer-Specific Information */}
         {formData.role === 'trainer' && (
-          <div className="bg-white rounded-xl border border-secondary-200 p-6 space-y-6">
-            <h3 className="text-xl font-semibold text-secondary-900 border-b border-secondary-200 pb-2">Professional Information</h3>
-            <div className="bg-gradient-to-r from-primary-50 to-secondary-50 border border-primary-200 rounded-lg p-4 flex gap-3">
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-6">
+            <h3 className="text-xl font-semibold text-gray-900 border-b border-gray-200 pb-2">Professional Information</h3>
+            <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4 flex gap-3">
               <div className="text-2xl">🏋️</div>
               <div className="flex-1">
                 <strong className="text-primary-900">Trainer Application</strong>
@@ -530,8 +543,8 @@ case 'lastName':
         )}
 
         {/* Account Security */}
-        <div className="bg-white rounded-xl border border-secondary-200 p-6 space-y-6">
-          <h3 className="text-xl font-semibold text-secondary-900 border-b border-secondary-200 pb-2">Account Security</h3>
+        <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-6">
+          <h3 className="text-xl font-semibold text-gray-900 border-b border-gray-200 pb-2">Account Security</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="flex flex-col gap-2">
               <label htmlFor="password" className="block text-sm font-medium text-secondary-700 mb-2">Password *</label>
@@ -566,7 +579,7 @@ case 'lastName':
         </div>
 
         {/* Terms */}
-        <div className="bg-white rounded-xl border border-secondary-200 p-6 space-y-4">
+        <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
           <div className="space-y-4">
             <label className="flex items-start gap-3 text-secondary-700 cursor-pointer">
               <input
@@ -602,7 +615,7 @@ case 'lastName':
 
         <button
           type="submit"
-          className="btn-primary w-full py-3 text-base font-semibold"
+          className="w-full py-3 text-base font-semibold bg-gradient-to-r from-pink-600 to-purple-700 hover:from-pink-700 hover:to-purple-800 text-white rounded-xl shadow-md"
           disabled={isLoading}
         >
           {isLoading ? 'Creating Account...' : 'Create Account'}
@@ -610,8 +623,8 @@ case 'lastName':
       </form>
 
         <div className="text-center mt-6">
-          <p className="text-secondary-600">
-            Already have an account? <Link to="/login" state={{ from: location.state?.from || '/' }} className="text-primary-600 hover:text-primary-700 font-medium">Sign In</Link>
+          <p className="text-gray-200">
+            Already have an account? <Link to="/login" state={{ from: location.state?.from || '/' }} className="text-pink-300 hover:text-pink-200 font-medium">Sign In</Link>
           </p>
         </div>
       </div>

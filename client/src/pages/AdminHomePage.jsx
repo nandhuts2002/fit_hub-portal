@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import SessionManager from '../utils/sessionManager';
+import AdminProductManagement from '../components/AdminProductManagement';
 
 const AdminHomePage = () => {
   // Get initial tab from URL parameters
@@ -2150,36 +2151,37 @@ const AdminHomePage = () => {
 
   if (!admin || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-secondary-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-purple-950 via-purple-900 to-slate-950">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
-          <p className="text-secondary-600">Loading admin dashboard...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-400 mx-auto mb-4"></div>
+          <p className="text-white/80">Loading admin dashboard...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-secondary-50">
+    <div className="min-h-screen bg-gradient-to-b from-purple-950 via-purple-900 to-slate-950">
       {/* Header */}
-      <header className="admin-header">
+      <header className="bg-white/10 backdrop-blur-md border-b border-white/20 px-6 py-4 flex justify-between items-center text-white sticky top-0 z-40">
         <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-secondary-900">FitHub Admin Portal</h1>
+          <h1 className="text-2xl font-bold">FitHub Admin Portal</h1>
           {activeTab !== 'dashboard' && (
             <div className="flex items-center gap-2 text-sm">
               <button
-                className="flex items-center gap-1 px-3 py-1 text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded-md transition-colors duration-200"
+                className="flex items-center gap-1 px-3 py-1 text-pink-300 hover:text-white hover:bg-white/10 rounded-md transition-colors duration-200"
                 onClick={() => handleTabChange('dashboard')}
                 title="Back to Dashboard"
               >
                 🏠 Dashboard
               </button>
-              <span className="text-secondary-400">›</span>
-              <span className="text-secondary-700 font-medium">
+              <span className="text-white/50">›</span>
+              <span className="text-white/80 font-medium">
                 {activeTab === 'users' && '👥 Users'}
                 {activeTab === 'trainers' && '🏋️ Trainers'}
                 {activeTab === 'applications' && '📝 Applications'}
                 {activeTab === 'tutorials' && '🎓 Tutorials'}
+                {activeTab === 'products' && '🛍️ Products'}
                 {activeTab === 'analytics' && '📊 Analytics'}
                 {activeTab === 'settings' && '⚙️ Settings'}
               </span>
@@ -2187,31 +2189,31 @@ const AdminHomePage = () => {
           )}
         </div>
         <div className="flex items-center gap-4">
-          <span className="text-slate-600 font-medium text-sm">Welcome back, {admin?.name}</span>
+          <span className="text-white/80 font-medium text-sm">Welcome back, {admin?.name}</span>
 
           <div className="relative">
             <button
-              className="flex items-center gap-3 px-4 py-2 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 shadow-sm"
+              className="flex items-center gap-3 px-4 py-2 bg-white/10 border border-white/20 rounded-lg hover:bg-white/20 hover:border-white/30 transition-all duration-200 shadow-sm"
               onClick={() => setShowProfileMenu(!showProfileMenu)}
             >
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
+              <div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-purple-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
                 {admin?.name?.charAt(0).toUpperCase()}
               </div>
-              <span className="text-slate-700 font-medium text-sm">{admin?.name}</span>
-              <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <span className="text-white font-medium text-sm">{admin?.name}</span>
+              <svg className="w-4 h-4 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
             {showProfileMenu && (
               <>
                 <div
-                  className="fixed inset-0 z-30"
+                  className="fixed inset-0 z-50"
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowProfileMenu(false);
                   }}
                 ></div>
-                <div className="absolute right-0 top-14 w-64 bg-white rounded-lg shadow-xl border border-slate-200 z-40 overflow-hidden">
+                <div className="absolute right-0 top-14 w-64 bg-white rounded-lg shadow-xl border border-slate-200 z-50 overflow-hidden">
                   {/* Profile Header */}
                   <div className="p-4 border-b border-slate-100">
                     <div className="flex items-center gap-3">
@@ -2366,16 +2368,27 @@ const AdminHomePage = () => {
                   <p className="text-sm text-secondary-600">Moderate content</p>
                 </div>
               </div>
+
+              <div
+                className="nav-card"
+                onClick={() => handleTabChange('products')}
+              >
+                <div className="text-3xl mb-3">🛍️</div>
+                <div>
+                  <h3 className="text-lg font-semibold text-secondary-900 mb-1">Products</h3>
+                  <p className="text-sm text-secondary-600">Manage shop items</p>
+                </div>
+              </div>
             </div>
 
             {/* Welcome Section */}
-            <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-xl p-8 text-white">
+            <div className="bg-gradient-to-r from-pink-600 to-purple-700 rounded-xl p-8 text-white">
               <div className="flex justify-between items-center">
                 <div>
                   <h2 className="text-2xl font-bold mb-2">Welcome back, {admin?.name}!</h2>
-                  <p className="text-primary-100">Here's what's happening with your fitness platform today.</p>
+                  <p className="text-white/90">Here's what's happening with your fitness platform today.</p>
                 </div>
-                <div className="bg-white/20 backdrop-blur-sm px-4 py-2 rounded-lg">
+                <div className="bg-white/15 backdrop-blur-sm px-4 py-2 rounded-lg">
                   <span className="text-sm font-medium">System Administrator</span>
                 </div>
               </div>
@@ -2391,6 +2404,7 @@ const AdminHomePage = () => {
         {activeTab === 'trainers' && renderTrainers()}
         {activeTab === 'applications' && renderTrainerApplications()}
         {activeTab === 'tutorials' && renderAdminTutorials()}
+        {activeTab === 'products' && <AdminProductManagement />}
         {activeTab === 'analytics' && renderAnalytics()}
         {activeTab === 'settings' && renderSettings()}
 

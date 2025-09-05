@@ -1,8 +1,19 @@
-// Session Management Utility
+// Session Management Utility (robust + backward compatible)
 
 export const SessionManager = {
-  // Check if user is authenticated
+  // Check if user is authenticated and not expired
   isAuthenticated: () => {
+    try {
+      const raw = localStorage.getItem('session');
+      if (raw) {
+        const session = JSON.parse(raw);
+        if (!session || !session.token) return false;
+        if (session.expiresAt && Date.now() > Number(session.expiresAt)) return false;
+        return true;
+      }
+    } catch {}
+
+    // Fallback to legacy keys
     const token = localStorage.getItem('token');
     const userName = localStorage.getItem('userName');
     return !!(token && userName && token !== 'null' && userName !== 'null');
@@ -10,8 +21,23 @@ export const SessionManager = {
 
   // Get current user info
   getCurrentUser: () => {
+    try {
+      const raw = localStorage.getItem('session');
+      if (raw) {
+        const session = JSON.parse(raw);
+        if (session && session.token) {
+          if (session.expiresAt && Date.now() > Number(session.expiresAt)) return null;
+          return {
+            name: session.name || '',
+            email: session.email || '',
+            role: session.role || 'user',
+            token: session.token,
+          };
+        }
+      }
+    } catch {}
+
     if (!SessionManager.isAuthenticated()) return null;
-    
     return {
       name: localStorage.getItem('userName'),
       email: localStorage.getItem('userEmail'),
@@ -20,20 +46,34 @@ export const SessionManager = {
     };
   },
 
-  // Set user session
-  setSession: (userData) => {
-    localStorage.setItem('token', userData.token || '');
-    localStorage.setItem('userName', userData.name || '');
-    localStorage.setItem('userEmail', userData.email || '');
-    localStorage.setItem('userRole', userData.role || 'user');
+  // Set user session (optionally with ttlMinutes)
+  setSession: (userData, ttlMinutes = 60 * 24 * 7) => {
+    const expiresAt = Date.now() + (ttlMinutes > 0 ? ttlMinutes * 60 * 1000 : 0);
+    const session = {
+      token: userData.token || '',
+      name: userData.name || '',
+      email: userData.email || '',
+      role: userData.role || 'user',
+      // 0 or undefined means no expiry; store only if positive
+      ...(ttlMinutes > 0 ? { expiresAt } : {}),
+    };
+    localStorage.setItem('session', JSON.stringify(session));
+
+    // Write legacy keys for backward compatibility with older code paths
+    localStorage.setItem('token', session.token);
+    localStorage.setItem('userName', session.name);
+    localStorage.setItem('userEmail', session.email);
+    localStorage.setItem('userRole', session.role);
   },
 
-  // Clear session
+  // Clear session everywhere
   clearSession: () => {
+    localStorage.removeItem('session');
     localStorage.removeItem('token');
     localStorage.removeItem('userName');
     localStorage.removeItem('userEmail');
     localStorage.removeItem('userRole');
+    sessionStorage.clear();
   },
 
   // Get redirect path based on user role

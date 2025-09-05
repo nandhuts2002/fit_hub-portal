@@ -217,40 +217,50 @@ const TrainerHomePage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-800 animate-gradient-x relative overflow-hidden">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 opacity-10">
+        <div className="absolute top-20 left-10 w-32 h-32 bg-gradient-to-br from-pink-400/20 to-purple-500/20 rounded-full blur-xl animate-pulse"></div>
+        <div className="absolute bottom-20 right-20 w-40 h-40 bg-gradient-to-br from-purple-400/20 to-indigo-500/20 rounded-full blur-2xl animate-bounce"></div>
+        <div className="absolute top-1/2 left-1/3 w-24 h-24 bg-gradient-to-br from-indigo-400/20 to-pink-500/20 rounded-full blur-xl animate-float"></div>
+      </div>
+
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-md border-b border-slate-200/50 shadow-lg sticky top-0 z-30">
+      <header className="bg-white/10 backdrop-blur-md border-b border-white/20 shadow-2xl sticky top-0 z-30 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-4">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
-                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-purple-600 rounded-xl flex items-center justify-center shadow-xl">
+                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                 </div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                  FitHub Trainer Portal
-                </h1>
+                <div className="flex flex-col">
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-pink-300 to-purple-300 bg-clip-text text-transparent">
+                    FitHub Trainer Portal
+                  </h1>
+                  <span className="text-xs text-white/70 font-medium">Empower & Inspire</span>
+                </div>
               </div>
             </div>
 
             <div className="flex items-center gap-4">
-              <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-full border border-emerald-200">
-                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                <span className="text-emerald-700 font-medium text-sm">Welcome back, {user?.name}</span>
+              <div className="hidden md:flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md rounded-full border border-white/20">
+                <div className="w-2 h-2 bg-pink-400 rounded-full animate-pulse"></div>
+                <span className="text-white/90 font-medium text-sm">Welcome back, {user?.name}</span>
               </div>
 
               <div className="relative">
                 <button
-                  className="flex items-center gap-3 px-4 py-2 bg-gradient-to-r from-white to-slate-50 border border-slate-200 rounded-xl hover:shadow-lg hover:border-emerald-300 transition-all duration-300 shadow-sm"
+                  className="flex items-center gap-3 px-4 py-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl hover:bg-white/20 hover:border-white/40 transition-all duration-300 shadow-lg"
                   onClick={() => setShowProfileMenu(!showProfileMenu)}
                 >
-                  <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-full flex items-center justify-center text-sm font-semibold shadow-md">
+                  <div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-purple-600 text-white rounded-full flex items-center justify-center text-sm font-semibold shadow-lg">
                     {user?.name?.charAt(0).toUpperCase()}
                   </div>
-                  <span className="text-slate-700 font-medium text-sm">{user?.name}</span>
-                  <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <span className="text-white font-medium text-sm">{user?.name}</span>
+                  <svg className="w-4 h-4 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
@@ -263,16 +273,16 @@ const TrainerHomePage = () => {
                         setShowProfileMenu(false);
                       }}
                     ></div>
-                    <div className="absolute right-0 top-14 w-64 bg-white/95 backdrop-blur-md rounded-xl shadow-2xl border border-slate-200/50 z-40 overflow-hidden">
+                    <div className="absolute right-0 top-14 w-64 bg-black/20 backdrop-blur-md rounded-xl shadow-2xl border border-white/20 z-40 overflow-hidden">
                       {/* Profile Header */}
-                      <div className="p-4 border-b border-slate-100 bg-gradient-to-r from-emerald-50 to-teal-50">
+                      <div className="p-4 border-b border-white/20 bg-gradient-to-r from-pink-500/20 to-purple-500/20">
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-600 text-white rounded-full flex items-center justify-center font-semibold text-lg shadow-lg">
+                          <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-purple-600 text-white rounded-full flex items-center justify-center font-semibold text-lg shadow-lg">
                             {user?.name?.charAt(0).toUpperCase()}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-slate-900 truncate">{user?.name || 'Trainer'}</h3>
-                            <p className="text-emerald-600 text-sm truncate font-medium">{user?.email || 'trainer@fithub.com'}</p>
+                            <h3 className="font-semibold text-white truncate">{user?.name || 'Trainer'}</h3>
+                            <p className="text-pink-300 text-sm truncate font-medium">{user?.email || 'trainer@fithub.com'}</p>
                           </div>
                         </div>
                       </div>
@@ -311,15 +321,15 @@ const TrainerHomePage = () => {
       </header>
 
       {/* Navigation Tabs */}
-      <div className="bg-white/80 backdrop-blur-md border-b border-slate-200/50 shadow-sm">
+      <div className="bg-white/10 backdrop-blur-md border-b border-white/20 shadow-sm relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="flex space-x-2 sm:space-x-4 md:space-x-8 overflow-x-auto">
             <button
               onClick={() => setActiveTab('dashboard')}
               className={`py-3 px-3 md:px-4 rounded-t-lg border-b-3 font-medium text-sm transition-all duration-300 ${
                 activeTab === 'dashboard'
-                  ? 'border-emerald-500 text-emerald-700 bg-emerald-50'
-                  : 'border-transparent text-slate-500 hover:text-emerald-600 hover:border-emerald-300'
+                  ? 'border-pink-400 text-pink-300 bg-pink-500/10'
+                  : 'border-transparent text-white/70 hover:text-pink-300 hover:border-pink-400/50'
               }`}
             >
               <div className="flex items-center gap-2">

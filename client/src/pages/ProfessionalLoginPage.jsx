@@ -193,7 +193,11 @@ const ProfessionalLoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-secondary-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-b from-purple-950 via-purple-900 to-slate-950 flex items-center justify-center p-4 relative">
+      <div className="pointer-events-none absolute inset-0 opacity-10" aria-hidden>
+        <div className="absolute inset-0 bg-[radial-gradient(60rem_60rem_at_120%_-20%,rgba(255,255,255,0.08),transparent)]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(50rem_50rem_at_-10%_120%,rgba(255,192,203,0.05),transparent)]"></div>
+      </div>
       {/* Back to Home Button */}
       <button
         onClick={handleBackToHome}
@@ -205,10 +209,10 @@ const ProfessionalLoginPage = () => {
         Back to Home
       </button>
 
-      <div className="max-w-6xl w-full bg-white rounded-2xl shadow-xl overflow-hidden">
+      <div className="max-w-6xl w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
         <div className="grid grid-cols-1 lg:grid-cols-2">
           {/* Left Side - Branding */}
-          <div className="bg-gradient-to-br from-primary-600 to-primary-800 p-8 lg:p-12 text-white">
+          <div className="bg-gradient-to-br from-pink-600 to-purple-700 p-8 lg:p-12 text-white">
             <div className="h-full flex flex-col justify-center">
               <div className="flex items-center gap-3 mb-8">
                 <HeartIcon className="w-8 h-8" />
@@ -217,7 +221,7 @@ const ProfessionalLoginPage = () => {
               <h1 className="text-3xl lg:text-4xl font-bold mb-6">
                 Welcome Back to Your Fitness Community
               </h1>
-              <p className="text-primary-100 mb-8 text-lg">
+              <p className="text-white/90 mb-8 text-lg">
                 Continue your journey in achieving your fitness goals with personalized
                 workouts, expert trainers, and a supportive community.
               </p>
@@ -288,7 +292,7 @@ const ProfessionalLoginPage = () => {
                 )}
               </div>
 
-              <button type="submit" className="btn-primary w-full">
+              <button type="submit" className="w-full bg-gradient-to-r from-pink-600 to-purple-700 hover:from-pink-700 hover:to-purple-800 text-white rounded-xl px-4 py-2 font-semibold shadow-md">
                 Sign In
               </button>
             </form>
