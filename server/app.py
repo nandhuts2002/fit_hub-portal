@@ -8,8 +8,9 @@ from shop import shop_bp
 from dotenv import load_dotenv
 import os
 from datetime import timedelta
+from os import path as _path
 
-load_dotenv()
+load_dotenv(dotenv_path=_path.join(_path.dirname(__file__), '.env'), override=True)
 
 app = Flask(__name__)
 CORS(app)

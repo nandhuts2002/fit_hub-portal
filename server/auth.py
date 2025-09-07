@@ -1,16 +1,61 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, url_for
 from models import users_collection
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import create_access_token
 from dotenv import load_dotenv
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
+import smtplib
+from email.message import EmailMessage
 
-load_dotenv()
+from os import path as _path
+load_dotenv(dotenv_path=_path.join(_path.dirname(__file__), '.env'), override=True)
 bcrypt = Bcrypt()
 
 # ✅ THIS LINE DEFINES THE BLUEPRINT
 auth_bp = Blueprint('auth', __name__)
+
+# --- Forgot Password utilities ---
+from bson import ObjectId
+import secrets
+
+def _generate_reset_token():
+    return secrets.token_urlsafe(32)
+
+
+def _send_email(subject: str, to_email: str, html_body: str, text_body: str = None):
+    """Send email via SMTP using env vars. Raises on failure."""
+    smtp_host = os.getenv('SMTP_HOST')
+    smtp_port = int(os.getenv('SMTP_PORT', '587'))
+    smtp_user = os.getenv('SMTP_USER')
+    smtp_pass = os.getenv('SMTP_PASS')
+    from_email = os.getenv('SMTP_FROM', smtp_user)
+
+    # Fallback for Gmail if host missing
+    if not smtp_host and smtp_user and smtp_user.endswith('@gmail.com'):
+        smtp_host = 'smtp.gmail.com'
+
+    if not (smtp_host and smtp_user and smtp_pass and from_email):
+        missing = [name for name, val in [
+            ('SMTP_HOST', smtp_host),
+            ('SMTP_USER', smtp_user),
+            ('SMTP_PASS', smtp_pass),
+            ('SMTP_FROM', from_email),
+        ] if not val]
+        print(f"SMTP debug -> host:{bool(smtp_host)} user:{bool(smtp_user)} pass:{bool(smtp_pass)} from:{bool(from_email)} port:{smtp_port}")
+        raise RuntimeError('SMTP is not configured. Missing: ' + ', '.join(missing))
+
+    msg = EmailMessage()
+    msg['Subject'] = subject
+    msg['From'] = from_email
+    msg['To'] = to_email
+    msg.set_content(text_body or 'Please view this email in an HTML-capable client.')
+    msg.add_alternative(html_body, subtype='html')
+
+    with smtplib.SMTP(smtp_host, smtp_port) as server:
+        server.starttls()
+        server.login(smtp_user, smtp_pass)
+        server.send_message(msg)
 
 
 
@@ -336,3 +381,106 @@ def google_login():
     except Exception as e:
         print(f"❌ Google login error: {str(e)}")
         return jsonify({'msg': 'Google login failed'}), 500
+
+
+@auth_bp.route('/forgot-password', methods=['POST'])
+def forgot_password_request():
+    """Start password reset: accept email, store reset token + expiry, and (TODO) send email.
+    For now, return the reset token so frontend can proceed in dev mode.
+    """
+    try:
+        data = request.get_json() or {}
+        email = data.get('email', '').strip().lower()
+        if not email:
+            return jsonify({'success': False, 'msg': 'Email is required'}), 400
+
+        user = users_collection.find_one({'email': email})
+        if not user:
+            # Do not reveal whether user exists
+            return jsonify({'success': True, 'msg': 'If that email exists, a reset link has been sent'}), 200
+
+        reset_token = _generate_reset_token()
+        expires_at = datetime.utcnow() + timedelta(hours=1)
+
+        users_collection.update_one(
+            {'_id': user['_id']},
+            {'$set': {
+                'resetPassword': {
+                    'token': reset_token,
+                    'expiresAt': expires_at.isoformat()
+                }
+            }}
+        )
+
+        # Compose absolute reset link for email
+        app_base_url = os.getenv('APP_BASE_URL', 'http://localhost:3000')
+        reset_link = f"{app_base_url}/reset-password?token={reset_token}"
+
+        # Send email (HTML + text)
+        email_sent = False
+        try:
+            subject = 'Reset your Fit-Hub password'
+            html = f"""
+                <div style='font-family:Arial,sans-serif'>
+                  <h2>Reset your password</h2>
+                  <p>We received a request to reset your password. Click the button below to set a new one. This link expires in 1 hour.</p>
+                  <p><a href='{reset_link}' style='display:inline-block;padding:10px 16px;background:#7c3aed;color:#fff;border-radius:8px;text-decoration:none'>Reset Password</a></p>
+                  <p>If the button does not work, copy and paste this link into your browser:</p>
+                  <p><a href='{reset_link}'>{reset_link}</a></p>
+                  <p>If you did not request a password reset, you can ignore this email.</p>
+                </div>
+            """
+            text = f"Reset your password: {reset_link} (expires in 1 hour). If you did not request this, you can ignore this email."
+            _send_email(subject, email, html, text)
+            email_sent = True
+        except Exception as mail_err:
+            # Log but do not reveal mailing issue to user for security
+            print(f"❌ Email send failed: {mail_err}")
+
+        # Build response. In dev mode (or if email failed), include resetLink for convenience
+        response_body = {'success': True, 'msg': 'If that email exists, a reset link has been sent'}
+        email_dev_mode = os.getenv('EMAIL_DEV_MODE', '').lower() == 'true' or os.getenv('ENV', '').lower() in ['dev', 'development']
+        if email_dev_mode or not email_sent:
+            response_body.update({'resetLink': reset_link, 'token': reset_token})
+
+        return jsonify(response_body), 200
+    except Exception as e:
+        print(f"❌ forgot_password_request error: {str(e)}")
+        return jsonify({'success': False, 'msg': 'Failed to start reset'}), 500
+
+
+@auth_bp.route('/reset-password', methods=['POST'])
+def reset_password_confirm():
+    """Confirm password reset with token and new password."""
+    try:
+        data = request.get_json() or {}
+        token = data.get('token')
+        new_password = data.get('password')
+        if not token or not new_password:
+            return jsonify({'success': False, 'msg': 'Token and password are required'}), 400
+
+        # Find user by reset token
+        user = users_collection.find_one({'resetPassword.token': token})
+        if not user:
+            return jsonify({'success': False, 'msg': 'Invalid or expired token'}), 400
+
+        # Check expiry
+        try:
+            expires_at_str = user.get('resetPassword', {}).get('expiresAt')
+            expires_at = datetime.fromisoformat(expires_at_str) if expires_at_str else None
+        except Exception:
+            expires_at = None
+        if not expires_at or expires_at < datetime.utcnow():
+            return jsonify({'success': False, 'msg': 'Invalid or expired token'}), 400
+
+        # Set new password
+        hashed_pw = bcrypt.generate_password_hash(new_password).decode('utf-8')
+        users_collection.update_one(
+            {'_id': user['_id']},
+            {'$set': {'password': hashed_pw}, '$unset': {'resetPassword': ''}}
+        )
+
+        return jsonify({'success': True, 'msg': 'Password has been reset successfully'}), 200
+    except Exception as e:
+        print(f"❌ reset_password_confirm error: {str(e)}")
+        return jsonify({'success': False, 'msg': 'Failed to reset password'}), 500
