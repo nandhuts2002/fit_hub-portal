@@ -290,6 +290,9 @@ const ProfessionalLoginPage = () => {
                 {errors.password && (
                   <span className="text-sm text-red-600 mt-1 block">{errors.password}</span>
                 )}
+                <div className="text-right mt-2">
+                  <Link to="/forgot-password" className="text-sm text-primary-600 hover:text-primary-700">Forgot password?</Link>
+                </div>
               </div>
 
               <button type="submit" className="w-full bg-gradient-to-r from-pink-600 to-purple-700 hover:from-pink-700 hover:to-purple-800 text-white rounded-xl px-4 py-2 font-semibold shadow-md">

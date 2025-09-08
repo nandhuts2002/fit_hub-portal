@@ -16,6 +16,8 @@ import WishlistPage from './pages/WishlistPage';
 import CartPage from './pages/CartPage';
 import CommunityPage from './pages/CommunityPage';
 import QueryDetailPage from './pages/QueryDetailPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 
 function App() {
   console.log('App component rendering...');
@@ -29,6 +31,8 @@ function App() {
         {/* Authentication routes */}
         <Route path="/login" element={<ProfessionalLoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
         
         {/* Protected Dashboard routes */}
         <Route path="/user-home" element={
