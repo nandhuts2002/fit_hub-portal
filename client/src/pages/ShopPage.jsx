@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import api from "../utils/api";
+import SessionManager from "../utils/sessionManager";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ShoppingCart,
@@ -196,10 +198,12 @@ const ShopPage = () => {
         // Only initialize sample data if no products exist
         if (productsData.success && productsData.products.length === 0) {
           console.log('No products found, initializing sample data...');
-          await fetch('http://localhost:5000/shop/api/init-shop-data', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-          });
+          const currentUser = SessionManager.getCurrentUser();
+          if (currentUser?.token) {
+            await api.post('/shop/api/init-shop-data', {}, {
+              headers: { Authorization: `Bearer ${currentUser.token}` }
+            });
+          }
           
           // Reload products after initialization
           const newProductsResponse = await fetch('http://localhost:5000/shop/api/products');
@@ -417,8 +421,13 @@ const ShopPage = () => {
     }
 
     try {
+      const currentUser = SessionManager.getCurrentUser();
+      if (!currentUser?.token) {
+        alert('Your session has expired. Please login again.');
+        return;
+      }
       const orderData = {
-        user_email: shippingAddress.email,
+        // user_email will be taken from JWT on server
         items: cart.map(item => ({
           product_id: item.id || item._id,
           quantity: item.quantity,
@@ -432,13 +441,11 @@ const ShopPage = () => {
         coupon_code: appliedCoupon ? appliedCoupon.code : ''
       };
 
-      const response = await fetch('http://localhost:5000/shop/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderData)
+      const response = await api.post('/shop/api/orders', orderData, {
+        headers: { Authorization: `Bearer ${currentUser.token}` }
       });
 
-      const data = await response.json();
+      const data = response.data || {};
       
       if (data.success) {
         setOrderDetails({
@@ -454,7 +461,7 @@ const ShopPage = () => {
         // Clear localStorage cart
         localStorage.removeItem('fithub-cart');
       } else {
-        alert('Error creating order: ' + data.error);
+        alert('Error creating order: ' + (data.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error creating order:', error);

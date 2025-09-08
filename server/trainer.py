@@ -343,8 +343,9 @@ def get_trainer_stats():
 # PUBLIC ROUTES (for users to view tutorials and submit queries)
 
 @trainer_bp.route('/public/tutorials', methods=['GET'])
+@jwt_required()
 def get_public_tutorials():
-    """Get all published tutorials (public access)"""
+    """Get all published tutorials (now requires authentication)"""
     try:
         tutorials = list(tutorials_collection.find({'status': 'published'}))
         
@@ -374,8 +375,9 @@ def get_public_tutorials():
         return jsonify({'msg': 'Error fetching tutorials'}), 500
 
 @trainer_bp.route('/public/tutorials/<tutorial_id>', methods=['GET'])
+@jwt_required()
 def get_tutorial_details(tutorial_id):
-    """Get tutorial details and increment view count"""
+    """Get tutorial details and increment view count (requires authentication)"""
     try:
         tutorial = tutorials_collection.find_one({'_id': ObjectId(tutorial_id), 'status': 'published'})
         

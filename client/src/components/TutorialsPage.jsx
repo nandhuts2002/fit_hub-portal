@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import api from '../utils/api';
+import SessionManager from '../utils/sessionManager';
 
 const TutorialsPage = () => {
   const [tutorials, setTutorials] = useState([]);
@@ -20,11 +22,16 @@ const TutorialsPage = () => {
 
   const fetchTutorials = async () => {
     try {
-      const response = await fetch('http://localhost:5000/trainer/public/tutorials');
-      if (response.ok) {
-        const data = await response.json();
-        setTutorials(data.tutorials);
+      const currentUser = SessionManager.getCurrentUser();
+      if (!currentUser?.token) {
+        window.location.href = '/login';
+        return;
       }
+
+      const { data } = await api.get('/trainer/public/tutorials', {
+        headers: { Authorization: `Bearer ${currentUser.token}` }
+      });
+      setTutorials(data.tutorials || []);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching tutorials:', error);
@@ -34,11 +41,16 @@ const TutorialsPage = () => {
 
   const fetchTutorialDetails = async (tutorialId) => {
     try {
-      const response = await fetch(`http://localhost:5000/trainer/public/tutorials/${tutorialId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setSelectedTutorial(data.tutorial);
+      const currentUser = SessionManager.getCurrentUser();
+      if (!currentUser?.token) {
+        window.location.href = '/login';
+        return;
       }
+
+      const { data } = await api.get(`/trainer/public/tutorials/${tutorialId}`, {
+        headers: { Authorization: `Bearer ${currentUser.token}` }
+      });
+      setSelectedTutorial(data.tutorial);
     } catch (error) {
       console.error('Error fetching tutorial details:', error);
     }
@@ -47,25 +59,24 @@ const TutorialsPage = () => {
   const handleSubmitQuery = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
+      const currentUser = SessionManager.getCurrentUser();
+      if (!currentUser?.token) {
         alert('Please login to submit a query');
         return;
       }
 
-      const user = JSON.parse(localStorage.getItem('user'));
+      const user = {
+        name: currentUser?.name,
+        firstName: currentUser?.firstName,
+        lastName: currentUser?.lastName
+      };
       const queryData = {
         ...queryForm,
         user_name: user?.name || user?.firstName + ' ' + user?.lastName || 'Anonymous'
       };
 
-      const response = await fetch('http://localhost:5000/trainer/public/queries', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(queryData)
+      const response = await api.post('/trainer/public/queries', queryData, {
+        headers: { Authorization: `Bearer ${currentUser.token}` }
       });
 
       if (response.status === 401) {
@@ -76,7 +87,7 @@ const TutorialsPage = () => {
         return;
       }
 
-      if (response.ok) {
+      if (response.status >= 200 && response.status < 300) {
         alert('Query submitted successfully! A trainer will respond soon.');
         setQueryForm({
           title: '',
@@ -86,8 +97,8 @@ const TutorialsPage = () => {
         });
         setShowQueryForm(false);
       } else {
-        const error = await response.json();
-        alert('Error submitting query: ' + error.msg);
+        const error = response?.data || {};
+        alert('Error submitting query: ' + (error.msg || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error submitting query:', error);

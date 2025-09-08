@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import api from "../utils/api";
+import SessionManager from "../utils/sessionManager";
 import { motion } from "framer-motion";
 import {
   Plus,
@@ -121,13 +123,15 @@ const AdminProductManagement = () => {
       
       const method = editingProduct ? 'PUT' : 'POST';
 
-      const response = await fetch(url, {
+      const currentUser = SessionManager.getCurrentUser();
+      const response = await api.request({
+        url,
         method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(productData)
+        data: productData,
+        headers: currentUser?.token ? { Authorization: `Bearer ${currentUser.token}` } : {}
       });
 
-      const data = await response.json();
+      const data = response.data || {};
       if (data.success) {
         setShowForm(false);
         setEditingProduct(null);
@@ -168,10 +172,11 @@ const AdminProductManagement = () => {
     if (!window.confirm('Are you sure you want to delete this product?')) return;
 
     try {
-      const response = await fetch(`http://localhost:5000/shop/api/products/${productId}`, {
-        method: 'DELETE'
+      const currentUser = SessionManager.getCurrentUser();
+      const response = await api.delete(`http://localhost:5000/shop/api/products/${productId}`, {
+        headers: currentUser?.token ? { Authorization: `Bearer ${currentUser.token}` } : {}
       });
-      const data = await response.json();
+      const data = response.data || {};
       if (data.success) {
         loadProducts();
       } else {

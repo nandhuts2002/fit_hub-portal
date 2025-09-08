@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, url_for
 from models import users_collection
 from flask_bcrypt import Bcrypt
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 import os
@@ -195,8 +195,12 @@ def login():
     }), 200
 
 @auth_bp.route('/users', methods=['GET'])
+@jwt_required()
 def get_all_users():
     """Get all users (admin only)"""
+    identity = get_jwt_identity()
+    if not identity or identity.get('role') != 'admin':
+        return jsonify({'msg': 'Admin access required'}), 403
     try:
         users = list(users_collection.find({}, {'password': 0}))  # Exclude passwords
         formatted_users = []
@@ -222,8 +226,12 @@ def get_all_users():
         return jsonify({'msg': 'Error fetching users'}), 500
 
 @auth_bp.route('/users/<user_id>', methods=['PUT'])
+@jwt_required()
 def update_user(user_id):
     """Update basic user fields (admin only): firstName, lastName, phone, email, role, status"""
+    identity = get_jwt_identity()
+    if not identity or identity.get('role') != 'admin':
+        return jsonify({'success': False, 'msg': 'Admin access required'}), 403
     try:
         from bson import ObjectId
         data = request.get_json() or {}
@@ -247,8 +255,12 @@ def update_user(user_id):
         return jsonify({'success': False, 'msg': 'Error updating user'}), 500
 
 @auth_bp.route('/users/<user_id>/status', methods=['POST'])
+@jwt_required()
 def set_user_status(user_id):
     """Set user status (active/inactive). Soft deactivate/activate."""
+    identity = get_jwt_identity()
+    if not identity or identity.get('role') != 'admin':
+        return jsonify({'msg': 'Admin access required'}), 403
     try:
         from bson import ObjectId
         data = request.get_json() or {}
@@ -264,8 +276,12 @@ def set_user_status(user_id):
         return jsonify({'msg': 'Error updating status'}), 500
 
 @auth_bp.route('/users/<user_id>', methods=['DELETE'])
+@jwt_required()
 def delete_user(user_id):
     """Delete a user permanently (admin only)"""
+    identity = get_jwt_identity()
+    if not identity or identity.get('role') != 'admin':
+        return jsonify({'success': False, 'message': 'Admin access required'}), 403
     try:
         from bson import ObjectId
         
@@ -292,6 +308,7 @@ def delete_user(user_id):
         return jsonify({'success': False, 'message': f'Error deleting user: {str(e)}'}), 500
 
 @auth_bp.route('/stats', methods=['GET'])
+@jwt_required()
 def get_admin_stats():
     """Get admin dashboard statistics"""
     try:

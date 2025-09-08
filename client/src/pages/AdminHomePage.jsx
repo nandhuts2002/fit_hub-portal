@@ -88,13 +88,13 @@ const AdminHomePage = () => {
         const token = localStorage.getItem('token');
         const authHeaders = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
 
-        const usersResponse = await axios.get('http://localhost:5000/users');
+        const usersResponse = await axios.get('http://localhost:5000/users', authHeaders);
         console.log('✅ Users fetched:', usersResponse.data.users);
         setUsers(usersResponse.data.users || []);
         setFilteredUsers(usersResponse.data.users || []);
 
         console.log('🔄 Fetching stats from API...');
-        const statsResponse = await axios.get('http://localhost:5000/stats');
+        const statsResponse = await axios.get('http://localhost:5000/stats', authHeaders);
         console.log('✅ Stats fetched:', statsResponse.data.stats);
         setStats(statsResponse.data.stats || {});
 

@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required, get_jwt_identity
 from bson import ObjectId
 from datetime import datetime, timedelta
 import random
@@ -29,6 +30,20 @@ def calculate_shipping(total_amount, address):
     if total_amount >= 999:
         return 0  # Free shipping
     return 99  # Standard shipping
+
+# Auth helpers
+def _require_admin():
+    identity = get_jwt_identity()
+    if not identity or identity.get('role') != 'admin':
+        return None
+    return identity
+
+def _require_same_user(target_email: str):
+    identity = get_jwt_identity()
+    email = identity.get('email') if isinstance(identity, dict) else None
+    if not email or email.lower() != (target_email or '').lower():
+        return None
+    return identity
 
 # PRODUCTS API
 @shop_bp.route('/api/products', methods=['GET'])
@@ -117,7 +132,11 @@ def get_product(product_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @shop_bp.route('/api/products', methods=['POST'])
+@jwt_required()
 def create_product():
+    # Admin only
+    if not _require_admin():
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
     try:
         data = request.get_json()
         
@@ -170,7 +189,11 @@ def create_product():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @shop_bp.route('/api/products/<product_id>', methods=['PUT'])
+@jwt_required()
 def update_product(product_id):
+    # Admin only
+    if not _require_admin():
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
     try:
         data = request.get_json()
         
@@ -216,7 +239,11 @@ def update_product(product_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @shop_bp.route('/api/products/<product_id>', methods=['DELETE'])
+@jwt_required()
 def delete_product(product_id):
+    # Admin only
+    if not _require_admin():
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
     try:
         # Delete product
         result = products_collection.delete_one({'_id': ObjectId(product_id)})
@@ -247,7 +274,10 @@ def get_categories():
 
 # CART API
 @shop_bp.route('/api/cart/<user_email>', methods=['GET'])
+@jwt_required()
 def get_cart(user_email):
+    if not _require_same_user(user_email):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     try:
         cart = carts_collection.find_one({'user_email': user_email})
         if not cart:
@@ -271,7 +301,10 @@ def get_cart(user_email):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @shop_bp.route('/api/cart/<user_email>/add', methods=['POST'])
+@jwt_required()
 def add_to_cart(user_email):
+    if not _require_same_user(user_email):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     try:
         data = request.get_json()
         product_id = data.get('product_id')
@@ -332,7 +365,10 @@ def add_to_cart(user_email):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @shop_bp.route('/api/cart/<user_email>/update', methods=['PUT'])
+@jwt_required()
 def update_cart_item(user_email):
+    if not _require_same_user(user_email):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     try:
         data = request.get_json()
         item_id = data.get('item_id')
@@ -357,7 +393,10 @@ def update_cart_item(user_email):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @shop_bp.route('/api/cart/<user_email>/remove', methods=['DELETE'])
+@jwt_required()
 def remove_from_cart(user_email):
+    if not _require_same_user(user_email):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     try:
         data = request.get_json()
         item_id = data.get('item_id')
@@ -373,7 +412,10 @@ def remove_from_cart(user_email):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @shop_bp.route('/api/cart/<user_email>/clear', methods=['DELETE'])
+@jwt_required()
 def clear_cart(user_email):
+    if not _require_same_user(user_email):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     try:
         carts_collection.update_one(
             {'user_email': user_email},
@@ -387,7 +429,10 @@ def clear_cart(user_email):
 
 # WISHLIST API
 @shop_bp.route('/api/wishlist/<user_email>', methods=['GET'])
+@jwt_required()
 def get_wishlist(user_email):
+    if not _require_same_user(user_email):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     try:
         wishlist = wishlists_collection.find_one({'user_email': user_email})
         if not wishlist:
@@ -411,7 +456,10 @@ def get_wishlist(user_email):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @shop_bp.route('/api/wishlist/<user_email>/toggle', methods=['POST'])
+@jwt_required()
 def toggle_wishlist(user_email):
+    if not _require_same_user(user_email):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     try:
         data = request.get_json()
         product_id = data.get('product_id')
@@ -466,7 +514,10 @@ def toggle_wishlist(user_email):
 
 # ORDERS API
 @shop_bp.route('/api/orders/<user_email>', methods=['GET'])
+@jwt_required()
 def get_orders(user_email):
+    if not _require_same_user(user_email):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     try:
         orders = list(orders_collection.find({'user_email': user_email}).sort('created_at', -1))
         
@@ -484,10 +535,14 @@ def get_orders(user_email):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @shop_bp.route('/api/orders', methods=['POST'])
+@jwt_required()
 def create_order():
     try:
         data = request.get_json()
-        user_email = data.get('user_email')
+        identity = get_jwt_identity()
+        user_email = identity.get('email') if isinstance(identity, dict) else None
+        if not user_email:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
         items = data.get('items', [])
         shipping_address = data.get('shipping_address', {})
         payment_method = data.get('payment_method', {})
@@ -599,10 +654,14 @@ def get_product_reviews(product_id):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @shop_bp.route('/api/products/<product_id>/reviews', methods=['POST'])
+@jwt_required()
 def create_review(product_id):
     try:
         data = request.get_json()
-        user_email = data.get('user_email')
+        identity = get_jwt_identity()
+        user_email = identity.get('email') if isinstance(identity, dict) else None
+        if not user_email:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
         rating = data.get('rating')
         comment = data.get('comment', '')
         
@@ -671,7 +730,11 @@ def validate_coupon():
 
 # Initialize sample data
 @shop_bp.route('/api/init-shop-data', methods=['POST'])
+@jwt_required()
 def init_shop_data():
+    # Admin only
+    if not _require_admin():
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
     try:
         # Sample categories
         categories = [
