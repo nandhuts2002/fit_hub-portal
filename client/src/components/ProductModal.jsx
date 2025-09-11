@@ -11,6 +11,8 @@ const ProductModal = ({
   isInWishlist = false
 }) => {
   if (!product) return null;
+  // Normalize stock flag from API (in_stock) or local (inStock)
+  const isInStock = (product?.in_stock !== undefined) ? product.in_stock : (product?.inStock !== undefined ? product.inStock : true);
 
   return (
     <AnimatePresence>
@@ -120,12 +122,12 @@ const ProductModal = ({
                   </button>
                   <button
                     onClick={() => onAddToCart(product)}
-                    disabled={!product.inStock}
+                    disabled={!isInStock}
                     className="flex-1 flex items-center justify-center space-x-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                   >
                     <ShoppingCart className="w-5 h-5" />
                     <span>
-                      {product.inStock ? "Add to Cart" : "Out of Stock"}
+                      {isInStock ? "Add to Cart" : "Out of Stock"}
                     </span>
                   </button>
                 </div>

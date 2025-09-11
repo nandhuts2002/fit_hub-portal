@@ -4,6 +4,9 @@ from bson import ObjectId
 from datetime import datetime, timedelta
 import random
 import string
+import os
+import hmac
+import hashlib
 from models import (
     products_collection, 
     carts_collection, 
@@ -24,6 +27,12 @@ shop_bp = Blueprint('shop', __name__)
 # Helper function to generate order ID
 def generate_order_id():
     return 'ORD' + ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+
+def _razorpay_client_keys():
+    return {
+        'key_id': os.getenv('RAZORPAY_KEY_ID', ''),
+        'key_secret': os.getenv('RAZORPAY_KEY_SECRET', '')
+    }
 
 # Helper function to calculate shipping
 def calculate_shipping(total_amount, address):
@@ -427,6 +436,97 @@ def clear_cart(user_email):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+# RAZORPAY: Create order
+@shop_bp.route('/api/razorpay/create-order', methods=['POST'])
+@jwt_required()
+def create_razorpay_order():
+    try:
+        keys = _razorpay_client_keys()
+        if not keys['key_id'] or not keys['key_secret']:
+            return jsonify({'success': False, 'error': 'Razorpay not configured'}), 500
+
+        data = request.get_json() or {}
+        amount = int(float(data.get('amount', 0)) * 100)  # in paise
+        currency = data.get('currency', 'INR')
+        receipt = data.get('receipt', generate_order_id())
+
+        import requests
+        response = requests.post(
+            'https://api.razorpay.com/v1/orders',
+            auth=(keys['key_id'], keys['key_secret']),
+            json={
+                'amount': amount,
+                'currency': currency,
+                'receipt': receipt,
+                'payment_capture': 1
+            },
+            timeout=10
+        )
+        if response.status_code != 200:
+            return jsonify({'success': False, 'error': 'Failed to create Razorpay order'}), 500
+        order = response.json()
+        return jsonify({'success': True, 'key_id': keys['key_id'], 'order': order})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# RAZORPAY: Verify payment (webhook or client confirm)
+@shop_bp.route('/api/razorpay/verify', methods=['POST'])
+def verify_razorpay_signature():
+    try:
+        keys = _razorpay_client_keys()
+        payload = request.get_json() or {}
+        order_id = payload.get('razorpay_order_id')
+        payment_id = payload.get('razorpay_payment_id')
+        signature = payload.get('razorpay_signature')
+        internal_order_id = payload.get('internal_order_id')  # Mongo _id string
+
+        if not (order_id and payment_id and signature and internal_order_id):
+            return jsonify({'success': False, 'error': 'Missing fields'}), 400
+
+        body = f"{order_id}|{payment_id}".encode('utf-8')
+        expected = hmac.new(keys['key_secret'].encode('utf-8'), body, hashlib.sha256).hexdigest()
+        if expected != signature:
+            return jsonify({'success': False, 'error': 'Signature mismatch'}), 400
+
+        # Update order document
+        orders_collection.update_one(
+            {'_id': ObjectId(internal_order_id)},
+            {'$set': {
+                'paymentStatus': 'Paid',
+                'orderStatus': 'Processing',
+                'razorpayOrderId': order_id,
+                'razorpayPaymentId': payment_id,
+                'timestamps.paid': datetime.utcnow(),
+                'updated_at': datetime.utcnow()
+            }}
+        )
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ADMIN: update order status and tracking
+@shop_bp.route('/api/orders/<order_id>/status', methods=['PUT'])
+@jwt_required()
+def update_order_status(order_id):
+    if not _require_admin():
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
+    try:
+        data = request.get_json() or {}
+        status = data.get('orderStatus')
+        tracking = data.get('trackingNumber')
+        update = {}
+        if status:
+            update['orderStatus'] = status
+        if tracking is not None:
+            update['trackingNumber'] = tracking
+        if not update:
+            return jsonify({'success': False, 'error': 'No fields to update'}), 400
+        update['updated_at'] = datetime.utcnow()
+        orders_collection.update_one({'_id': ObjectId(order_id)}, {'$set': update})
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 # WISHLIST API
 @shop_bp.route('/api/wishlist/<user_email>', methods=['GET'])
 @jwt_required()
@@ -513,6 +613,19 @@ def toggle_wishlist(user_email):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # ORDERS API
+@shop_bp.route('/api/orders', methods=['GET'])
+@jwt_required()
+def admin_list_orders():
+    # Admin only
+    if not _require_admin():
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
+    try:
+        orders = list(orders_collection.find({}).sort('created_at', -1))
+        for o in orders:
+            o['_id'] = str(o['_id'])
+        return jsonify({'success': True, 'orders': orders})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 @shop_bp.route('/api/orders/<user_email>', methods=['GET'])
 @jwt_required()
 def get_orders(user_email):
@@ -531,6 +644,30 @@ def get_orders(user_email):
             
         return jsonify({'success': True, 'orders': orders})
         
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@shop_bp.route('/api/order/<order_id>', methods=['GET'])
+@jwt_required()
+def get_order_detail(order_id):
+    try:
+        identity = get_jwt_identity()
+        user_email = identity.get('email') if isinstance(identity, dict) else None
+        if not user_email:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+        order = orders_collection.find_one({'_id': ObjectId(order_id)})
+        if not order:
+            return jsonify({'success': False, 'error': 'Order not found'}), 404
+        if order.get('user_email') != user_email:
+            return jsonify({'success': False, 'error': 'Forbidden'}), 403
+
+        order['_id'] = str(order['_id'])
+        items = list(order_items_collection.find({'order_id': ObjectId(order['_id'])}))
+        for item in items:
+            item['_id'] = str(item['_id'])
+        order['items'] = items
+        return jsonify({'success': True, 'order': order})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -597,12 +734,31 @@ def create_order():
         order = {
             'order_id': generate_order_id(),
             'user_email': user_email,
-            'status': 'pending',
+            # Flipkart-like fields
+            'paymentStatus': 'Pending',  # Pending | Paid
+            'orderStatus': 'Pending',    # Pending | Processing | Packed | Shipped | Delivered
+            'razorpayOrderId': None,
+            'razorpayPaymentId': None,
+            'trackingNumber': None,
+            'timestamps': {
+                'created': datetime.utcnow(),
+                'paid': None,
+                'updated': None
+            },
+            'status': 'pending',  # legacy
             'subtotal': subtotal,
             'shipping_cost': shipping_cost,
             'discount': discount,
             'total': total,
-            'shipping_address': shipping_address,
+            'shipping_address': {
+                'fullName': shipping_address.get('name') or shipping_address.get('fullName', ''),
+                'phone': shipping_address.get('phone', ''),
+                'street': shipping_address.get('address', ''),
+                'city': shipping_address.get('city', ''),
+                'state': shipping_address.get('state', ''),
+                'pincode': shipping_address.get('pincode', ''),
+                'geo': shipping_address.get('geo', {})
+            },
             'payment_method': payment_method,
             'created_at': datetime.utcnow(),
             'updated_at': datetime.utcnow()

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import api from "../utils/api";
 import SessionManager from "../utils/sessionManager";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import {
   ShoppingCart,
   ShoppingBag,
@@ -9,7 +10,8 @@ import {
   Grid3X3,
   List,
   SlidersHorizontal,
-  Package
+  Package,
+  Heart
 } from "lucide-react";
 import ProductCard from "../components/ProductCard";
 import FilterSidebar from "../components/FilterSidebar";
@@ -151,6 +153,7 @@ const categories = [
 ];
 
 const ShopPage = () => {
+  const navigate = useNavigate();
   const [cart, setCart] = useState(() => {
     const savedCart = localStorage.getItem('fithub-cart');
     return savedCart ? JSON.parse(savedCart) : [];
@@ -179,12 +182,42 @@ const ShopPage = () => {
     address: '',
     city: '',
     state: '',
-    pincode: ''
+    pincode: '',
+    geo: null
   });
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [orderDetails, setOrderDetails] = useState(null);
+  const [formErrors, setFormErrors] = useState([]);
+
+  // Sync wishlist from server when logged in
+  useEffect(() => {
+    const syncWishlist = async () => {
+      try {
+        const currentUser = SessionManager.getCurrentUser();
+        if (!currentUser?.token || !currentUser?.email) return;
+        const { data } = await api.get(`/shop/api/wishlist/${encodeURIComponent(currentUser.email)}`, {
+          headers: { Authorization: `Bearer ${currentUser.token}` }
+        });
+        const items = data?.wishlist?.items || [];
+        // Normalize to product-like objects used by UI
+        const normalized = items.map((it) => ({
+          id: it.product_id,
+          name: it.product?.name,
+          price: it.product?.price,
+          image: it.product?.image,
+          brand: it.product?.brand,
+          in_stock: true
+        }));
+        setWishlist(normalized);
+        localStorage.setItem('fithub-wishlist', JSON.stringify(normalized));
+      } catch (e) {
+        // Silent fail to avoid breaking UI if API not available
+      }
+    };
+    syncWishlist();
+  }, []);
 
   // Load products and categories from API
   useEffect(() => {
@@ -337,11 +370,27 @@ const ShopPage = () => {
     setCart(cart.filter(item => item.cartId !== cartId));
   };
 
-  const toggleWishlist = (product) => {
-    if (wishlist.find(item => item.id === product.id)) {
-      setWishlist(wishlist.filter(item => item.id !== product.id));
-    } else {
-      setWishlist([...wishlist, product]);
+  const toggleWishlist = async (product) => {
+    // Optimistic UI update
+    const exists = wishlist.find(item => item.id === (product.id || product._id));
+    const optimistic = exists
+      ? wishlist.filter(item => item.id !== (product.id || product._id))
+      : [...wishlist, { ...product, id: product.id || product._id }];
+    setWishlist(optimistic);
+    localStorage.setItem('fithub-wishlist', JSON.stringify(optimistic));
+
+    try {
+      const currentUser = SessionManager.getCurrentUser();
+      if (!currentUser?.token || !currentUser?.email) return; // if not logged, keep local only
+      await api.post(
+        `/shop/api/wishlist/${encodeURIComponent(currentUser.email)}/toggle`,
+        { product_id: (product.id || product._id) },
+        { headers: { Authorization: `Bearer ${currentUser.token}` } }
+      );
+    } catch (e) {
+      // Revert on failure
+      setWishlist(wishlist);
+      localStorage.setItem('fithub-wishlist', JSON.stringify(wishlist));
     }
   };
 
@@ -412,11 +461,18 @@ const ShopPage = () => {
     }
 
     // Validate shipping address
-    const requiredFields = ['name', 'email', 'phone', 'address', 'city', 'state', 'pincode'];
-    const missingFields = requiredFields.filter(field => !shippingAddress[field].trim());
-    
-    if (missingFields.length > 0) {
-      alert(`Please fill in: ${missingFields.join(', ')}`);
+    const errs = [];
+    const isEmailValid = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+    const isPhoneValid = (v) => /^\d{10}$/.test(v);
+    const isPincodeValid = (v) => /^\d{6}$/.test(v);
+    const req = ['name','email','phone','address','city','state','pincode'];
+    req.forEach((f) => { if (!String(shippingAddress[f] || '').trim()) errs.push(`${f} is required`); });
+    if (shippingAddress.email && !isEmailValid(shippingAddress.email)) errs.push('Enter a valid email');
+    if (shippingAddress.phone && !isPhoneValid(shippingAddress.phone)) errs.push('Enter a valid 10-digit phone');
+    if (shippingAddress.pincode && !isPincodeValid(shippingAddress.pincode)) errs.push('Enter a valid 6-digit pincode');
+    setFormErrors(errs);
+    if (errs.length > 0) {
+      alert('Please fix the checkout form:\n- ' + errs.join('\n- '));
       return;
     }
 
@@ -448,36 +504,96 @@ const ShopPage = () => {
       const data = response.data || {};
       
       if (data.success) {
-        setOrderDetails({
-          orderId: data.order_number,
-          total: getFinalTotal(),
-          items: cart.length
-        });
-        setOrderSuccess(true);
-        setCart([]);
-        setCheckoutOpen(false);
-        setAppliedCoupon(null);
-        setCouponCode('');
-        // Clear localStorage cart
-        localStorage.removeItem('fithub-cart');
+        // Create Razorpay order
+        const rzpRes = await api.post('/shop/api/razorpay/create-order', {
+          amount: getFinalTotal(),
+          currency: 'INR',
+          receipt: data.order_number
+        }, { headers: { Authorization: `Bearer ${currentUser.token}` } });
+
+        const { key_id, order: rzpOrder } = rzpRes.data || {};
+        if (!key_id || !rzpOrder?.id) {
+          alert('Payment gateway error.');
+          return;
+        }
+
+        // Open Razorpay checkout
+        const options = {
+          key: key_id,
+          amount: rzpOrder.amount,
+          currency: rzpOrder.currency,
+          name: 'FitHub Store',
+          description: 'Order Payment',
+          order_id: rzpOrder.id,
+          handler: async (resp) => {
+            try {
+              await api.post('/shop/api/razorpay/verify', {
+                razorpay_order_id: resp.razorpay_order_id,
+                razorpay_payment_id: resp.razorpay_payment_id,
+                razorpay_signature: resp.razorpay_signature,
+                internal_order_id: data.order_id
+              });
+              // success -> redirect to summary
+              setCart([]);
+              localStorage.removeItem('fithub-cart');
+              setAppliedCoupon(null);
+              setCouponCode('');
+              setCheckoutOpen(false);
+              navigate(`/orders/${data.order_id}`);
+            } catch (e) {
+              alert('Payment verification failed');
+            }
+          },
+          prefill: {
+            name: shippingAddress.name,
+            email: shippingAddress.email,
+            contact: shippingAddress.phone
+          },
+          notes: { order_number: data.order_number },
+          theme: { color: '#7c3aed' }
+        };
+        if (window.Razorpay) {
+          const rzp = new window.Razorpay(options);
+          rzp.open();
+        } else {
+          alert('Razorpay SDK not loaded');
+        }
       } else {
         alert('Error creating order: ' + (data.error || 'Unknown error'));
       }
     } catch (error) {
-      console.error('Error creating order:', error);
-      alert('Error creating order');
+      console.error('Error creating order:', error?.response?.data || error);
+      const msg = error?.response?.data?.error || error?.message || 'Error creating order';
+      alert(msg);
     }
   };
 
+  const handleUseCurrentLocation = () => {
+    if (!('geolocation' in navigator)) {
+      alert('Geolocation is not supported by your browser.');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setShippingAddress((prev) => ({ ...prev, geo: { lat: latitude, lon: longitude } }));
+      },
+      (err) => {
+        alert('Unable to fetch location: ' + err.message);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-cyan-50" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       {/* Header */}
       <div className="bg-white shadow-lg border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
+          <div className="flex justify-between items-center py-6">
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
                   <span className="text-2xl">🏋️</span>
                 </div>
                 <div>
@@ -492,8 +608,22 @@ const ShopPage = () => {
             </div>
             
             <div className="flex items-center space-x-4">
+              {/* Wishlist Button */}
               <button
-                className="relative p-3 text-gray-700 hover:bg-gray-100 rounded-xl transition-all duration-200 group border border-gray-200"
+                onClick={() => navigate('/wishlist')}
+                className="relative p-3 text-pink-600 hover:bg-pink-100 rounded-xl transition-all duration-200 group border border-pink-200"
+              >
+                <Heart className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                {wishlist.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-pink-500 text-white text-xs px-2 py-1 rounded-full min-w-[24px] text-center font-bold">
+                    {wishlist.length}
+                  </span>
+                )}
+              </button>
+              
+              {/* Cart Button */}
+              <button
+                className="relative p-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 rounded-xl transition-all duration-200 group shadow-lg"
                 onClick={() => setCartOpen(true)}
               >
                 <ShoppingCart className="w-6 h-6 group-hover:scale-110 transition-transform" />
@@ -655,12 +785,23 @@ const ShopPage = () => {
         cart={cart}
         shippingAddress={shippingAddress}
         setShippingAddress={setShippingAddress}
+        onUseCurrentLocation={handleUseCurrentLocation}
         couponCode={couponCode}
         setCouponCode={setCouponCode}
         appliedCoupon={appliedCoupon}
         onApplyCoupon={applyCoupon}
         onCheckout={handleCheckout}
         loading={loading}
+        canCheckout={
+          cart.length > 0 &&
+          String(shippingAddress.name||'').trim() &&
+          /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(shippingAddress.email||'') &&
+          /^\d{10}$/.test(shippingAddress.phone||'') &&
+          String(shippingAddress.address||'').trim() &&
+          String(shippingAddress.city||'').trim() &&
+          String(shippingAddress.state||'').trim() &&
+          /^\d{6}$/.test(shippingAddress.pincode||'')
+        }
       />
 
       {/* Order Success Modal */}

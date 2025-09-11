@@ -17,4 +17,26 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Global response handler: on 401, clear session and redirect to login
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+    if (status === 401) {
+      try {
+        SessionManager.clearSession();
+      } catch {}
+      // Preserve current path to redirect back after login
+      const currentPath = window.location.pathname;
+      const search = window.location.search || '';
+      const hash = window.location.hash || '';
+      const from = encodeURIComponent(`${currentPath}${search}${hash}`);
+      if (currentPath !== '/login') {
+        window.location.replace(`/login?from=${from}`);
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;

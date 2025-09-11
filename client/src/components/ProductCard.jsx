@@ -61,11 +61,14 @@ const ProductCard = ({
         )}
         <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300">
           <button
-            onClick={() => onToggleWishlist(product)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleWishlist(product);
+            }}
             className={`p-3 rounded-full shadow-xl transition-all duration-200 hover:scale-110 ${
               isInWishlist
-                ? "bg-gradient-to-r from-red-500 to-pink-500 text-white"
-                : "bg-white text-gray-600 hover:bg-red-50"
+                ? "bg-gradient-to-r from-pink-500 to-red-500 text-white"
+                : "bg-white text-gray-600 hover:bg-pink-50 hover:text-pink-600"
             }`}
           >
             <Heart className={`w-5 h-5 ${isInWishlist ? 'fill-current' : ''}`} />
@@ -118,12 +121,7 @@ const ProductCard = ({
           <button
             onClick={() => onAddToCart(product)}
             disabled={!product.in_stock}
-            className="flex-1 flex items-center justify-center space-x-2 px-4 py-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 text-sm font-medium border border-indigo-600"
-            style={{ 
-              backgroundColor: product.in_stock ? '#4f46e5' : '#9ca3af', 
-              color: '#ffffff', 
-              border: `1px solid ${product.in_stock ? '#4f46e5' : '#9ca3af'}` 
-            }}
+            className="flex-1 flex items-center justify-center space-x-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:from-purple-700 hover:to-pink-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 text-sm font-medium shadow-lg"
           >
             <ShoppingCart className="w-4 h-4" />
             <span>{product.in_stock ? 'Add to Cart' : 'Out of Stock'}</span>

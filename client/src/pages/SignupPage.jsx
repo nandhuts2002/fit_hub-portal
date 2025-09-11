@@ -26,6 +26,8 @@ const SignupPage = () => {
   const [errors, setErrors] = useState({});
   const [validationStatus, setValidationStatus] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+  const [isOtpStep, setIsOtpStep] = useState(false);
+  const [otp, setOtp] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -125,6 +127,27 @@ case 'lastName':
     return error;
   };
 
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    if (!otp || otp.trim().length !== 6) {
+      setErrors({ submit: 'Enter the 6-digit OTP sent to your email.' });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await axios.post('http://localhost:5000/signup-verify', {
+        email: formData.email,
+        otp: otp.trim()
+      });
+      alert('Email verified! You can now log in.');
+      navigate('/login', { replace: true });
+    } catch (err) {
+      setErrors({ submit: err?.response?.data?.msg || 'OTP verification failed. Please try again.' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     let updatedValue = type === 'checkbox' ? checked : value;
@@ -220,15 +243,14 @@ case 'lastName':
         })
       };
 
-      const response = await axios.post('http://localhost:5000/signup', signupData);
-      
-      // Handle different success messages
       if (formData.role === 'trainer') {
+        await axios.post('http://localhost:5000/signup', signupData);
         alert('Trainer application submitted! Please wait for admin approval.');
         navigate('/login');
       } else {
-        alert('Account created successfully! Please log in.');
-        navigate('/login');
+        await axios.post('http://localhost:5000/signup-init', signupData);
+        setIsOtpStep(true);
+        setErrors({});
       }
     } catch (err) {
       console.error('Signup error:', err);
@@ -275,6 +297,7 @@ case 'lastName':
           </div>
         )}
 
+        {!isOtpStep && (
         <form onSubmit={handleSignup} className="bg-white rounded-2xl shadow-xl p-8 space-y-8 border border-gray-200">
           {/* Personal Information */}
           <div className="space-y-6">
@@ -621,6 +644,51 @@ case 'lastName':
           {isLoading ? 'Creating Account...' : 'Create Account'}
         </button>
       </form>
+      )}
+
+      {isOtpStep && (
+        <form onSubmit={handleVerifyOtp} className="bg-white rounded-2xl shadow-xl p-8 space-y-6 border border-gray-200">
+          <h3 className="text-xl font-semibold text-gray-900">Verify Your Email</h3>
+          <p className="text-secondary-700">We sent a 6-digit verification code to <strong>{formData.email}</strong>. Enter it below to activate your account.</p>
+          <div>
+            <label htmlFor="otp" className="block text-sm font-medium text-secondary-700 mb-2">Verification Code</label>
+            <input
+              id="otp"
+              name="otp"
+              inputMode="numeric"
+              maxLength={6}
+              className={`input-field ${errors.submit ? 'border-red-300 focus:ring-red-500' : ''}`}
+              placeholder="123456"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, ''))}
+            />
+          </div>
+          <button type="submit" className="w-full py-3 text-base font-semibold bg-gradient-to-r from-pink-600 to-purple-700 hover:from-pink-700 hover:to-purple-800 text-white rounded-xl shadow-md" disabled={isLoading}>
+            {isLoading ? 'Verifying...' : 'Verify Email'}
+          </button>
+          <div className="flex items-center justify-between text-sm text-secondary-600">
+            <button type="button" className="text-primary-600 hover:text-primary-700" onClick={() => setIsOtpStep(false)}>Go back</button>
+            <button
+              type="button"
+              className="text-primary-600 hover:text-primary-700"
+              onClick={async () => {
+                try {
+                  setIsLoading(true);
+                  await axios.post('http://localhost:5000/signup-resend', { email: formData.email });
+                  setErrors({});
+                  alert('Verification code resent to your email.');
+                } catch (err) {
+                  setErrors({ submit: err?.response?.data?.msg || 'Failed to resend OTP. Please try again.' });
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
+            >
+              Resend code
+            </button>
+          </div>
+        </form>
+      )}
 
         <div className="text-center mt-6">
           <p className="text-gray-200">

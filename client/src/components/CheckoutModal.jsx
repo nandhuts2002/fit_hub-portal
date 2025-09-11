@@ -8,12 +8,14 @@ const CheckoutModal = ({
   cart,
   shippingAddress,
   setShippingAddress,
+  onUseCurrentLocation,
   couponCode,
   setCouponCode,
   appliedCoupon,
   onApplyCoupon,
   onCheckout,
-  loading = false
+  loading = false,
+  canCheckout = true
 }) => {
   const getTotalPrice = () => {
     return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
@@ -262,7 +264,7 @@ const CheckoutModal = ({
                   {/* Checkout Button */}
                   <button
                     onClick={onCheckout}
-                    disabled={loading || cart.length === 0}
+                    disabled={loading || cart.length === 0 || !canCheckout}
                     className="w-full py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
                   >
                     {loading ? (
@@ -275,6 +277,22 @@ const CheckoutModal = ({
                   <div className="text-center text-xs text-gray-500">
                     By placing this order, you agree to our terms and conditions
                   </div>
+                </div>
+
+                {/* Use Current Location */}
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={onUseCurrentLocation}
+                    className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
+                  >
+                    <MapPin className="w-4 h-4" /> Use My Current Location
+                  </button>
+                  {shippingAddress?.geo?.lat && shippingAddress?.geo?.lon && (
+                    <div className="mt-2 text-xs text-gray-600">
+                      Captured: {shippingAddress.geo.lat.toFixed(5)}, {shippingAddress.geo.lon.toFixed(5)}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

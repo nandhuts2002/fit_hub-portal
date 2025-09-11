@@ -1,23 +1,44 @@
-import React from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Clock, Tag, UserRound, CheckCircle2 } from 'lucide-react';
+import api from '../utils/api';
+import SessionManager from '../utils/sessionManager';
 
 const QueryDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // Placeholder data until wired to API/route state
-  const query = {
-    id,
-    title: 'Tadasana posture causing lower back strain',
-    description:
-      'When I hold Tadasana for more than a minute, I start to feel a mild strain in my lower back. I might be tilting my pelvis incorrectly. Any corrections or cues?',
-    status: 'open',
-    category: 'posture',
-    created_at: new Date().toISOString(),
-    assigned_trainer: 'Not assigned',
-    response: '',
-  };
+  const [query, setQuery] = useState(() => location.state?.query || null);
+  const [loading, setLoading] = useState(!location.state?.query);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (query) return; // already have state from navigation
+    let isMounted = true;
+    const fetchQuery = async () => {
+      try {
+        setLoading(true);
+        const currentUser = SessionManager.getCurrentUser();
+        if (!currentUser?.token) {
+          navigate('/login');
+          return;
+        }
+        const { data } = await api.get(`/trainer/public/queries/${id}`, {
+          headers: { Authorization: `Bearer ${currentUser.token}` }
+        });
+        if (!isMounted) return;
+        setQuery(data.query || null);
+      } catch (e) {
+        if (!isMounted) return;
+        setError('Unable to load query.');
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+    fetchQuery();
+    return () => { isMounted = false; };
+  }, [id, query, navigate]);
 
   const statusColor = {
     open: 'bg-yellow-50 text-yellow-700 ring-1 ring-yellow-200',
@@ -25,6 +46,22 @@ const QueryDetailPage = () => {
     resolved: 'bg-green-50 text-green-700 ring-1 ring-green-200',
     closed: 'bg-gray-100 text-gray-700 ring-1 ring-gray-200',
   }[query.status] || 'bg-gray-100 text-gray-700 ring-1 ring-gray-200';
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-primary-50 to-secondary-100 grid place-items-center">
+        <div className="text-secondary-700">Loading…</div>
+      </div>
+    );
+  }
+
+  if (error || !query) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-primary-50 to-secondary-100 grid place-items-center">
+        <div className="text-red-700 bg-red-50 border border-red-200 px-4 py-3 rounded-lg">{error || 'Query not found.'}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary-50 to-secondary-100">
@@ -54,7 +91,7 @@ const QueryDetailPage = () => {
               <h2 className="text-2xl font-bold text-gray-900 mb-2">{query.title}</h2>
               <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 mb-4">
                 <span className="inline-flex items-center gap-1"><Clock className="w-4 h-4" />
-                  {new Date(query.created_at).toLocaleString()}
+                  {query.created_at ? new Date(query.created_at).toLocaleString() : ''}
                 </span>
                 <span className="inline-flex items-center gap-1"><Tag className="w-4 h-4" /> {query.category}</span>
               </div>

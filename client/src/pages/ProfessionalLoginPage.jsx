@@ -6,51 +6,23 @@ import SessionManager from '../utils/sessionManager';
 import { signInWithPopup } from 'firebase/auth';
 import { auth, provider } from '../firebase';
 
-// Icons as React components (since we don't have lucide-react)
+// Minimal icon used in header
 const HeartIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
   </svg>
 );
 
-const MailIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-    <polyline points="22,6 12,13 2,6"/>
-  </svg>
-);
-
-const LockIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-    <circle cx="12" cy="16" r="1"/>
-    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-  </svg>
-);
-
-const EyeIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-    <circle cx="12" cy="12" r="3"/>
-  </svg>
-);
-
-const EyeOffIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-    <line x1="1" y1="1" x2="23" y2="23"/>
-  </svg>
-);
-
 const ProfessionalLoginPage = () => {
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  // showPassword UI not implemented; remove to satisfy lint
+  const [, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
+  // Login is single-step (no OTP)
   const [errors, setErrors] = useState({});
-  const [touchedFields, setTouchedFields] = useState({});
+  // Remove unused touchedFields to satisfy lint
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -79,7 +51,6 @@ const ProfessionalLoginPage = () => {
     // Real-time validation
     const error = validateField(name, value);
     setErrors(prev => ({ ...prev, [name]: error }));
-    setTouchedFields(prev => ({ ...prev, [name]: true }));
   };
 
   const handleSubmit = async (e) => {
@@ -94,7 +65,6 @@ const ProfessionalLoginPage = () => {
         email: emailError,
         password: passwordError
       });
-      setTouchedFields({ email: true, password: true });
       return;
     }
 
@@ -114,11 +84,19 @@ const ProfessionalLoginPage = () => {
         role: res.data.user.role
       });
 
-      // Get redirect path based on role
-      const redirectPath = SessionManager.getRedirectPath(res.data.user.role);
-      navigate(redirectPath);
+      // Redirect to intended path or role dashboard; replace history to avoid back to login
+      const fromState = location.state?.from;
+      const params = new URLSearchParams(location.search);
+      const fromQuery = params.get('from');
+      const decodedFromQuery = fromQuery ? decodeURIComponent(fromQuery) : undefined;
+      const safeFrom = decodedFromQuery && decodedFromQuery.startsWith('/') ? decodedFromQuery : undefined;
+      const defaultPath = SessionManager.getRedirectPath(res.data.user.role || 'user');
+      const isHomeLike = (p) => !p || p === '/' || p === '/home' || p === '/index';
+      const candidate = safeFrom && safeFrom !== '/login' ? safeFrom : (fromState && fromState !== '/login' ? fromState : undefined);
+      const target = candidate && !isHomeLike(candidate) ? candidate : defaultPath;
+      navigate(target, { replace: true });
     } catch (err) {
-      setErrors({ submit: 'Invalid credentials. Please try again.' });
+      setErrors({ submit: err?.response?.data?.msg || 'Invalid credentials. Please try again.' });
     } finally {
       setIsLoading(false);
     }
@@ -155,8 +133,16 @@ const ProfessionalLoginPage = () => {
         });
         
         console.log('✅ Backend authentication successful');
+        const fromState = location.state?.from;
+        const params = new URLSearchParams(location.search);
+        const fromQuery = params.get('from');
+        const decodedFromQuery = fromQuery ? decodeURIComponent(fromQuery) : undefined;
+        const safeFrom = decodedFromQuery && decodedFromQuery.startsWith('/') ? decodedFromQuery : undefined;
         const redirectPath = SessionManager.getRedirectPath(response.data.user.role || 'user');
-        navigate(redirectPath);
+        const isHomeLike = (p) => !p || p === '/' || p === '/home' || p === '/index';
+        const candidate = safeFrom && safeFrom !== '/login' ? safeFrom : (fromState && fromState !== '/login' ? fromState : undefined);
+        const target = candidate && !isHomeLike(candidate) ? candidate : redirectPath;
+        navigate(target, { replace: true });
         
       } catch (backendError) {
         console.log('⚠️ Backend auth failed, using client-only auth');
@@ -167,7 +153,9 @@ const ProfessionalLoginPage = () => {
           email: user.email,
           role: 'user'
         });
-        navigate('/user-home');
+        const from = location.state?.from;
+        const target = from && from !== '/login' ? from : '/user-home';
+        navigate(target, { replace: true });
       }
       
     } catch (err) {
@@ -188,8 +176,13 @@ const ProfessionalLoginPage = () => {
   };
 
   const handleBackToHome = () => {
-    const from = location.state?.from || '/';
-    navigate(from, { replace: true });
+    const fromState = location.state?.from;
+    const params = new URLSearchParams(location.search);
+    const fromQuery = params.get('from');
+    const decodedFromQuery = fromQuery ? decodeURIComponent(fromQuery) : undefined;
+    const safeFrom = decodedFromQuery && decodedFromQuery.startsWith('/') ? decodedFromQuery : undefined;
+    const target = safeFrom || fromState || '/';
+    navigate(target, { replace: true });
   };
 
   return (
@@ -281,7 +274,7 @@ const ProfessionalLoginPage = () => {
                 <input
                   id="password"
                   name="password"
-                  type={showPassword ? 'text' : 'password'}
+                  type="password"
                   className={`input-field ${errors.password ? 'border-red-300 focus:ring-red-500' : ''}`}
                   placeholder="Enter your password"
                   value={formData.password}
@@ -299,6 +292,7 @@ const ProfessionalLoginPage = () => {
                 Sign In
               </button>
             </form>
+            
 
             {/* Google Sign-In */}
             <div className="mt-6">

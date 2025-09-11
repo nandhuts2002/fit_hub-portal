@@ -289,7 +289,7 @@ const MyQueriesChat = () => {
         if (res.status === 401) {
           alert("Your session has expired. Please log in again.");
           SessionManager.clearSession();
-          navigate("/login");
+          // Let ProtectedRoute handle redirect; avoid pushing to login here
           return;
         }
         if (!res.ok) throw new Error("Failed to load queries");
@@ -365,7 +365,7 @@ const MyQueriesChat = () => {
     }
   };
 
-  const openDetail = (q) => navigate(`/queries/${q.id}`);
+  const openDetail = (q) => navigate(`/queries/${q.id}`, { state: { query: q } });
 
   return (
     <div className="query-page bg-gradient-to-b from-purple-950 via-purple-900 to-slate-950 min-h-screen">

@@ -21,7 +21,7 @@ const ForgotPasswordPage = () => {
 
     setIsSubmitting(true);
     try {
-      const res = await axios.post('http://localhost:5000/forgot-password', { email });
+      const res = await axios.post('http://localhost:5000/forgot-password', { email, appBaseUrl: window.location.origin });
       setMessage(res.data?.msg || 'If that email exists, a reset link has been sent');
 
       // Dev convenience: if backend returns token/resetLink, navigate within SPA

@@ -18,6 +18,8 @@ import CommunityPage from './pages/CommunityPage';
 import QueryDetailPage from './pages/QueryDetailPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import OrderSummaryPage from './pages/OrderSummaryPage';
+import MyOrdersPage from './pages/MyOrdersPage';
 
 function App() {
   console.log('App component rendering...');
@@ -83,6 +85,16 @@ function App() {
         <Route path="/community" element={
           <ProtectedRoute>
             <CommunityPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/orders" element={
+          <ProtectedRoute>
+            <MyOrdersPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/orders/:id" element={
+          <ProtectedRoute>
+            <OrderSummaryPage />
           </ProtectedRoute>
         } />
         

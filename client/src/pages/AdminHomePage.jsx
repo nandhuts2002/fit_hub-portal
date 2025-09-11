@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import SessionManager from '../utils/sessionManager';
@@ -34,6 +34,9 @@ const AdminHomePage = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [formErrors, setFormErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Orders management
+  const [orders, setOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
   
   const [trainerForm, setTrainerForm] = useState({
     firstName: '',
@@ -63,15 +66,9 @@ const AdminHomePage = () => {
 
   useEffect(() => {
     const fetchAdminData = async () => {
-      // Check authentication using SessionManager
-      if (!SessionManager.isAuthenticated()) {
-        navigate('/login');
-        return;
-      }
-
+      // Rely on ProtectedRoute for auth/role; avoid manual redirects here
       const currentUser = SessionManager.getCurrentUser();
       if (!currentUser || currentUser.role !== 'admin') {
-        navigate('/login');
         return;
       }
 
@@ -244,7 +241,7 @@ const AdminHomePage = () => {
     }
   }, [activeTab]);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     console.log('🚪 handleLogout function called');
 
     try {
@@ -300,7 +297,7 @@ const AdminHomePage = () => {
         window.location.href = '/';
       }
     }
-  };
+  }, [navigate]);
 
   // Add global logout function for emergency access
   useEffect(() => {
@@ -313,7 +310,7 @@ const AdminHomePage = () => {
       delete window.adminLogout;
       console.log('🧹 window.adminLogout function removed');
     };
-  }, []);
+  }, [handleLogout]);
 
   const handleTabChange = (tab) => {
     console.log('🎯 Changing tab to:', tab);
@@ -331,6 +328,106 @@ const AdminHomePage = () => {
     console.log('📝 New URL:', newUrl);
     
     window.history.pushState(newState, '', newUrl);
+  };
+
+  // Fetch all orders (admin)
+  const fetchOrders = useCallback(async () => {
+    try {
+      setOrdersLoading(true);
+      const currentUser = SessionManager.getCurrentUser();
+      if (!currentUser?.token) return;
+      const { data } = await axios.get('http://localhost:5000/shop/api/orders', {
+        headers: { Authorization: `Bearer ${currentUser.token}` }
+      });
+      if (data?.success) setOrders(data.orders || []);
+    } catch (e) {
+      console.error('Failed to load orders', e);
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, []);
+
+  // Update a single order
+  const updateOrderStatus = async (orderId, payload) => {
+    try {
+      const currentUser = SessionManager.getCurrentUser();
+      if (!currentUser?.token) return;
+      await axios.put(`http://localhost:5000/shop/api/orders/${orderId}/status`, payload, {
+        headers: { Authorization: `Bearer ${currentUser.token}` }
+      });
+      await fetchOrders();
+    } catch (e) {
+      console.error('Failed to update order', e);
+      alert('Failed to update order');
+    }
+  };
+
+  const renderOrders = () => {
+    const statuses = ['Pending','Processing','Packed','Shipped','Delivered'];
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-secondary-900">Orders</h2>
+          <button className="btn-primary" onClick={fetchOrders}>Refresh</button>
+        </div>
+        {ordersLoading ? (
+          <div>Loading orders…</div>
+        ) : orders.length === 0 ? (
+          <div>No orders found.</div>
+        ) : (
+          <div className="overflow-auto border rounded-lg">
+            <table className="w-full admin-table">
+              <thead>
+                <tr>
+                  <th>Order No</th>
+                  <th>User</th>
+                  <th>Total</th>
+                  <th>Payment</th>
+                  <th>Status</th>
+                  <th>Tracking</th>
+                  <th>Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                {orders.map((o) => (
+                  <tr key={o._id}>
+                    <td>{o.order_id}</td>
+                    <td>{o.user_email}</td>
+                    <td>₹{(o.total || 0).toLocaleString()}</td>
+                    <td>{o.paymentStatus || 'Pending'}</td>
+                    <td>
+                      <div className="flex items-center gap-2">
+                        <select
+                          defaultValue={o.orderStatus || 'Pending'}
+                          onChange={(e) => {
+                            o.__nextStatus = e.target.value;
+                          }}
+                        >
+                          {statuses.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                        <button className="btn-secondary" onClick={() => updateOrderStatus(o._id, { orderStatus: o.__nextStatus || o.orderStatus })}>Save</button>
+                      </div>
+                    </td>
+                    <td>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          defaultValue={o.trackingNumber || ''}
+                          onChange={(e) => { o.__nextTrack = e.target.value; }}
+                          placeholder="Tracking #"
+                        />
+                        <button className="btn-secondary" onClick={() => updateOrderStatus(o._id, { trackingNumber: o.__nextTrack ?? o.trackingNumber })}>Save</button>
+                      </div>
+                    </td>
+                    <td>{new Date(o.updated_at || o.created_at).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
   };
 
   // Form validation
@@ -2379,6 +2476,17 @@ const AdminHomePage = () => {
                   <p className="text-sm text-secondary-600">Manage shop items</p>
                 </div>
               </div>
+
+              <div
+                className="nav-card"
+                onClick={() => { handleTabChange('orders'); fetchOrders(); }}
+              >
+                <div className="text-3xl mb-3">📦</div>
+                <div>
+                  <h3 className="text-lg font-semibold text-secondary-900 mb-1">Orders</h3>
+                  <p className="text-sm text-secondary-600">Track & update statuses</p>
+                </div>
+              </div>
             </div>
 
             {/* Welcome Section */}
@@ -2405,6 +2513,7 @@ const AdminHomePage = () => {
         {activeTab === 'applications' && renderTrainerApplications()}
         {activeTab === 'tutorials' && renderAdminTutorials()}
         {activeTab === 'products' && <AdminProductManagement />}
+        {activeTab === 'orders' && renderOrders()}
         {activeTab === 'analytics' && renderAnalytics()}
         {activeTab === 'settings' && renderSettings()}
 

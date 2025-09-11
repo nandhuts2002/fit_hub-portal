@@ -1,4 +1,5 @@
 from models import trainer_applications_collection, users_collection
+from auth import _send_email
 from flask_bcrypt import Bcrypt
 from datetime import datetime
 import re
@@ -162,6 +163,22 @@ def approve_trainer_application(application_id, admin_email, admin_notes=''):
                     }
                 }
             )
+
+            # Notify trainer via email
+            try:
+                full_name = f"{application.get('firstName','')} {application.get('lastName','')}".strip() or 'Trainer'
+                subject = 'Your Fit-Hub Trainer Application: Approved'
+                html = f"""
+                    <div style='font-family:Arial,sans-serif'>
+                      <h2>Congratulations, {full_name}!</h2>
+                      <p>Your trainer application has been <strong>approved</strong>. You can now sign in and start using your trainer dashboard.</p>
+                      <p><a href='{"http://localhost:3000"}' style='display:inline-block;padding:10px 16px;background:#7c3aed;color:#fff;border-radius:8px;text-decoration:none'>Go to Fit-Hub</a></p>
+                    </div>
+                """
+                _send_email(subject, application['email'], html, f"Your trainer application has been approved.")
+                trainer_applications_collection.update_one({'_id': ObjectId(application_id)}, {'$set': {'notification': {'type': 'approved', 'sent_at': datetime.utcnow()}}})
+            except Exception:
+                pass
             
             return {
                 'success': True, 
@@ -202,6 +219,23 @@ def reject_trainer_application(application_id, admin_email, rejection_reason, ad
         )
         
         if result.modified_count > 0:
+            # Notify trainer via email
+            try:
+                full_name = f"{application.get('firstName','')} {application.get('lastName','')}".strip() or 'Applicant'
+                subject = 'Your Fit-Hub Trainer Application: Decision'
+                reason = rejection_reason or 'Not specified'
+                html = f"""
+                    <div style='font-family:Arial,sans-serif'>
+                      <h2>Hello {full_name},</h2>
+                      <p>Thank you for applying as a trainer. We appreciate your interest. Unfortunately, your application was <strong>not approved</strong> at this time.</p>
+                      <p><strong>Reason:</strong> {reason}</p>
+                      <p>You may update your profile and reapply in the future.</p>
+                    </div>
+                """
+                _send_email(subject, application['email'], html, f"Application not approved. Reason: {reason}")
+                trainer_applications_collection.update_one({'_id': ObjectId(application_id)}, {'$set': {'notification': {'type': 'rejected', 'sent_at': datetime.utcnow(), 'reason': reason}}})
+            except Exception:
+                pass
             return {
                 'success': True, 
                 'message': f'Application rejected. Reason: {rejection_reason}'

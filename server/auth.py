@@ -162,6 +162,11 @@ def login():
         print(f"   ❌ No user found with email '{email}'")
         return jsonify({'msg': 'Invalid credentials'}), 401
     
+    # Block login if email not verified (default True for legacy accounts)
+    if user.get('role') != 'trainer':
+        if user.get('verified') is False:
+            return jsonify({'msg': 'Email not verified. Please verify via the signup OTP.'}), 403
+
     # Check if user has a password (Google users might not have one)
     if user.get('password'):
         password_valid = bcrypt.check_password_hash(user['password'], password)
@@ -193,6 +198,309 @@ def login():
         'user': user_data,
         'msg': 'Login successful'
     }), 200
+
+# --- Signup with OTP (Two-step) ---
+@auth_bp.route('/signup-init', methods=['POST'])
+def signup_init():
+    """Create or update a pending user and send verification OTP via email."""
+    try:
+        data = request.get_json() or {}
+        email = (data.get('email') or '').strip().lower()
+        password = data.get('password')
+        role = data.get('role', 'user')
+
+        if not email or not password:
+            return jsonify({'success': False, 'msg': 'Email and password are required'}), 400
+
+        existing = users_collection.find_one({'email': email})
+
+        # Trainer signup should still go via trainer application flow
+        if role == 'trainer':
+            return jsonify({'success': False, 'msg': 'Use standard signup endpoint for trainer applications'}), 400
+
+        hashed_pw = bcrypt.generate_password_hash(password).decode('utf-8')
+
+        # If verified user already exists, block
+        if existing and existing.get('verified', True) is True:
+            return jsonify({'success': False, 'msg': 'User already exists'}), 409
+
+        # Create or update pending user with verified=False
+        base_fields = {
+            'email': email,
+            'password': hashed_pw,
+            'role': 'user',
+            'verified': False,
+            'firstName': data.get('firstName', ''),
+            'lastName': data.get('lastName', ''),
+            'phone': data.get('phone', ''),
+            'dateOfBirth': data.get('dateOfBirth', ''),
+            'gender': data.get('gender', ''),
+            'subscribeNewsletter': data.get('subscribeNewsletter', False),
+        }
+
+        if existing:
+            users_collection.update_one({'_id': existing['_id']}, {'$set': base_fields})
+            user_doc = users_collection.find_one({'_id': existing['_id']})
+        else:
+            from bson import ObjectId
+            inserted = users_collection.insert_one(base_fields)
+            user_doc = users_collection.find_one({'_id': inserted.inserted_id})
+
+        # Generate OTP and store under emailVerification
+        import random
+        otp_code = f"{random.randint(0, 999999):06d}"
+        expires_at = datetime.utcnow() + timedelta(minutes=10)
+
+        users_collection.update_one(
+            {'_id': user_doc['_id']},
+            {'$set': {
+                'emailVerification': {
+                    'code': otp_code,
+                    'expiresAt': expires_at.isoformat(),
+                    'attempts': 0
+                }
+            }}
+        )
+
+        # Send email
+        email_sent = False
+        try:
+            subject = 'Verify your Fit-Hub account'
+            html = f"""
+                <div style='font-family:Arial,sans-serif'>
+                  <h2>Verify your email</h2>
+                  <p>Your one-time verification code is:</p>
+                  <p style='font-size:24px;font-weight:bold;letter-spacing:4px'>{otp_code}</p>
+                  <p>This code expires in 10 minutes.</p>
+                </div>
+            """
+            _send_email(subject, email, html, f"Your Fit-Hub verification code is {otp_code}. It expires in 10 minutes.")
+            email_sent = True
+        except Exception as e:
+            print(f"❌ Signup OTP email send failed: {e}")
+
+        body = {'success': True, 'msg': 'Verification OTP sent to your email'}
+        email_dev_mode = os.getenv('EMAIL_DEV_MODE', '').lower() == 'true' or os.getenv('ENV', '').lower() in ['dev', 'development']
+        if email_dev_mode or not email_sent:
+            body.update({'debugOtp': otp_code})
+        return jsonify(body), 200
+    except Exception as e:
+        print(f"❌ signup_init error: {str(e)}")
+        return jsonify({'success': False, 'msg': 'Failed to start signup verification'}), 500
+
+
+@auth_bp.route('/signup-verify', methods=['POST'])
+def signup_verify():
+    """Verify signup OTP and mark user as verified."""
+    try:
+        data = request.get_json() or {}
+        email = (data.get('email') or '').strip().lower()
+        otp = (data.get('otp') or '').strip()
+
+        if not email or not otp:
+            return jsonify({'success': False, 'msg': 'Email and OTP are required'}), 400
+
+        user = users_collection.find_one({'email': email})
+        if not user:
+            return jsonify({'success': False, 'msg': 'Invalid verification request'}), 400
+
+        info = user.get('emailVerification') or {}
+        code = (info.get('code') or '').strip()
+        expires_at_str = info.get('expiresAt')
+        attempts = int(info.get('attempts', 0)) + 1
+        users_collection.update_one({'_id': user['_id']}, {'$set': {'emailVerification.attempts': attempts}})
+
+        if attempts > 5:
+            return jsonify({'success': False, 'msg': 'Too many attempts. Request a new OTP.'}), 429
+
+        try:
+            expires_at = datetime.fromisoformat(expires_at_str) if expires_at_str else None
+        except Exception:
+            expires_at = None
+
+        if not code or otp != code:
+            return jsonify({'success': False, 'msg': 'Invalid OTP'}), 400
+        if not expires_at or expires_at < datetime.utcnow():
+            return jsonify({'success': False, 'msg': 'OTP expired'}), 400
+
+        users_collection.update_one({'_id': user['_id']}, {'$set': {'verified': True}, '$unset': {'emailVerification': ''}})
+        return jsonify({'success': True, 'msg': 'Email verified. You can now log in.'}), 200
+    except Exception as e:
+        print(f"❌ signup_verify error: {str(e)}")
+        return jsonify({'success': False, 'msg': 'Failed to verify'}), 500
+
+
+@auth_bp.route('/signup-resend', methods=['POST'])
+def signup_resend():
+    """Resend verification OTP for pending signup."""
+    try:
+        data = request.get_json() or {}
+        email = (data.get('email') or '').strip().lower()
+        if not email:
+            return jsonify({'success': False, 'msg': 'Email is required'}), 400
+
+        user = users_collection.find_one({'email': email})
+        if not user:
+            return jsonify({'success': False, 'msg': 'User not found'}), 404
+        if user.get('verified') is True:
+            return jsonify({'success': False, 'msg': 'Email already verified'}), 400
+
+        # Generate new code
+        import random
+        otp_code = f"{random.randint(0, 999999):06d}"
+        expires_at = datetime.utcnow() + timedelta(minutes=10)
+
+        users_collection.update_one(
+            {'_id': user['_id']},
+            {'$set': {
+                'emailVerification': {
+                    'code': otp_code,
+                    'expiresAt': expires_at.isoformat(),
+                    'attempts': 0
+                }
+            }}
+        )
+
+        # Send email
+        email_sent = False
+        try:
+            subject = 'Your new Fit-Hub verification code'
+            html = f"""
+                <div style='font-family:Arial,sans-serif'>
+                  <h2>Verify your email</h2>
+                  <p>Your new verification code is:</p>
+                  <p style='font-size:24px;font-weight:bold;letter-spacing:4px'>{otp_code}</p>
+                  <p>This code expires in 10 minutes.</p>
+                </div>
+            """
+            _send_email(subject, email, html, f"Your new Fit-Hub verification code is {otp_code}. It expires in 10 minutes.")
+            email_sent = True
+        except Exception as e:
+            print(f"❌ resend OTP email send failed: {e}")
+
+        body = {'success': True, 'msg': 'Verification OTP sent to your email'}
+        email_dev_mode = os.getenv('EMAIL_DEV_MODE', '').lower() == 'true' or os.getenv('ENV', '').lower() in ['dev', 'development']
+        if email_dev_mode or not email_sent:
+            body.update({'debugOtp': otp_code})
+        return jsonify(body), 200
+    except Exception as e:
+        print(f"❌ signup_resend error: {str(e)}")
+        return jsonify({'success': False, 'msg': 'Failed to resend OTP'}), 500
+
+# --- OTP Login (Two-step) ---
+@auth_bp.route('/login-init', methods=['POST'])
+def login_init():
+    """Step 1: Validate credentials and email an OTP. Does not issue JWT yet."""
+    data = request.get_json() or {}
+    email = (data.get('email') or '').strip().lower()
+    password = data.get('password')
+
+    if not email or not password:
+        return jsonify({'success': False, 'msg': 'Email and password are required'}), 400
+
+    user = users_collection.find_one({'email': email})
+    if not user:
+        return jsonify({'success': False, 'msg': 'Invalid credentials'}), 401
+
+    if not user.get('password'):
+        return jsonify({'success': False, 'msg': 'Use Google Sign-In for this account'}), 401
+
+    if not bcrypt.check_password_hash(user['password'], password):
+        return jsonify({'success': False, 'msg': 'Invalid credentials'}), 401
+
+    # Generate 6-digit OTP, valid for 5 minutes
+    import random
+    otp_code = f"{random.randint(0, 999999):06d}"
+    expires_at = datetime.utcnow() + timedelta(minutes=5)
+
+    # Save otp info on user doc
+    users_collection.update_one(
+        {'_id': user['_id']},
+        {'$set': {
+            'otp': {
+                'code': otp_code,
+                'expiresAt': expires_at.isoformat(),
+                'attempts': 0
+            }
+        }}
+    )
+
+    # Attempt to send email
+    try:
+        subject = 'Your Fit-Hub Login OTP'
+        html = f"""
+            <div style='font-family:Arial,sans-serif'>
+              <h2>Login verification</h2>
+              <p>Your one-time password (OTP) is:</p>
+              <p style='font-size:24px;font-weight:bold;letter-spacing:4px'>{otp_code}</p>
+              <p>This code will expire in 5 minutes.</p>
+            </div>
+        """
+        _send_email(subject, email, html, f"Your Fit-Hub login OTP is {otp_code}. It expires in 5 minutes.")
+        email_sent = True
+    except Exception as e:
+        print(f"❌ OTP email send failed: {e}")
+        email_sent = False
+
+    body = {'success': True, 'msg': 'OTP sent to your email'}
+    email_dev_mode = os.getenv('EMAIL_DEV_MODE', '').lower() == 'true' or os.getenv('ENV', '').lower() in ['dev', 'development']
+    if email_dev_mode or not email_sent:
+        body.update({'debugOtp': otp_code})
+
+    return jsonify(body), 200
+
+
+@auth_bp.route('/login-verify', methods=['POST'])
+def login_verify():
+    """Step 2: Verify OTP and issue JWT token."""
+    data = request.get_json() or {}
+    email = (data.get('email') or '').strip().lower()
+    otp = (data.get('otp') or '').strip()
+
+    if not email or not otp:
+        return jsonify({'success': False, 'msg': 'Email and OTP are required'}), 400
+
+    user = users_collection.find_one({'email': email})
+    if not user:
+        return jsonify({'success': False, 'msg': 'Invalid verification request'}), 400
+
+    otp_info = user.get('otp') or {}
+    code = (otp_info.get('code') or '').strip()
+    expires_at_str = otp_info.get('expiresAt')
+    attempts = int(otp_info.get('attempts', 0))
+
+    # Increment attempts for rate limiting
+    attempts += 1
+    users_collection.update_one({'_id': user['_id']}, {'$set': {'otp.attempts': attempts}})
+
+    if attempts > 5:
+        return jsonify({'success': False, 'msg': 'Too many attempts. Request a new OTP.'}), 429
+
+    try:
+        expires_at = datetime.fromisoformat(expires_at_str) if expires_at_str else None
+    except Exception:
+        expires_at = None
+
+    if not code or otp != code:
+        return jsonify({'success': False, 'msg': 'Invalid OTP'}), 400
+    if not expires_at or expires_at < datetime.utcnow():
+        return jsonify({'success': False, 'msg': 'OTP expired'}), 400
+
+    # Success -> clear OTP and issue token
+    users_collection.update_one({'_id': user['_id']}, {'$unset': {'otp': ''}})
+
+    token = create_access_token(identity={'email': user['email'], 'role': user.get('role', 'user')})
+    user_data = {
+        'email': user['email'],
+        'role': user.get('role', 'user'),
+        'name': f"{user.get('firstName', '')} {user.get('lastName', '')}".strip() or user['email'].split('@')[0],
+        'firstName': user.get('firstName', ''),
+        'lastName': user.get('lastName', ''),
+        'phone': user.get('phone', ''),
+        'id': str(user['_id'])
+    }
+
+    return jsonify({'success': True, 'msg': 'Login successful', 'token': token, 'user': user_data}), 200
 
 @auth_bp.route('/users', methods=['GET'])
 @jwt_required()
@@ -430,7 +738,8 @@ def forgot_password_request():
         )
 
         # Compose absolute reset link for email
-        app_base_url = os.getenv('APP_BASE_URL', 'http://localhost:3000')
+        # Prefer client-provided base URL so links work across devices
+        app_base_url = request.json.get('appBaseUrl') or os.getenv('APP_BASE_URL', 'http://localhost:3000')
         reset_link = f"{app_base_url}/reset-password?token={reset_token}"
 
         # Send email (HTML + text)

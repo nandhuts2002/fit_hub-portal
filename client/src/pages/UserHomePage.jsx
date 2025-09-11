@@ -17,13 +17,11 @@ const UserHomePage = () => {
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
+    // Rely on ProtectedRoute; avoid manual redirect to login
     const currentUser = SessionManager.getCurrentUser();
-    if (!currentUser) {
-      navigate("/login");
-      return;
-    }
+    if (!currentUser) return;
     setUser(currentUser);
-  }, [navigate]);
+  }, []);
 
   const handleLogout = () => {
     SessionManager.clearSession();
