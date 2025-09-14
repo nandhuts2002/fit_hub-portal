@@ -1,6 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, CreditCard, MapPin, Gift, Check } from "lucide-react";
+import { X, CreditCard, MapPin, Gift, Check, AlertCircle } from "lucide-react";
+
+const PAYMENT_METHODS = [
+  { id: 'razorpay', label: 'Online Payment (Razorpay)' },
+  { id: 'cod', label: 'Cash on Delivery (COD)' }
+];
 
 const CheckoutModal = ({
   isOpen,
@@ -44,6 +49,86 @@ const CheckoutModal = ({
     return subtotal + shipping - discount;
   };
 
+  const [selectedPayment, setSelectedPayment] = React.useState('razorpay');
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
+
+  // Real-time validation functions
+  const validateField = (field, value) => {
+    switch (field) {
+      case 'name':
+        if (!value.trim()) return 'Full name is required';
+        if (value.trim().length < 2) return 'Name must be at least 2 characters';
+        return '';
+      
+      case 'email':
+        if (!value.trim()) return 'Email is required';
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Please enter a valid email address';
+        return '';
+      
+      case 'phone':
+        if (!value.trim()) return 'Phone number is required';
+        if (!/^[6-9]\d{9}$/.test(value.replace(/\D/g, ''))) return 'Please enter a valid 10-digit phone number';
+        return '';
+      
+      case 'address':
+        if (!value.trim()) return 'Address is required';
+        if (value.trim().length < 10) return 'Please enter a complete address';
+        return '';
+      
+      case 'city':
+        if (!value.trim()) return 'City is required';
+        return '';
+      
+      case 'state':
+        if (!value.trim()) return 'State is required';
+        return '';
+      
+      case 'pincode':
+        if (!value.trim()) return 'Pincode is required';
+        if (!/^\d{6}$/.test(value)) return 'Please enter a valid 6-digit pincode';
+        return '';
+      
+      default:
+        return '';
+    }
+  };
+
+  const handleFieldChange = (field, value) => {
+    setShippingAddress({...shippingAddress, [field]: value});
+    
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors({...errors, [field]: ''});
+    }
+  };
+
+  const handleFieldBlur = (field) => {
+    setTouched({...touched, [field]: true});
+    const error = validateField(field, shippingAddress[field]);
+    setErrors({...errors, [field]: error});
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    const fields = ['name', 'email', 'phone', 'address', 'city', 'state', 'pincode'];
+    
+    fields.forEach(field => {
+      const error = validateField(field, shippingAddress[field]);
+      if (error) newErrors[field] = error;
+    });
+    
+    setErrors(newErrors);
+    setTouched(Object.fromEntries(fields.map(field => [field, true])));
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleCheckout = () => {
+    if (validateForm()) {
+      onCheckout(selectedPayment);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -56,28 +141,37 @@ const CheckoutModal = ({
         onClick={onClose}
       >
         <motion.div
-          className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+          className="bg-white rounded-3xl max-w-5xl w-full max-h-[95vh] overflow-hidden shadow-2xl border border-gray-100 flex flex-col"
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Checkout</h2>
+          {/* Header - Fixed */}
+          <div className="p-8 border-b border-gray-200 flex-shrink-0">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-3xl font-bold text-gray-900 mb-2">Complete Your Order</h2>
+                <p className="text-gray-600">Fill in your details to proceed with checkout</p>
+              </div>
               <button
                 onClick={onClose}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                className="p-3 hover:bg-gray-100 rounded-full transition-colors"
               >
-                <X className="w-5 h-5" />
+                <X className="w-6 h-6" />
               </button>
             </div>
+          </div>
 
+          {/* Scrollable Content */}
+          <div className="flex-1 min-h-0 overflow-y-auto p-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Shipping Information */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <MapPin className="w-5 h-5 mr-2" />
+                <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                  <div className="p-2 bg-indigo-100 rounded-lg mr-3">
+                    <MapPin className="w-6 h-6 text-indigo-600" />
+                  </div>
                   Shipping Information
                 </h3>
                 
@@ -90,10 +184,21 @@ const CheckoutModal = ({
                       <input
                         type="text"
                         value={shippingAddress.name}
-                        onChange={(e) => setShippingAddress({...shippingAddress, name: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        onChange={(e) => handleFieldChange('name', e.target.value)}
+                        onBlur={() => handleFieldBlur('name')}
+                        className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 ${
+                          errors.name && touched.name ? 'border-red-500 bg-red-50' : 
+                          touched.name && !errors.name ? 'border-green-500 bg-green-50' : 
+                          'border-gray-300 hover:border-gray-400'
+                        }`}
                         placeholder="Enter your full name"
                       />
+                      {errors.name && touched.name && (
+                        <p className="text-red-500 text-sm mt-2 flex items-center animate-pulse">
+                          <AlertCircle className="w-4 h-4 mr-2" />
+                          {errors.name}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -102,10 +207,21 @@ const CheckoutModal = ({
                       <input
                         type="email"
                         value={shippingAddress.email}
-                        onChange={(e) => setShippingAddress({...shippingAddress, email: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        onChange={(e) => handleFieldChange('email', e.target.value)}
+                        onBlur={() => handleFieldBlur('email')}
+                        className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 ${
+                          errors.email && touched.email ? 'border-red-500 bg-red-50' : 
+                          touched.email && !errors.email ? 'border-green-500 bg-green-50' : 
+                          'border-gray-300 hover:border-gray-400'
+                        }`}
                         placeholder="Enter your email"
                       />
+                      {errors.email && touched.email && (
+                        <p className="text-red-500 text-sm mt-2 flex items-center animate-pulse">
+                          <AlertCircle className="w-4 h-4 mr-2" />
+                          {errors.email}
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -116,10 +232,21 @@ const CheckoutModal = ({
                     <input
                       type="tel"
                       value={shippingAddress.phone}
-                      onChange={(e) => setShippingAddress({...shippingAddress, phone: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      onChange={(e) => handleFieldChange('phone', e.target.value)}
+                      onBlur={() => handleFieldBlur('phone')}
+                      className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 ${
+                        errors.phone && touched.phone ? 'border-red-500 bg-red-50' : 
+                        touched.phone && !errors.phone ? 'border-green-500 bg-green-50' : 
+                        'border-gray-300 hover:border-gray-400'
+                      }`}
                       placeholder="Enter your phone number"
                     />
+                    {errors.phone && touched.phone && (
+                      <p className="text-red-500 text-sm mt-2 flex items-center animate-pulse">
+                        <AlertCircle className="w-4 h-4 mr-2" />
+                        {errors.phone}
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -128,11 +255,22 @@ const CheckoutModal = ({
                     </label>
                     <textarea
                       value={shippingAddress.address}
-                      onChange={(e) => setShippingAddress({...shippingAddress, address: e.target.value})}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      onChange={(e) => handleFieldChange('address', e.target.value)}
+                      onBlur={() => handleFieldBlur('address')}
+                      className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 ${
+                        errors.address && touched.address ? 'border-red-500 bg-red-50' : 
+                        touched.address && !errors.address ? 'border-green-500 bg-green-50' : 
+                        'border-gray-300 hover:border-gray-400'
+                      }`}
                       rows="3"
-                      placeholder="Enter your full address"
+                      placeholder="Enter your complete address with landmark"
                     />
+                    {errors.address && touched.address && (
+                      <p className="text-red-500 text-sm mt-2 flex items-center animate-pulse">
+                        <AlertCircle className="w-4 h-4 mr-2" />
+                        {errors.address}
+                      </p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -143,10 +281,21 @@ const CheckoutModal = ({
                       <input
                         type="text"
                         value={shippingAddress.city}
-                        onChange={(e) => setShippingAddress({...shippingAddress, city: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="City"
+                        onChange={(e) => handleFieldChange('city', e.target.value)}
+                        onBlur={() => handleFieldBlur('city')}
+                        className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 ${
+                          errors.city && touched.city ? 'border-red-500 bg-red-50' : 
+                          touched.city && !errors.city ? 'border-green-500 bg-green-50' : 
+                          'border-gray-300 hover:border-gray-400'
+                        }`}
+                        placeholder="Enter your city"
                       />
+                      {errors.city && touched.city && (
+                        <p className="text-red-500 text-sm mt-2 flex items-center animate-pulse">
+                          <AlertCircle className="w-4 h-4 mr-2" />
+                          {errors.city}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -155,10 +304,21 @@ const CheckoutModal = ({
                       <input
                         type="text"
                         value={shippingAddress.state}
-                        onChange={(e) => setShippingAddress({...shippingAddress, state: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="State"
+                        onChange={(e) => handleFieldChange('state', e.target.value)}
+                        onBlur={() => handleFieldBlur('state')}
+                        className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 ${
+                          errors.state && touched.state ? 'border-red-500 bg-red-50' : 
+                          touched.state && !errors.state ? 'border-green-500 bg-green-50' : 
+                          'border-gray-300 hover:border-gray-400'
+                        }`}
+                        placeholder="Enter your state"
                       />
+                      {errors.state && touched.state && (
+                        <p className="text-red-500 text-sm mt-2 flex items-center animate-pulse">
+                          <AlertCircle className="w-4 h-4 mr-2" />
+                          {errors.state}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -167,10 +327,21 @@ const CheckoutModal = ({
                       <input
                         type="text"
                         value={shippingAddress.pincode}
-                        onChange={(e) => setShippingAddress({...shippingAddress, pincode: e.target.value})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="Pincode"
+                        onChange={(e) => handleFieldChange('pincode', e.target.value)}
+                        onBlur={() => handleFieldBlur('pincode')}
+                        className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 ${
+                          errors.pincode && touched.pincode ? 'border-red-500 bg-red-50' : 
+                          touched.pincode && !errors.pincode ? 'border-green-500 bg-green-50' : 
+                          'border-gray-300 hover:border-gray-400'
+                        }`}
+                        placeholder="Enter 6-digit pincode"
                       />
+                      {errors.pincode && touched.pincode && (
+                        <p className="text-red-500 text-sm mt-2 flex items-center animate-pulse">
+                          <AlertCircle className="w-4 h-4 mr-2" />
+                          {errors.pincode}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -213,26 +384,28 @@ const CheckoutModal = ({
 
               {/* Order Summary */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <CreditCard className="w-5 h-5 mr-2" />
+                <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+                  <div className="p-2 bg-green-100 rounded-lg mr-3">
+                    <CreditCard className="w-6 h-6 text-green-600" />
+                  </div>
                   Order Summary
                 </h3>
 
-                <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 space-y-6 border border-gray-200">
                   {/* Cart Items */}
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {cart.map((item) => (
-                      <div key={item.cartId} className="flex items-center space-x-3">
+                      <div key={item.cartId} className="flex items-center space-x-4 p-3 bg-white rounded-xl border border-gray-200">
                         <img
                           src={item.image}
                           alt={item.name}
-                          className="w-12 h-12 object-cover rounded-lg"
+                          className="w-16 h-16 object-cover rounded-lg shadow-sm"
                         />
                         <div className="flex-1">
-                          <h4 className="text-sm font-medium text-gray-900">{item.name}</h4>
-                          <p className="text-xs text-gray-500">Qty: {item.quantity}</p>
+                          <h4 className="text-sm font-semibold text-gray-900 mb-1">{item.name}</h4>
+                          <p className="text-xs text-gray-500">Quantity: {item.quantity}</p>
                         </div>
-                        <span className="text-sm font-semibold text-gray-900">
+                        <span className="text-lg font-bold text-gray-900">
                           ₹{(item.price * item.quantity).toLocaleString()}
                         </span>
                       </div>
@@ -261,16 +434,41 @@ const CheckoutModal = ({
                     </div>
                   </div>
 
+                  {/* Payment Method */}
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
+                    <div className="space-y-2">
+                      {PAYMENT_METHODS.map((pm) => (
+                        <label key={pm.id} className="flex items-center space-x-2">
+                          <input
+                            type="radio"
+                            name="payment_method"
+                            value={pm.id}
+                            checked={selectedPayment === pm.id}
+                            onChange={(e) => setSelectedPayment(e.target.value)}
+                          />
+                          <span>{pm.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* Checkout Button */}
                   <button
-                    onClick={onCheckout}
+                    onClick={handleCheckout}
                     disabled={loading || cart.length === 0 || !canCheckout}
-                    className="w-full py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                    className="w-full py-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold rounded-2xl hover:from-green-700 hover:to-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none"
                   >
                     {loading ? (
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      <div className="flex items-center space-x-2">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        <span>Processing Order...</span>
+                      </div>
                     ) : (
-                      'Place Order'
+                      <div className="flex items-center space-x-2">
+                        <CreditCard className="w-5 h-5" />
+                        <span>Place Order - ₹{getFinalTotal().toLocaleString()}</span>
+                      </div>
                     )}
                   </button>
 

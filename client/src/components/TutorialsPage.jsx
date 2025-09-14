@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { FaHeart, FaRegHeart, FaSearch, FaFilter, FaPlay, FaClock, FaUser, FaStar, FaArrowLeft } from 'react-icons/fa';
 import api from '../utils/api';
 import SessionManager from '../utils/sessionManager';
-import { FaHeart, FaRegHeart } from 'react-icons/fa';
 
 const TutorialsPage = () => {
+  const navigate = useNavigate();
   const [tutorials, setTutorials] = useState([]);
   const [selectedTutorial, setSelectedTutorial] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -20,6 +23,25 @@ const TutorialsPage = () => {
     category: 'general',
     priority: 'medium'
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
+  const [heroIndex, setHeroIndex] = useState(0);
+
+  // Yoga-themed background hero images
+  const HERO_IMAGES = [
+    "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=1600&auto=format&fit=crop&ixlib=rb-4.0.3",
+    "https://images.unsplash.com/photo-1506126613408-eca07ce68773?q=80&w=1600&auto=format&fit=crop&ixlib=rb-4.0.3",
+    "https://images.unsplash.com/photo-1545389336-cf5734d4d0a2?q=80&w=1600&auto=format&fit=crop&ixlib=rb-4.0.3",
+    "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?q=80&w=1600&auto=format&fit=crop&ixlib=rb-4.0.3",
+  ];
+
+  // Auto-rotate hero background
+  useEffect(() => {
+    const id = setInterval(() => {
+      setHeroIndex((idx) => (idx + 1) % HERO_IMAGES.length);
+    }, 5000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     fetchTutorials();
@@ -45,449 +67,545 @@ const TutorialsPage = () => {
       const { data } = await api.get('/trainer/public/tutorials', {
         headers: { Authorization: `Bearer ${currentUser.token}` }
       });
-      setTutorials(data.tutorials || []);
+      
+      // Ensure we have a valid array of tutorials
+      const tutorialsData = data?.tutorials || [];
+      console.log('Fetched tutorials:', tutorialsData);
+      setTutorials(Array.isArray(tutorialsData) ? tutorialsData : []);
       setLoading(false);
     } catch (error) {
       console.error('Error fetching tutorials:', error);
+      // Set empty array on error to prevent crashes
+      setTutorials([]);
       setLoading(false);
     }
   };
 
-  const fetchTutorialDetails = async (tutorialId) => {
-    try {
-      const currentUser = SessionManager.getCurrentUser();
-      if (!currentUser?.token) {
-        window.location.href = '/login';
-        return;
-      }
-
-      const { data } = await api.get(`/trainer/public/tutorials/${tutorialId}`, {
-        headers: { Authorization: `Bearer ${currentUser.token}` }
-      });
-      const full = data.tutorial || null;
-      setSelectedTutorial(full);
-
-      // Best-effort: register a view and reflect it in UI immediately
-      try {
-        await api.post(`/trainer/public/tutorials/${tutorialId}/view`, {}, {
-          headers: { Authorization: `Bearer ${currentUser.token}` }
-        });
-        setTutorials((prev) => prev.map(t => t.id === tutorialId ? { ...t, views: (Number(t.views) || 0) + 1 } : t));
-        setSelectedTutorial((prev) => prev ? { ...prev, views: (Number(prev.views) || 0) + 1 } : prev);
-      } catch (e) {
-        // If endpoint not available, ignore silently
-      }
-    } catch (error) {
-      console.error('Error fetching tutorial details:', error);
+  const toggleLike = (tutorialId) => {
+    const newLikedTutorials = new Set(likedTutorials);
+    if (newLikedTutorials.has(tutorialId)) {
+      newLikedTutorials.delete(tutorialId);
+    } else {
+      newLikedTutorials.add(tutorialId);
     }
+    setLikedTutorials(newLikedTutorials);
+    localStorage.setItem('likedTutorials', JSON.stringify([...newLikedTutorials]));
   };
 
-  const handleSubmitQuery = async (e) => {
-    e.preventDefault();
-    try {
-      const currentUser = SessionManager.getCurrentUser();
-      if (!currentUser?.token) {
-        alert('Please login to submit a query');
-        return;
-      }
-
-      const user = {
-        name: currentUser?.name,
-        firstName: currentUser?.firstName,
-        lastName: currentUser?.lastName
-      };
-      const queryData = {
-        ...queryForm,
-        user_name: user?.name || user?.firstName + ' ' + user?.lastName || 'Anonymous'
-      };
-
-      const response = await api.post('/trainer/public/queries', queryData, {
-        headers: { Authorization: `Bearer ${currentUser.token}` }
-      });
-
-      if (response.status === 401) {
-        alert('Your session has expired. Please log in again.');
-        // Clear session and redirect
-        localStorage.clear();
-        window.location.href = '/login';
-        return;
-      }
-
-      if (response.status >= 200 && response.status < 300) {
-        alert('Query submitted successfully! A trainer will respond soon.');
-        setQueryForm({
-          title: '',
-          description: '',
-          category: 'general',
-          priority: 'medium'
-        });
-        setShowQueryForm(false);
-      } else {
-        const error = response?.data || {};
-        alert('Error submitting query: ' + (error.msg || 'Unknown error'));
-      }
-    } catch (error) {
-      console.error('Error submitting query:', error);
-      alert('Error submitting query');
-    }
-  };
-
-  const getDurationMinutes = (t) => {
-    if (typeof t.durationMinutes === 'number') return t.durationMinutes;
-    if (typeof t.duration === 'string') {
-      const m = t.duration.match(/(\d+)\s*(m|min|minutes?)/i);
-      if (m) return parseInt(m[1], 10);
+  const getDurationMinutes = (tutorial) => {
+    if (tutorial.duration) {
+      const match = tutorial.duration.match(/(\d+)/);
+      return match ? parseInt(match[1]) : undefined;
     }
     return undefined;
   };
 
-  const normalizedDifficulty = (d) => (d || '').toString().toLowerCase();
-
-  const toggleLike = (tutorialId) => {
-    setLikedTutorials(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(tutorialId)) {
-        newSet.delete(tutorialId);
-      } else {
-        newSet.add(tutorialId);
+  const filteredTutorials = tutorials.filter(tutorial => {
+    if (!tutorial || !tutorial.title || !tutorial.description) return false;
+    const matchesSearch = tutorial.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         tutorial.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = filter === 'all' || filter === 'liked' || tutorial.category === filter;
+    const matchesLiked = filter !== 'liked' || likedTutorials.has(tutorial.id);
+    const matchesDifficulty = difficultyFilter === 'all' || tutorial.difficulty === difficultyFilter;
+    
+    let matchesDuration = true;
+    if (durationFilter !== 'all') {
+      const duration = getDurationMinutes(tutorial);
+      if (duration) {
+        if (durationFilter === 'short') matchesDuration = duration <= 15;
+        else if (durationFilter === 'medium') matchesDuration = duration > 15 && duration <= 30;
+        else if (durationFilter === 'long') matchesDuration = duration > 30;
       }
-      // Persist to localStorage
-      localStorage.setItem('likedTutorials', JSON.stringify([...newSet]));
-      return newSet;
-    });
+    }
+
+    return matchesSearch && matchesCategory && matchesLiked && matchesDifficulty && matchesDuration;
+  }).sort((a, b) => {
+    switch (sortKey) {
+      case 'newest':
+        return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+      case 'views':
+        return (b.views || 0) - (a.views || 0);
+      case 'duration':
+        return getDurationMinutes(a) - getDurationMinutes(b);
+      case 'popular':
+      default:
+        return (b.views || 0) - (a.views || 0);
+    }
+  });
+
+  // Form validation
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!queryForm.title.trim()) {
+      errors.title = 'Query title is required';
+    } else if (queryForm.title.trim().length < 5) {
+      errors.title = 'Title must be at least 5 characters';
+    }
+    
+    if (!queryForm.description.trim()) {
+      errors.description = 'Description is required';
+    } else if (queryForm.description.trim().length < 10) {
+      errors.description = 'Description must be at least 10 characters';
+    }
+    
+    if (!queryForm.category) {
+      errors.category = 'Category is required';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
-  const filteredTutorials = tutorials
-    .filter(tutorial => {
-      // Handle liked filter separately from category filter
-      if (filter === 'liked') {
-        return likedTutorials.has(tutorial.id);
+  const handleCreateQuery = async (e) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      const currentUser = SessionManager.getCurrentUser();
+      if (!currentUser?.token) {
+        alert('Please log in to submit a query.');
+        setIsSubmitting(false);
+        return;
       }
+
+      const queryData = {
+        ...queryForm,
+        status: 'pending',
+        created_at: new Date().toISOString()
+      };
+
+      await api.post('/trainer/public/queries', queryData, {
+        headers: { Authorization: `Bearer ${currentUser.token}` }
+      });
+
+      // Success feedback
+      setShowQueryForm(false);
+      setQueryForm({ title: '', description: '', category: 'general', priority: 'medium' });
+      setFormErrors({});
       
-      const matchesCategory = filter === 'all' || tutorial.category === filter;
-      const q = searchTerm.toLowerCase();
-      const matchesSearch = !q ||
-        (tutorial.title || '').toLowerCase().includes(q) ||
-        (tutorial.description || '').toLowerCase().includes(q) ||
-        Array.isArray(tutorial.tags) && tutorial.tags.some(tag => (tag || '').toLowerCase().includes(q));
-
-      const diff = normalizedDifficulty(tutorial.difficulty);
-      const matchesDifficulty = difficultyFilter === 'all' || diff === difficultyFilter;
-
-      const minutes = getDurationMinutes(tutorial);
-      const matchesDuration = (() => {
-        if (durationFilter === 'all' || minutes === undefined) return true;
-        if (durationFilter === 'short') return minutes < 15;
-        if (durationFilter === 'medium') return minutes >= 15 && minutes <= 30;
-        if (durationFilter === 'long') return minutes > 30;
-        return true;
-      })();
-
-      return matchesCategory && matchesSearch && matchesDifficulty && matchesDuration;
-    })
-    .sort((a, b) => {
-      if (sortKey === 'views') return (b.views || 0) - (a.views || 0);
-      if (sortKey === 'popular') return (b.likes || 0) - (a.likes || 0);
-      if (sortKey === 'duration') return (getDurationMinutes(a) || 0) - (getDurationMinutes(b) || 0);
-      if (sortKey === 'newest') return new Date(b.created_at || 0) - new Date(a.created_at || 0);
-      return 0;
-    });
-
-  const categories = ['all', 'liked', ...new Set(tutorials.map(t => t.category))];
-
-  // Debug logging
-  console.log('Filter:', filter);
-  console.log('Liked tutorials:', [...likedTutorials]);
-  console.log('Total tutorials:', tutorials.length);
-  console.log('Filtered tutorials:', filteredTutorials.length);
+      // Show success message
+      alert('✅ Query submitted successfully! Our trainers will respond within 24-48 hours.');
+    } catch (error) {
+      console.error('Error creating query:', error);
+      alert('❌ Failed to submit query. Please try again or contact support.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-purple-950 via-purple-900 to-slate-950">
-        <header className="bg-gradient-to-r from-pink-600 to-purple-700 text-white py-16">
-          <div className="max-w-7xl mx-auto px-6 text-center">
-            <h1 className="text-4xl font-bold mb-4">Fitness Tutorials</h1>
-            <p className="text-xl text-white/90">Learn from our expert trainers</p>
-          </div>
-        </header>
-        <div className="max-w-7xl mx-auto px-6 py-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="rounded-xl border border-white/10 bg-white/10 backdrop-blur-sm overflow-hidden animate-pulse">
-                <div className="h-48 bg-white/20" />
-                <div className="p-6 space-y-3">
-                  <div className="h-5 bg-white/20 rounded w-3/4" />
-                  <div className="h-4 bg-white/10 rounded w-full" />
-                  <div className="h-4 bg-white/10 rounded w-5/6" />
-                  <div className="h-8 bg-white/20 rounded w-full mt-2" />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50/30 to-purple-50/40 flex items-center justify-center">
+        <div className="text-gray-600 text-xl">Loading tutorials...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-950 via-purple-900 to-slate-950">
-      <header className="bg-gradient-to-r from-pink-600 to-purple-700 text-white py-16">
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <h1 className="text-4xl font-bold mb-4">Fitness Tutorials</h1>
-          <p className="text-xl text-white/90 mb-8">Learn from our expert trainers</p>
-          <button
-            className="px-6 py-3 rounded-xl font-semibold bg-white/15 hover:bg-white/25 border border-white/30"
+    <div className="relative min-h-screen bg-black text-white">
+
+      {/* Header */}
+      <header className="bg-black/95 backdrop-blur-lg border-b border-orange-500/30 sticky top-0 z-40 shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+          {/* Back Button & Title */}
+          <div className="flex items-center gap-4">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => navigate("/user-home")}
+              className="p-2 rounded-lg hover:bg-orange-500/20 text-orange-400 transition-colors"
+            >
+              <FaArrowLeft size={20} />
+            </motion.button>
+            <div>
+              <h1 className="text-2xl font-bold text-white">Yoga Tutorials</h1>
+              <p className="text-sm text-gray-300">Learn from our expert instructors</p>
+            </div>
+          </div>
+
+          {/* Right Side Actions */}
+          <div className="flex items-center gap-3">
+            {/* Liked Videos Button */}
+            {likedTutorials.size > 0 && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  // Filter to show only liked videos
+                  setFilter('liked');
+                }}
+                className="relative bg-red-500/20 text-red-400 hover:bg-red-500/30 font-medium py-2 px-4 rounded-xl transition-all duration-200 flex items-center gap-2"
+              >
+                <FaHeart size={16} />
+                Liked ({likedTutorials.size})
+              </motion.button>
+            )}
+            
+            {/* Ask Trainer Button */}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             onClick={() => setShowQueryForm(true)}
+              className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold py-2 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
           >
             Ask a Trainer
-          </button>
+            </motion.button>
+          </div>
         </div>
       </header>
 
+      {/* Main Content */}
+      <main className="relative z-10 bg-black">
       <div className="max-w-7xl mx-auto px-6 py-8">
+        
+        {/* Tutorial Stats */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="mb-8"
+        >
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="bg-gradient-to-br from-zinc-900/70 to-black/70 backdrop-blur-md rounded-xl shadow-lg p-6 text-center border border-white/10">
+              <div className="text-3xl font-bold text-orange-400 mb-2">{tutorials?.length || 0}</div>
+              <div className="text-gray-300">Total Tutorials</div>
+            </div>
+            <div className="bg-gradient-to-br from-zinc-900/70 to-black/70 backdrop-blur-md rounded-xl shadow-lg p-6 text-center border border-white/10">
+              <div className="text-3xl font-bold text-red-400 mb-2">{likedTutorials?.size || 0}</div>
+              <div className="text-gray-300">Liked Videos</div>
+            </div>
+            <div className="bg-gradient-to-br from-zinc-900/70 to-black/70 backdrop-blur-md rounded-xl shadow-lg p-6 text-center border border-white/10">
+              <div className="text-3xl font-bold text-green-400 mb-2">
+                {tutorials?.filter(t => t && t.category === 'yoga').length || 0}
+              </div>
+              <div className="text-gray-300">Yoga Classes</div>
+            </div>
+            <div className="bg-gradient-to-br from-zinc-900/70 to-black/70 backdrop-blur-md rounded-xl shadow-lg p-6 text-center border border-white/10">
+              <div className="text-3xl font-bold text-amber-400 mb-2">
+                {tutorials?.filter(t => t && t.difficulty === 'beginner').length || 0}
+              </div>
+              <div className="text-gray-300">Beginner Friendly</div>
+            </div>
+          </div>
+        </motion.div>
+        {/* Quick Category Navigation */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="mb-8"
+        >
+          <h3 className="text-lg font-semibold text-white mb-4">Browse by Category</h3>
+          <div className="flex flex-wrap gap-3">
+            {['all', 'yoga', 'meditation', 'breathing', 'flexibility', 'strength'].map((category) => (
+              <motion.button
+                key={category}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setFilter(category)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                  filter === category
+                    ? 'bg-orange-500 text-black shadow-lg'
+                    : 'bg-white/10 text-gray-300 hover:bg-orange-500/20 hover:text-orange-300 border border-white/20'
+                }`}
+              >
+                {category.charAt(0).toUpperCase() + category.slice(1)}
+              </motion.button>
+            ))}
+          </div>
+        </motion.div>
+
         {/* Filters and Search */}
-        <div className="mb-8 space-y-4">
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-              <div className="w-full md:w-96 relative">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.4 }}
+            className="mb-8 space-y-6"
+          >
+            {/* Search Bar */}
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <FaSearch className="h-5 w-5 text-gray-400" />
+              </div>
                 <input
                   type="text"
                   placeholder="Search tutorials..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 rounded-xl border border-gray-300 focus:ring-2 focus:ring-pink-300"
-                />
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔎</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <label className="text-sm text-white/90">Sort</label>
-                <select
-                  value={sortKey}
-                  onChange={(e) => setSortKey(e.target.value)}
-                  className="px-3 py-2 rounded-xl border border-gray-300 bg-white"
-                >
-                  <option value="popular">Most Popular</option>
-                  <option value="views">Most Viewed</option>
-                  <option value="newest">Newest</option>
-                  <option value="duration">Shortest Duration</option>
-                </select>
-              </div>
+                className="w-full pl-10 pr-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent backdrop-blur-sm"
+              />
             </div>
 
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Category chips */}
-              <div className="flex flex-wrap gap-2">
-                {categories.map(category => (
-                  <button
-                    key={category}
-                    className={`px-4 py-2 rounded-xl font-medium transition-colors duration-200 border ${
-                      filter === category
-                        ? 'bg-gradient-to-r from-pink-600 to-purple-700 text-white border-transparent'
-                        : 'bg-white text-gray-700 hover:bg-pink-50 hover:text-pink-700 border-gray-200'
-                    }`}
-                    onClick={() => setFilter(category)}
-                  >
-                    {category.charAt(0).toUpperCase() + category.slice(1)}
-                  </button>
-                ))}
-              </div>
+            {/* Filters */}
+            <div className="flex flex-wrap gap-4">
+              {/* Category Filter */}
+              <select
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-orange-500 backdrop-blur-sm"
+              >
+                <option value="all" className="bg-gray-800 text-white">All Categories</option>
+                <option value="yoga" className="bg-gray-800 text-white">Yoga</option>
+                <option value="meditation" className="bg-gray-800 text-white">Meditation</option>
+                <option value="breathing" className="bg-gray-800 text-white">Breathing</option>
+                <option value="flexibility" className="bg-gray-800 text-white">Flexibility</option>
+                <option value="strength" className="bg-gray-800 text-white">Strength</option>
+              </select>
 
-              {/* Difficulty */}
-              <div className="ml-auto flex items-center gap-2">
-                <label className="text-sm text-white/90">Difficulty</label>
+              {/* Difficulty Filter */}
                 <select
                   value={difficultyFilter}
                   onChange={(e) => setDifficultyFilter(e.target.value)}
-                  className="px-3 py-2 rounded-xl border border-gray-300 bg-white"
+                className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-orange-500 backdrop-blur-sm"
                 >
-                  <option value="all">All</option>
-                  <option value="beginner">Beginner</option>
-                  <option value="intermediate">Intermediate</option>
-                  <option value="advanced">Advanced</option>
+                <option value="all" className="bg-gray-800 text-white">All Levels</option>
+                  <option value="beginner" className="bg-gray-800 text-white">Beginner</option>
+                  <option value="intermediate" className="bg-gray-800 text-white">Intermediate</option>
+                  <option value="advanced" className="bg-gray-800 text-white">Advanced</option>
                 </select>
-              </div>
 
-              {/* Duration */}
-              <div className="flex items-center gap-2">
-                <label className="text-sm text-white/90">Duration</label>
+              {/* Duration Filter */}
                 <select
                   value={durationFilter}
                   onChange={(e) => setDurationFilter(e.target.value)}
-                  className="px-3 py-2 rounded-xl border border-gray-300 bg-white"
-                >
-                  <option value="all">All</option>
-                  <option value="short">Short (&lt; 15m)</option>
-                  <option value="medium">Medium (15–30m)</option>
-                  <option value="long">Long (&gt; 30m)</option>
+                className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-orange-500 backdrop-blur-sm"
+              >
+                <option value="all" className="bg-gray-800 text-white">Any Duration</option>
+                <option value="short" className="bg-gray-800 text-white">Short (5-15 min)</option>
+                <option value="medium" className="bg-gray-800 text-white">Medium (15-30 min)</option>
+                <option value="long" className="bg-gray-800 text-white">Long (30+ min)</option>
+              </select>
+
+              {/* Sort Filter */}
+              <select
+                value={sortKey}
+                onChange={(e) => setSortKey(e.target.value)}
+                className="px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-orange-500 backdrop-blur-sm"
+              >
+                <option value="popular" className="bg-gray-800 text-white">Most Popular</option>
+                <option value="newest" className="bg-gray-800 text-white">Newest</option>
+                <option value="views" className="bg-gray-800 text-white">Most Viewed</option>
+                <option value="duration" className="bg-gray-800 text-white">Duration</option>
                 </select>
               </div>
+          </motion.div>
+
+
+        {/* All Tutorials Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.8 }}
+          className="mb-8"
+        >
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-xl font-bold text-white">All Tutorials</h3>
+              <p className="text-gray-300">Discover and learn from our expert instructors</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-400">
+                Showing {filteredTutorials?.length || 0} of {tutorials?.length || 0} tutorials
+              </span>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Tutorials Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredTutorials.length === 0 ? (
-            <div className="col-span-full text-center py-12">
-              <p className="text-gray-300 text-lg">No tutorials found matching your criteria.</p>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8, delay: 1.0 }}
+            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          >
+            {loading ? (
+              <div className="col-span-full flex justify-center items-center py-20">
+                <div className="text-gray-600 text-lg">Loading tutorials...</div>
+              </div>
+            ) : filteredTutorials.length === 0 ? (
+              <div className="col-span-full text-center py-20">
+                <div className="text-gray-300 text-lg mb-4">No tutorials found</div>
+                <div className="text-gray-400">Try adjusting your filters</div>
             </div>
           ) : (
-            filteredTutorials.map(tutorial => (
-              <div key={tutorial.id} className="card group overflow-hidden transition-all duration-200 hover:shadow-lg">
-                <div className="relative">
-                  {tutorial.imageUrl && (
+              filteredTutorials.map((tutorial, index) => {
+                if (!tutorial || !tutorial.id) return null;
+                return (
+                <motion.div
+                  key={tutorial.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  whileHover={{ scale: 1.02 }}
+                  className="bg-gradient-to-br from-zinc-900/70 to-black/70 backdrop-blur-md rounded-xl shadow-xl border border-white/10 overflow-hidden hover:border-orange-500/30 transition-all duration-300 cursor-pointer"
+                  onClick={() => setSelectedTutorial(tutorial)}
+                >
+                  {/* Tutorial Image */}
+                  <div className="relative h-48 overflow-hidden">
+                    {tutorial.imageUrl ? (
                     <img
                       src={tutorial.imageUrl}
                       alt={tutorial.title}
-                      className="w-full h-48 object-cover rounded-t-xl"
-                    />
-                  )}
-                  {(tutorial.videoUrl || tutorial.imageUrl) && (
-                    <div className="absolute inset-0 rounded-t-xl bg-gradient-to-t from-black/50 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                  )}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-blue-500/20 to-indigo-500/20 flex items-center justify-center">
+                        <FaPlay className="text-4xl text-white/50" />
+                      </div>
+                    )}
+                    
+                    {/* Duration Badge */}
+                    {getDurationMinutes(tutorial) && (
+                      <div className="absolute top-3 right-3 bg-black/70 text-white text-xs px-2 py-1 rounded-full flex items-center gap-1">
+                        <FaClock size={10} />
+                        {getDurationMinutes(tutorial)}m
+                      </div>
+                    )}
+
+                    {/* Play Button Overlay */}
                   {tutorial.videoUrl && (
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <span className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-white/90 text-secondary-900 shadow">▶</span>
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                        <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center">
+                          <FaPlay className="text-blue-600 ml-1" />
+                        </div>
                     </div>
                   )}
-                  {getDurationMinutes(tutorial) !== undefined && (
-                    <span className="absolute bottom-2 right-2 text-xs px-2 py-1 rounded bg-black/70 text-white">
-                      {getDurationMinutes(tutorial)}m
-                    </span>
-                  )}
-                </div>
-                <div className="p-6">
-                  <h3 className="text-xl font-semibold text-secondary-900 mb-2">{tutorial.title}</h3>
-                  <p className="text-secondary-600 mb-4 line-clamp-3">{tutorial.description}</p>
-
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    <span className="badge badge-info">{tutorial.category}</span>
-                    <span className="badge badge-warning">{tutorial.difficulty}</span>
-                    {tutorial.duration && <span className="badge bg-secondary-100 text-secondary-800">{tutorial.duration}</span>}
                   </div>
 
-                  <div className="flex items-center justify-between text-sm text-secondary-500 mb-4">
-                    <span className="flex items-center gap-1">👁️ {Number(tutorial.views) || 0} views</span>
-                    <span className="flex items-center gap-1">❤️ {Number(tutorial.likes) || 0} likes</span>
-                    <span className="flex items-center gap-1">👨‍🏫 {tutorial.trainer_name}</span>
+                  {/* Tutorial Content */}
+                  <div className="p-6">
+                    {/* Category & Difficulty */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs rounded-full">
+                        {tutorial.category}
+                      </span>
+                      <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-full">
+                        {tutorial.difficulty}
+                      </span>
                   </div>
 
-                  <div className="flex items-center justify-between mb-4">
+                    {/* Title */}
+                    <h3 className="text-lg font-bold text-gray-800 mb-2 line-clamp-2">
+                      {tutorial.title}
+                    </h3>
+
+                    {/* Description */}
+                    <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+                      {tutorial.description}
+                    </p>
+
+                    {/* Stats */}
+                    <div className="flex items-center justify-between text-sm text-gray-500">
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-1">
+                          <FaUser size={12} />
+                          <span>{tutorial.trainer_name || 'Expert'}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <FaStar size={12} />
+                          <span>{tutorial.views || 0} views</span>
+                        </div>
+                      </div>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         toggleLike(tutorial.id);
                       }}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-200 ${
-                        likedTutorials.has(tutorial.id)
-                          ? 'bg-red-100 text-red-600 hover:bg-red-200'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      {likedTutorials.has(tutorial.id) ? (
-                        <FaHeart className="text-red-500" />
-                      ) : (
-                        <FaRegHeart className="text-gray-500" />
-                      )}
-                      <span className="text-sm font-medium">
-                        {likedTutorials.has(tutorial.id) ? 'Liked' : 'Like'}
-                      </span>
+                        className="text-red-500 hover:text-red-400 transition-colors"
+                      >
+                        {likedTutorials.has(tutorial.id) ? <FaHeart /> : <FaRegHeart />}
                     </button>
-                  </div>
-
-                  {Array.isArray(tutorial.tags) && tutorial.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mb-4">
-                      {tutorial.tags.map(tag => (
-                        <span key={tag} className="px-2 py-1 bg-secondary-100 text-secondary-600 text-xs rounded-md">
-                          {tag}
-                        </span>
-                      ))}
                     </div>
-                  )}
-
-                  <button
-                    className="w-full bg-gradient-to-r from-pink-600 to-purple-700 hover:from-pink-700 hover:to-purple-800 text-white rounded-xl px-4 py-2 font-semibold shadow-md"
-                    onClick={() => fetchTutorialDetails(tutorial.id)}
-                  >
-                    View Tutorial
-                  </button>
                 </div>
-              </div>
-            ))
+                </motion.div>
+                );
+              })
           )}
+          </motion.div>
         </div>
-      </div>
+      </main>
 
       {/* Tutorial Modal */}
+      <AnimatePresence>
       {selectedTutorial && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => setSelectedTutorial(null)}>
-          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="sticky top-0 bg-white border-b border-secondary-200 p-4 flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-secondary-900">{selectedTutorial.title}</h2>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+            onClick={() => setSelectedTutorial(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gray-200 shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-800">{selectedTutorial.title}</h2>
               <button
-                className="text-secondary-400 hover:text-secondary-600 text-2xl"
+                  className="text-gray-400 hover:text-gray-600 text-2xl"
                 onClick={() => setSelectedTutorial(null)}
               >
                 ×
               </button>
             </div>
 
+              {/* Modal Content */}
             <div className="p-6">
               <div className="flex flex-wrap gap-2 mb-4">
-                <span className="badge badge-info">{selectedTutorial.category}</span>
-                <span className="badge badge-warning">{selectedTutorial.difficulty}</span>
-                {selectedTutorial.duration && <span className="badge bg-secondary-100 text-secondary-800">{selectedTutorial.duration}</span>}
+                  <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm">
+                    {selectedTutorial.category}
+                  </span>
+                  <span className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm">
+                    {selectedTutorial.difficulty}
+                  </span>
+                  {selectedTutorial.duration && (
+                    <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
+                      {selectedTutorial.duration}
+                    </span>
+                  )}
               </div>
 
-              <p className="text-secondary-700 mb-6">{selectedTutorial.description}</p>
+                <p className="text-gray-600 mb-6">{selectedTutorial.description}</p>
 
               {selectedTutorial.videoUrl && (
-                <div className="aspect-video mb-6">
+                  <div className="mb-6">
+                    <div className="aspect-video bg-black rounded-xl overflow-hidden">
                   {(() => {
-                    // Convert various YouTube URL formats to embeddable URL.
-                    const toYouTubeEmbed = (url) => {
-                      try {
-                        const u = new URL(url);
-                        let id = null;
-                        if (u.hostname.includes('youtu.be')) {
-                          id = u.pathname.replace(/^\//, '');
-                        } else if (u.hostname.includes('youtube.com')) {
-                          if (u.pathname === '/watch') {
-                            id = u.searchParams.get('v');
-                          } else if (u.pathname.startsWith('/embed/')) {
-                            id = u.pathname.split('/embed/')[1];
-                          } else if (u.pathname.startsWith('/shorts/')) {
-                            id = u.pathname.split('/shorts/')[1];
-                          }
-                        }
-                        return id ? `https://www.youtube-nocookie.com/embed/${id}` : null;
-                      } catch (e) {
-                        return null;
-                      }
-                    };
-
-                    const embed = toYouTubeEmbed(selectedTutorial.videoUrl);
-                    return embed ? (
+                        if (!selectedTutorial.videoUrl) return null;
+                        const isYouTube = selectedTutorial.videoUrl.includes('youtube.com') || selectedTutorial.videoUrl.includes('youtu.be');
+                        if (isYouTube) {
+                          const videoId = selectedTutorial.videoUrl.includes('youtu.be') 
+                            ? selectedTutorial.videoUrl.split('youtu.be/')[1]?.split('?')[0]
+                            : selectedTutorial.videoUrl.split('v=')[1]?.split('&')[0];
+                          return (
                       <iframe
-                        src={embed}
+                              src={`https://www.youtube.com/embed/${videoId}`}
                         title={selectedTutorial.title}
-                        className="w-full h-full rounded-lg"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        referrerPolicy="strict-origin-when-cross-origin"
+                              className="w-full h-full"
                         allowFullScreen
                       />
-                    ) : (
-                      <a
-                        href={selectedTutorial.videoUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-center w-full h-full bg-black/80 text-white rounded-lg"
-                        title="Open video on YouTube"
-                      >
-                        Watch on YouTube ↗
-                      </a>
-                    );
+                          );
+                        } else {
+                          return (
+                            <video
+                              src={selectedTutorial.videoUrl}
+                              controls
+                              className="w-full h-full"
+                            />
+                          );
+                        }
                   })()}
+                    </div>
                 </div>
               )}
 
@@ -495,135 +613,187 @@ const TutorialsPage = () => {
                 <img
                   src={selectedTutorial.imageUrl}
                   alt={selectedTutorial.title}
-                  className="w-full h-64 object-cover rounded-lg mb-6"
+                    className="w-full h-64 object-cover rounded-xl mb-6"
                 />
               )}
 
               <div className="mb-6">
-                <h3 className="text-xl font-semibold text-secondary-900 mb-4">Tutorial Content</h3>
-                <div className="prose prose-secondary max-w-none">
-                  {selectedTutorial.content.split('\n').map((paragraph, index) => (
-                    <p key={index} className="mb-3 text-secondary-700">{paragraph}</p>
-                  ))}
-                </div>
-              </div>
-
-              <div className="border-t border-secondary-200 pt-4">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                  <div className="flex items-center gap-4 text-sm text-secondary-500">
-                    <span className="flex items-center gap-1">👁️ {Number(selectedTutorial.views) || 0} views</span>
-                    <span className="flex items-center gap-1">❤️ {Number(selectedTutorial.likes) || 0} likes</span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <button
-                      onClick={() => toggleLike(selectedTutorial.id)}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-200 ${
-                        likedTutorials.has(selectedTutorial.id)
-                          ? 'bg-red-100 text-red-600 hover:bg-red-200'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      {likedTutorials.has(selectedTutorial.id) ? (
-                        <FaHeart className="text-red-500" />
-                      ) : (
-                        <FaRegHeart className="text-gray-500" />
-                      )}
-                      <span className="text-sm font-medium">
-                        {likedTutorials.has(selectedTutorial.id) ? 'Liked' : 'Like'}
-                      </span>
-                    </button>
-                    <div className="text-sm text-secondary-600">
-                      <div>By: <span className="font-medium">{selectedTutorial.trainer_name}</span></div>
-                      <div>Created: {new Date(selectedTutorial.created_at).toLocaleDateString()}</div>
-                    </div>
+                  <h3 className="text-xl font-semibold text-gray-800 mb-4">Tutorial Content</h3>
+                  <div className="prose max-w-none">
+                    {selectedTutorial.content ? selectedTutorial.content.split('\n').map((paragraph, index) => (
+                      <p key={index} className="mb-3 text-gray-600">{paragraph}</p>
+                    )) : (
+                      <p className="text-gray-500 italic">No content available for this tutorial.</p>
+                    )}
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
+            </motion.div>
+          </motion.div>
       )}
+      </AnimatePresence>
 
       {/* Query Form Modal */}
+      <AnimatePresence>
       {showQueryForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={() => setShowQueryForm(false)}>
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="sticky top-0 bg-white border-b border-secondary-200 p-4 flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-secondary-900">Ask a Trainer</h2>
-              <button
-                className="text-secondary-400 hover:text-secondary-600 text-2xl"
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50"
                 onClick={() => setShowQueryForm(false)}
               >
-                ×
-              </button>
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-gradient-to-br from-white via-indigo-50/30 to-purple-50/30 rounded-2xl max-w-lg w-full p-6 border border-indigo-200/50 shadow-2xl max-h-[90vh] overflow-y-auto backdrop-blur-sm"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-8 h-8 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm">🧘‍♂️</span>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-800">Ask a Trainer</h3>
+                  <p className="text-xs text-gray-600">Get personalized guidance</p>
+                </div>
             </div>
 
-            <div className="p-6">
-              <form onSubmit={handleSubmitQuery} className="space-y-6">
+              <form onSubmit={handleCreateQuery} className="space-y-3">
+                {/* Query Title */}
                 <div>
-                  <label className="block text-sm font-medium text-secondary-700 mb-2">Question Title *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Query Title *</label>
                   <input
                     type="text"
+                    placeholder="e.g., How to improve my downward dog pose?"
                     value={queryForm.title}
-                    onChange={(e) => setQueryForm({...queryForm, title: e.target.value})}
-                    placeholder="What would you like to ask?"
-                    className="input-field"
-                    required
+                    onChange={(e) => {
+                      setQueryForm({...queryForm, title: e.target.value});
+                      if (formErrors.title) {
+                        setFormErrors({...formErrors, title: ''});
+                      }
+                    }}
+                    className={`w-full px-3 py-2 bg-white/80 backdrop-blur-sm border rounded-lg text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 transition-all duration-200 ${
+                      formErrors.title ? 'border-red-300 focus:ring-red-500' : 'border-indigo-200 focus:ring-indigo-500 hover:border-indigo-300'
+                    }`}
                   />
+                  {formErrors.title && <p className="text-red-500 text-xs mt-1">{formErrors.title}</p>}
                 </div>
 
+                {/* Category Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-secondary-700 mb-2">Description *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+                  <select
+                    value={queryForm.category}
+                    onChange={(e) => {
+                      setQueryForm({...queryForm, category: e.target.value});
+                      if (formErrors.category) {
+                        setFormErrors({...formErrors, category: ''});
+                      }
+                    }}
+                    className={`w-full px-3 py-2 bg-white/80 backdrop-blur-sm border rounded-lg text-gray-800 focus:outline-none focus:ring-2 transition-all duration-200 ${
+                      formErrors.category ? 'border-red-300 focus:ring-red-500' : 'border-indigo-200 focus:ring-indigo-500 hover:border-indigo-300'
+                    }`}
+                  >
+                    <option value="general">General Yoga</option>
+                    <option value="poses">Yoga Poses</option>
+                    <option value="meditation">Meditation</option>
+                    <option value="breathing">Breathing Techniques</option>
+                    <option value="flexibility">Flexibility</option>
+                    <option value="strength">Strength Building</option>
+                    <option value="injury">Injury Prevention</option>
+                    <option value="beginner">Beginner Questions</option>
+                    <option value="advanced">Advanced Practice</option>
+                    <option value="equipment">Equipment & Props</option>
+                    <option value="lifestyle">Yoga Lifestyle</option>
+                    <option value="other">Other</option>
+                  </select>
+                  {formErrors.category && <p className="text-red-500 text-xs mt-1">{formErrors.category}</p>}
+                </div>
+
+                {/* Priority Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Priority Level</label>
+                  <select
+                    value={queryForm.priority}
+                    onChange={(e) => setQueryForm({...queryForm, priority: e.target.value})}
+                    className="w-full px-3 py-2 bg-white/80 backdrop-blur-sm border border-indigo-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 hover:border-indigo-300 transition-all duration-200"
+                  >
+                    <option value="low">Low - General inquiry</option>
+                    <option value="medium">Medium - Need guidance</option>
+                    <option value="high">High - Urgent help needed</option>
+                  </select>
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Detailed Question *</label>
                   <textarea
+                    placeholder="Please describe your question in detail..."
                     value={queryForm.description}
-                    onChange={(e) => setQueryForm({...queryForm, description: e.target.value})}
-                    placeholder="Provide more details about your question..."
-                    rows="5"
-                    className="input-field"
-                    required
+                    onChange={(e) => {
+                      setQueryForm({...queryForm, description: e.target.value});
+                      if (formErrors.description) {
+                        setFormErrors({...formErrors, description: ''});
+                      }
+                    }}
+                    className={`w-full px-3 py-2 bg-white/80 backdrop-blur-sm border rounded-lg text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 h-24 resize-none transition-all duration-200 ${
+                      formErrors.description ? 'border-red-300 focus:ring-red-500' : 'border-indigo-200 focus:ring-indigo-500 hover:border-indigo-300'
+                    }`}
                   />
+                  {formErrors.description && <p className="text-red-500 text-xs mt-1">{formErrors.description}</p>}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-secondary-700 mb-2">Category</label>
-                    <select
-                      value={queryForm.category}
-                      onChange={(e) => setQueryForm({...queryForm, category: e.target.value})}
-                      className="input-field"
-                    >
-                      <option value="general">General</option>
-                      <option value="fitness">Fitness</option>
-                      <option value="nutrition">Nutrition</option>
-                      <option value="yoga">Yoga</option>
-                      <option value="cardio">Cardio</option>
-                      <option value="strength">Strength Training</option>
-                      <option value="wellness">Wellness</option>
-                    </select>
+                {/* Additional Info */}
+                <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <div className="w-4 h-4 bg-indigo-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-white text-xs">ℹ</span>
+                    </div>
+                    <div className="text-xs text-indigo-800">
+                      <p className="font-medium mb-1">Response within 24-48 hours</p>
+                      <p>Personalized guidance from certified trainers</p>
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-secondary-700 mb-2">Priority</label>
-                    <select
-                      value={queryForm.priority}
-                      onChange={(e) => setQueryForm({...queryForm, priority: e.target.value})}
-                      className="input-field"
-                    >
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
-                    </select>
                   </div>
                 </div>
 
-                <button type="submit" className="btn-primary w-full">
-                  Submit Question
+                {/* Action Buttons */}
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowQueryForm(false);
+                      setFormErrors({});
+                    }}
+                    className="flex-1 px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className={`flex-1 px-3 py-2 rounded-lg transition-all duration-200 font-medium shadow-md flex items-center justify-center gap-2 text-sm ${
+                      isSubmitting 
+                        ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+                        : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700'
+                    }`}
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Submitting...
+                      </>
+                    ) : (
+                      'Submit Query'
+                    )}
                 </button>
+                </div>
               </form>
-            </div>
-          </div>
-        </div>
+            </motion.div>
+          </motion.div>
       )}
+      </AnimatePresence>
     </div>
   );
 };

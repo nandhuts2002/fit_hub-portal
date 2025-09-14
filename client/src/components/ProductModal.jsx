@@ -11,6 +11,12 @@ const ProductModal = ({
   isInWishlist = false
 }) => {
   if (!product) return null;
+  
+  // Debug: Log product data to see what we're working with
+  console.log('ProductModal - Product data:', product);
+  console.log('ProductModal - Image field:', product.image);
+  console.log('ProductModal - Images field:', product.images);
+  
   // Normalize stock flag from API (in_stock) or local (inStock)
   const isInStock = (product?.in_stock !== undefined) ? product.in_stock : (product?.inStock !== undefined ? product.inStock : true);
 
@@ -33,11 +39,31 @@ const ProductModal = ({
           >
             <div className="flex flex-col lg:flex-row">
               <div className="lg:w-1/2">
-                <img
-                  src={product.image}
-                  alt={product.name}
-                  className="w-full h-64 lg:h-full object-cover rounded-t-xl lg:rounded-l-xl lg:rounded-tr-none"
-                />
+                {product.image || product.images?.[0] ? (
+                  <img
+                    src={product.image || product.images?.[0]}
+                    alt={product.name}
+                    className="w-full h-64 lg:h-full object-cover rounded-t-xl lg:rounded-l-xl lg:rounded-tr-none"
+                    onError={(e) => {
+                      console.log('ProductModal image failed to load:', e.target.src);
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
+                    onLoad={() => {
+                      console.log('ProductModal image loaded successfully:', product.image || product.images?.[0]);
+                    }}
+                  />
+                ) : null}
+                <div 
+                  className="w-full h-64 lg:h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center rounded-t-xl lg:rounded-l-xl lg:rounded-tr-none"
+                  style={{ display: product.image || product.images?.[0] ? 'none' : 'flex' }}
+                >
+                  <div className="text-center text-gray-400">
+                    <div className="text-6xl mb-4">📦</div>
+                    <p className="text-lg font-medium">No Image Available</p>
+                    <p className="text-sm">Product: {product.name}</p>
+                  </div>
+                </div>
               </div>
               <div className="lg:w-1/2 p-6">
                 <div className="flex justify-between items-start mb-4">
@@ -123,7 +149,7 @@ const ProductModal = ({
                   <button
                     onClick={() => onAddToCart(product)}
                     disabled={!isInStock}
-                    className="flex-1 flex items-center justify-center space-x-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                    className="flex-1 flex items-center justify-center space-x-2 px-4 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                   >
                     <ShoppingCart className="w-5 h-5" />
                     <span>
