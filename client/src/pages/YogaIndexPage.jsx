@@ -3,9 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { FaBars, FaTimes, FaLeaf, FaSpa, FaHeartbeat, FaSmile, FaArrowRight } from "react-icons/fa";
 import { motion } from "framer-motion";
 
-// Dark Yoga Background (Unsplash)
+// Bright Fitness Background (Unsplash)
 const heroBg =
-  "https://images6.alphacoders.com/126/thumb-1920-1263719.jpg";
+  "https://images.unsplash.com/photo-1591228127791-8e2eaef098d3?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTh8fHlvZ2F8ZW58MHx8MHx8fDA%3D";
 
 const YogaIndexPage = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -14,7 +14,7 @@ const YogaIndexPage = () => {
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
   return (
-    <div className="font-sans bg-black text-white">
+    <div className="font-sans bg-gradient-to-br from-slate-50 via-orange-50/30 to-amber-50/40 text-slate-900">
       {/* Hero Section */}
       <div
         className="relative min-h-screen flex flex-col"
@@ -24,18 +24,18 @@ const YogaIndexPage = () => {
           backgroundPosition: "center 25%",
         }}
       >
-        {/* Dark Overlay for Readability */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/90 via-black/80 to-black/70"></div>
+        {/* Light Overlay for Readability */}
+        <div className="absolute inset-0 bg-gradient-to-b from-white/20 via-white/10 to-white/5"></div>
         <div
           className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(ellipse at 50% 40%, rgba(0,0,0,0.0) 0%, rgba(0,0,0,0.35) 45%, rgba(0,0,0,0.7) 100%)",
+              "radial-gradient(ellipse at 50% 40%, rgba(255,255,255,0.0) 0%, rgba(255,255,255,0.15) 45%, rgba(255,255,255,0.3) 100%)",
           }}
         />
 
         {/* Header */}
-        <header className="relative z-20 w-full">
+        <header className="relative z-20 w-full bg-white/95 backdrop-blur-lg border-b border-orange-200">
           <div className="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
             {/* Logo */}
             <motion.div
@@ -43,9 +43,9 @@ const YogaIndexPage = () => {
               animate={{ opacity: 1, x: 0 }}
               className="flex items-center gap-2"
             >
-              <FaSpa className="text-orange-400 text-3xl" />
-              <span className="text-3xl font-extrabold tracking-wide">
-                FIT<span className="text-orange-400">HUB</span>
+              <FaSpa className="text-orange-500 text-3xl" />
+              <span className="text-3xl font-extrabold tracking-wide text-slate-900">
+                FIT<span className="text-orange-500">HUB</span>
               </span>
             </motion.div>
 
@@ -53,7 +53,7 @@ const YogaIndexPage = () => {
             <nav
               className={`${
                 isMenuOpen ? "flex" : "hidden"
-              } md:flex flex-col md:flex-row absolute md:relative top-full md:top-auto left-0 md:left-auto w-full md:w-auto bg-black/90 md:bg-transparent p-6 md:p-0 gap-6 md:gap-10 items-center`}
+              } md:flex flex-col md:flex-row absolute md:relative top-full md:top-auto left-0 md:left-auto w-full md:w-auto bg-white/95 md:bg-transparent p-6 md:p-0 gap-6 md:gap-10 items-center`}
             >
               {["Home", "About", "Classes", "Benefits", "Contact"].map((item, i) => (
                 <motion.a
@@ -62,7 +62,7 @@ const YogaIndexPage = () => {
                   initial={{ opacity: 0, y: -20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.1 + 0.2 }}
-                  className="text-white hover:text-orange-400 font-medium tracking-wide transition-colors"
+                  className="text-slate-700 hover:text-orange-600 font-medium tracking-wide transition-colors"
                 >
                   {item}
                 </motion.a>
@@ -70,7 +70,7 @@ const YogaIndexPage = () => {
             </nav>
 
             {/* Mobile Menu Button */}
-            <button className="md:hidden text-white" onClick={toggleMenu}>
+            <button className="md:hidden text-slate-700 hover:text-orange-600 transition-colors" onClick={toggleMenu}>
               {isMenuOpen ? <FaTimes size={26} /> : <FaBars size={26} />}
             </button>
           </div>
@@ -82,7 +82,7 @@ const YogaIndexPage = () => {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8 }}
-            className="uppercase tracking-[0.35em] text-gray-300/90 mb-5 drop-shadow-[0_1px_1px_rgba(0,0,0,0.7)]"
+            className="uppercase tracking-[0.35em] text-orange-600 mb-5 font-semibold"
           >
             Find Your Balance
           </motion.p>
@@ -90,12 +90,12 @@ const YogaIndexPage = () => {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 1 }}
-            className="text-5xl md:text-7xl font-extrabold mb-6 leading-tight [text-shadow:0_3px_12px_rgba(0,0,0,0.6)]"
+            className="text-5xl md:text-7xl font-extrabold mb-6 leading-tight text-slate-900 [text-shadow:0_2px_8px_rgba(255,255,255,0.8)]"
           >
-            Reconnect with <span className="text-orange-400">Yourself</span>
-            <br /> through <span className="text-orange-400">Yoga</span>
+            Reconnect with <span className="text-orange-500">Yourself</span>
+            <br /> through <span className="text-orange-500">Yoga</span>
           </motion.h1>
-          <p className="max-w-2xl mx-auto text-gray-300/95 text-base md:text-lg mb-8 px-2 [text-shadow:0_2px_8px_rgba(0,0,0,0.7)]">
+          <p className="max-w-2xl mx-auto text-slate-700 text-base md:text-lg mb-8 px-2 [text-shadow:0_1px_4px_rgba(255,255,255,0.8)]">
             Mindful movement, breathwork, and guided programs designed to restore balance and build strength.
           </p>
 
@@ -106,26 +106,26 @@ const YogaIndexPage = () => {
             transition={{ duration: 0.6 }}
             className="w-full max-w-2xl mx-auto"
           >
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-900/70 to-black/70 border border-white/10 shadow-2xl backdrop-blur-md">
+            <div className="relative overflow-hidden rounded-2xl bg-white/95 backdrop-blur-md border border-orange-200 shadow-2xl">
               {/* Glow accents */}
-              <div className="pointer-events-none absolute -top-10 -left-10 h-40 w-40 rounded-full bg-orange-500/20 blur-3xl" />
-              <div className="pointer-events-none absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-amber-400/10 blur-3xl" />
+              <div className="pointer-events-none absolute -top-10 -left-10 h-40 w-40 rounded-full bg-orange-200/30 blur-3xl" />
+              <div className="pointer-events-none absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-amber-200/20 blur-3xl" />
 
               <div className="relative p-6 sm:p-8 flex flex-col sm:flex-row items-center gap-6 text-left">
                 {/* Badge */}
                 <div className="shrink-0">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/10 text-orange-300 text-sm border border-orange-400/20">
-                    <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-100 text-orange-700 text-sm border border-orange-200">
+                    <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
                     Premium Programs
                   </div>
                 </div>
 
                 {/* Copy */}
                 <div className="text-left flex-1">
-                  <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                  <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
                     Elevate your wellness journey
                   </h3>
-                  <p className="mt-2 text-gray-300 text-sm sm:text-base">
+                  <p className="mt-2 text-slate-600 text-sm sm:text-base">
                     Join guided yoga plans tailored for you. Track progress, unlock levels, and access pro tutorials.
                   </p>
                 </div>
@@ -141,7 +141,7 @@ const YogaIndexPage = () => {
                     Start Your Journey
                     <FaArrowRight className="transition-transform duration-200 group-hover:translate-x-1" />
                   </motion.button>
-                  <p className="mt-2 text-xs text-gray-400 text-center sm:text-right">No account? You can sign up in the next step.</p>
+                  <p className="mt-2 text-xs text-slate-500 text-center sm:text-right">No account? You can sign up in the next step.</p>
                 </div>
               </div>
             </div>
@@ -150,10 +150,10 @@ const YogaIndexPage = () => {
       </div>
 
       {/* Why Choose Us */}
-      <section id="benefits" className="py-20 bg-black">
+      <section id="benefits" className="py-20 bg-gradient-to-br from-white via-orange-50/50 to-amber-50/30">
         <div className="max-w-6xl mx-auto text-center px-6">
-          <h2 className="text-4xl font-bold mb-12">
-            Why Choose <span className="text-orange-400">FITHUB Yoga?</span>
+          <h2 className="text-4xl font-bold mb-12 text-slate-900">
+            Why Choose <span className="text-orange-500">FITHUB Yoga?</span>
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
             {[
@@ -168,11 +168,11 @@ const YogaIndexPage = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.2 }}
-                className="p-8 bg-gray-900/70 rounded-xl shadow-lg hover:shadow-xl transition"
+                className="p-8 bg-white rounded-xl shadow-lg hover:shadow-xl transition border border-orange-200"
               >
-                <div className="text-orange-400 mb-4 flex justify-center">{feature.icon}</div>
-                <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-                <p className="text-gray-400">{feature.desc}</p>
+                <div className="text-orange-500 mb-4 flex justify-center">{feature.icon}</div>
+                <h3 className="text-xl font-semibold mb-2 text-slate-900">{feature.title}</h3>
+                <p className="text-slate-600">{feature.desc}</p>
               </motion.div>
             ))}
           </div>
@@ -180,7 +180,7 @@ const YogaIndexPage = () => {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 py-8 text-center text-gray-500">
+      <footer className="bg-white border-t border-orange-200 py-8 text-center text-slate-600">
         <p>&copy; 2024 FITHUB Yoga. All rights reserved.</p>
       </footer>
     </div>

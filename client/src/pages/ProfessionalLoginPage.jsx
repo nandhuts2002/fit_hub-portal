@@ -2,27 +2,20 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import SessionManager from '../utils/sessionManager';
-
 import { signInWithPopup } from 'firebase/auth';
 import { auth, provider } from '../firebase';
+import { FaSpa } from 'react-icons/fa';
 
-// Minimal icon used in header
-const HeartIcon = () => (
-  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-  </svg>
-);
+// Match YogaIndexPage hero background
+const heroBg = 'https://images6.alphacoders.com/126/thumb-1920-1263719.jpg';
 
 const ProfessionalLoginPage = () => {
-  // showPassword UI not implemented; remove to satisfy lint
   const [, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
-  // Login is single-step (no OTP)
   const [errors, setErrors] = useState({});
-  // Remove unused touchedFields to satisfy lint
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -47,36 +40,26 @@ const ProfessionalLoginPage = () => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-    
-    // Real-time validation
     const error = validateField(name, value);
     setErrors(prev => ({ ...prev, [name]: error }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validate all fields
     const emailError = validateField('email', formData.email);
     const passwordError = validateField('password', formData.password);
-    
     if (emailError || passwordError) {
-      setErrors({
-        email: emailError,
-        password: passwordError
-      });
+      setErrors({ email: emailError, password: passwordError });
       return;
     }
 
     setIsLoading(true);
-
     try {
       const res = await axios.post('http://localhost:5000/login', {
         email: formData.email,
         password: formData.password
       });
 
-      // Use SessionManager to handle session
       SessionManager.setSession({
         token: res.data.token,
         name: res.data.user.name,
@@ -84,7 +67,6 @@ const ProfessionalLoginPage = () => {
         role: res.data.user.role
       });
 
-      // Redirect to intended path or role dashboard; replace history to avoid back to login
       const fromState = location.state?.from;
       const params = new URLSearchParams(location.search);
       const fromQuery = params.get('from');
@@ -104,35 +86,26 @@ const ProfessionalLoginPage = () => {
 
   const handleGoogleLogin = async () => {
     setIsLoading(true);
-    
     try {
-      console.log('🔄 Starting Google Sign-in...');
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
-      
-      console.log('✅ Google Sign-in successful:', user.email);
-      
-      // Get the Firebase ID token
       const idToken = await user.getIdToken();
-      
-      // Send the token to your backend for verification
+
       try {
         const response = await axios.post('http://localhost:5000/google-login', {
-          idToken: idToken,
+          idToken,
           email: user.email,
           name: user.displayName,
           photoURL: user.photoURL
         });
-        
-        // Use SessionManager for backend auth
+
         SessionManager.setSession({
           token: response.data.token,
           name: response.data.user.name,
           email: response.data.user.email,
           role: response.data.user.role || 'user'
         });
-        
-        console.log('✅ Backend authentication successful');
+
         const fromState = location.state?.from;
         const params = new URLSearchParams(location.search);
         const fromQuery = params.get('from');
@@ -143,10 +116,7 @@ const ProfessionalLoginPage = () => {
         const candidate = safeFrom && safeFrom !== '/login' ? safeFrom : (fromState && fromState !== '/login' ? fromState : undefined);
         const target = candidate && !isHomeLike(candidate) ? candidate : redirectPath;
         navigate(target, { replace: true });
-        
       } catch (backendError) {
-        console.log('⚠️ Backend auth failed, using client-only auth');
-        // Fallback: just use Google auth without backend verification
         SessionManager.setSession({
           token: 'google-temp-token',
           name: user.displayName || 'Google User',
@@ -157,10 +127,7 @@ const ProfessionalLoginPage = () => {
         const target = from && from !== '/login' ? from : '/user-home';
         navigate(target, { replace: true });
       }
-      
     } catch (err) {
-      console.error('❌ Google Sign-in error:', err);
-      
       if (err.code === 'auth/popup-closed-by-user') {
         setErrors({ submit: 'Sign-in was cancelled. Please try again.' });
       } else if (err.code === 'auth/popup-blocked') {
@@ -186,90 +153,85 @@ const ProfessionalLoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-950 via-purple-900 to-slate-950 flex items-center justify-center p-4 relative">
-      <div className="pointer-events-none absolute inset-0 opacity-10" aria-hidden>
-        <div className="absolute inset-0 bg-[radial-gradient(60rem_60rem_at_120%_-20%,rgba(255,255,255,0.08),transparent)]"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(50rem_50rem_at_-10%_120%,rgba(255,192,203,0.05),transparent)]"></div>
-      </div>
-      {/* Back to Home Button */}
-      <button
-        onClick={handleBackToHome}
-        className="fixed top-6 left-6 flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm text-secondary-700 rounded-lg hover:bg-white hover:text-secondary-900 transition-all duration-200 shadow-sm hover:shadow-md z-10"
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M19 12H5M12 19l-7-7 7-7"/>
-        </svg>
-        Back to Home
-      </button>
+    <div
+      className="min-h-screen flex items-center justify-center p-4 relative text-white"
+      style={{
+        backgroundImage: `url(${heroBg})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center 25%'
+      }}
+    >
+      {/* Overlays to match YogaIndexPage */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/90 via-black/80 to-black/70" />
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(ellipse at 50% 40%, rgba(0,0,0,0.0) 0%, rgba(0,0,0,0.35) 45%, rgba(0,0,0,0.7) 100%)'
+        }}
+      />
 
-      <div className="max-w-6xl w-full bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
-        <div className="grid grid-cols-1 lg:grid-cols-2">
-          {/* Left Side - Branding */}
-          <div className="bg-gradient-to-br from-pink-600 to-purple-700 p-8 lg:p-12 text-white">
-            <div className="h-full flex flex-col justify-center">
-              <div className="flex items-center gap-3 mb-8">
-                <HeartIcon className="w-8 h-8" />
-                <span className="text-2xl font-bold">Fit-Hub</span>
-              </div>
-              <h1 className="text-3xl lg:text-4xl font-bold mb-6">
-                Welcome Back to Your Fitness Community
-              </h1>
-              <p className="text-white/90 mb-8 text-lg">
-                Continue your journey in achieving your fitness goals with personalized
-                workouts, expert trainers, and a supportive community.
-              </p>
-              <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center text-sm">✓</div>
-                  <span>Personalized workout plans</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center text-sm">✓</div>
-                  <span>Expert trainer guidance</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center text-sm">✓</div>
-                  <span>Progress tracking and analytics</span>
-                </div>
-              </div>
-            </div>
+      {/* Top header brand + Back button */}
+      <header className="absolute top-0 left-0 right-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 py-5 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <FaSpa className="text-orange-400 text-2xl" />
+            <span className="text-2xl font-extrabold tracking-wide">
+              FIT<span className="text-orange-400">HUB</span>
+            </span>
           </div>
 
-          {/* Right Side - Login Form */}
-          <div className="p-8 lg:p-12">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-secondary-900 mb-2">Sign In</h2>
-              <p className="text-secondary-600">
-                Enter your credentials to access your account
-              </p>
+          <button
+            onClick={handleBackToHome}
+            className="flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm text-secondary-700 rounded-lg hover:bg-white hover:text-secondary-900 transition-all duration-200 shadow-sm hover:shadow-md"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M19 12H5M12 19l-7-7 7-7"/>
+            </svg>
+            Back to Home
+          </button>
+        </div>
+      </header>
+
+      {/* Auth Card */}
+      <div className="relative z-10 w-full max-w-md mx-auto">
+        <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-900/70 to-black/70 border border-white/10 shadow-2xl backdrop-blur-md">
+          {/* Glow accents */}
+          <div className="pointer-events-none absolute -top-6 -left-6 h-24 w-24 rounded-full bg-orange-500/20 blur-2xl" />
+          <div className="pointer-events-none absolute -bottom-6 -right-6 h-24 w-24 rounded-full bg-amber-400/10 blur-2xl" />
+
+          <div className="relative p-6">
+            <div className="text-center mb-6">
+              <h1 className="text-2xl font-extrabold">
+                Welcome Back
+              </h1>
+              <p className="text-gray-300 mt-1 text-sm">Sign in to continue your journey</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Email Field */}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Email */}
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-secondary-700 mb-2">
-                  Email Address <span className="text-red-500">*</span>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-200 mb-1">
+                  Email Address <span className="text-orange-400">*</span>
                 </label>
-                <div className="relative">
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    className={`input-field ${errors.email ? 'border-red-300 focus:ring-red-500' : ''}`}
-                    placeholder="Enter your email address"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                  />
-                </div>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  className={`input-field ${errors.email ? 'border-red-300 focus:ring-red-500' : ''}`}
+                  placeholder="Enter your email address"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                />
                 {errors.email && (
-                  <span className="text-sm text-red-600 mt-1 block">{errors.email}</span>
+                  <span className="text-sm text-red-400 mt-1 block">{errors.email}</span>
                 )}
               </div>
 
-              {/* Password Field */}
+              {/* Password */}
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-secondary-700 mb-2">
-                  Password <span className="text-red-500">*</span>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-200 mb-1">
+                  Password <span className="text-orange-400">*</span>
                 </label>
                 <input
                   id="password"
@@ -281,40 +243,49 @@ const ProfessionalLoginPage = () => {
                   onChange={handleInputChange}
                 />
                 {errors.password && (
-                  <span className="text-sm text-red-600 mt-1 block">{errors.password}</span>
+                  <span className="text-sm text-red-400 mt-1 block">{errors.password}</span>
                 )}
-                <div className="text-right mt-2">
-                  <Link to="/forgot-password" className="text-sm text-primary-600 hover:text-primary-700">Forgot password?</Link>
+                <div className="text-right mt-1">
+                  <Link to="/forgot-password" className="text-sm text-orange-300 hover:text-orange-200">Forgot password?</Link>
                 </div>
               </div>
 
-              <button type="submit" className="w-full bg-gradient-to-r from-pink-600 to-purple-700 hover:from-pink-700 hover:to-purple-800 text-white rounded-xl px-4 py-2 font-semibold shadow-md">
+              <button
+                type="submit"
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-orange-500 to-amber-400 hover:from-orange-600 hover:to-amber-500 text-black font-semibold shadow-lg shadow-orange-900/30 focus:outline-none focus:ring-2 focus:ring-orange-300"
+              >
                 Sign In
               </button>
-            </form>
-            
 
-            {/* Google Sign-In */}
-            <div className="mt-6">
-              <button
-                type="button"
-                onClick={handleGoogleLogin}
-                className="w-full flex items-center justify-center gap-3 px-4 py-2 rounded-lg border border-secondary-300 bg-white hover:bg-secondary-50 text-secondary-700 transition-colors duration-200"
-              >
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
-                Continue with Google
-              </button>
               {errors.submit && (
-                <div className="mt-3 p-3 bg-red-50 text-red-700 border border-red-200 rounded-lg text-sm">
+                <div className="mt-3 p-3 bg-red-950/40 text-red-200 border border-red-900/40 rounded-lg text-sm">
                   {errors.submit}
                 </div>
               )}
+            </form>
+
+            {/* Divider */}
+            <div className="flex items-center gap-3 my-4">
+              <div className="h-px flex-1 bg-white/10" />
+              <span className="text-xs uppercase tracking-wider text-gray-400">or</span>
+              <div className="h-px flex-1 bg-white/10" />
             </div>
 
-            <div className="text-center mt-6">
-              <p className="text-secondary-600">
+            {/* Google Sign-In */}
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              className="w-full flex items-center justify-center gap-3 px-4 py-2 rounded-lg border border-white/15 bg-white/10 hover:bg-white/15 text-white transition-colors duration-200"
+            >
+              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+              Continue with Google
+            </button>
+
+            {/* Footer link */}
+            <div className="text-center mt-4">
+              <p className="text-gray-300 text-sm">
                 Don't have an account?{' '}
-                <Link to="/signup" state={{ from: location.state?.from || '/' }} className="text-primary-600 hover:text-primary-700 font-medium">
+                <Link to="/signup" state={{ from: location.state?.from || '/' }} className="text-orange-300 hover:text-orange-200 font-medium">
                   Sign up here
                 </Link>
               </p>

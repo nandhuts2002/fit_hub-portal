@@ -19,6 +19,8 @@ import ProductModal from "../components/ProductModal";
 import CartSidebar from "../components/CartSidebar";
 import CheckoutModal from "../components/CheckoutModal";
 import OrderSuccessModal from "../components/OrderSuccessModal";
+import OrderHistory from "../components/OrderHistory";
+import NotificationSystem from "../components/NotificationSystem";
 
 // Enhanced sample products with more details
 const products = [
@@ -190,6 +192,12 @@ const ShopPage = () => {
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [orderDetails, setOrderDetails] = useState(null);
   const [formErrors, setFormErrors] = useState([]);
+  const [orderHistoryOpen, setOrderHistoryOpen] = useState(false);
+
+  // Sync cart with localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('fithub-cart', JSON.stringify(cart));
+  }, [cart]);
 
   // Sync wishlist from server when logged in
   useEffect(() => {
@@ -331,43 +339,68 @@ const ShopPage = () => {
 
   // Cart functions
   const addToCart = (product, variant = null) => {
-    const cartItem = {
-      ...product,
-      variant,
-      quantity: 1,
-      cartId: Date.now()
-    };
+    console.log('Adding to cart:', product, variant);
+    console.log('Current cart:', cart);
     
-    const existingItem = cart.find(item => 
-      item.id === product.id && 
-      JSON.stringify(item.variant) === JSON.stringify(variant)
-    );
+    // Get the product ID (handle both id and _id)
+    const productId = product.id || product._id;
     
-    if (existingItem) {
-      setCart(cart.map(item => 
-        item.cartId === existingItem.cartId 
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      ));
-    } else {
-      setCart([...cart, cartItem]);
+    if (!productId) {
+      console.error('Product ID not found:', product);
+      return;
     }
+    
+    // Check for existing item with same product ID
+    const existingItem = cart.find(item => {
+      const itemProductId = item.id || item._id;
+      return itemProductId === productId;
+    });
+    
+    console.log('Existing item found:', existingItem);
+    
+    let updatedCart;
+    if (existingItem) {
+      // Update quantity of existing item
+      updatedCart = cart.map(item => {
+        const itemProductId = item.id || item._id;
+        if (itemProductId === productId) {
+          console.log('Updating quantity for item:', item, 'new quantity:', item.quantity + 1);
+          return { ...item, quantity: item.quantity + 1 };
+        }
+        return item;
+      });
+    } else {
+      // Add new item
+      const cartItem = {
+        ...product,
+        variant,
+        quantity: 1,
+        cartId: Date.now() + Math.random() // More unique ID
+      };
+      console.log('Adding new item to cart:', cartItem);
+      updatedCart = [...cart, cartItem];
+    }
+    
+    console.log('Updated cart:', updatedCart);
+    setCart(updatedCart);
   };
 
   const updateQuantity = (cartId, newQuantity) => {
     if (newQuantity <= 0) {
       removeFromCart(cartId);
     } else {
-      setCart(cart.map(item => 
+      const updatedCart = cart.map(item => 
         item.cartId === cartId 
           ? { ...item, quantity: newQuantity }
           : item
-      ));
+      );
+      setCart(updatedCart);
     }
   };
 
   const removeFromCart = (cartId) => {
-    setCart(cart.filter(item => item.cartId !== cartId));
+    const updatedCart = cart.filter(item => item.cartId !== cartId);
+    setCart(updatedCart);
   };
 
   const toggleWishlist = async (product) => {
@@ -454,7 +487,7 @@ const ShopPage = () => {
     return subtotal + shipping - discount;
   };
 
-  const handleCheckout = async () => {
+  const handleCheckout = async (selectedPayment = 'razorpay') => {
     if (cart.length === 0) {
       alert('Your cart is empty');
       return;
@@ -491,8 +524,8 @@ const ShopPage = () => {
         })),
         shipping_address: shippingAddress,
         payment_method: {
-          type: 'razorpay', // Will be integrated later
-          status: 'pending'
+          type: selectedPayment,
+          status: selectedPayment === 'razorpay' ? 'pending' : 'cod_pending'
         },
         coupon_code: appliedCoupon ? appliedCoupon.code : ''
       };
@@ -502,11 +535,50 @@ const ShopPage = () => {
       });
 
       const data = response.data || {};
+      console.log('Order creation response:', data);
+      console.log('Order ID for navigation:', data.order_id);
+      console.log('Order number:', data.order_number);
       
       if (data.success) {
-        // Create Razorpay order
+        if (selectedPayment === 'cod') {
+          // For COD: no Razorpay, just show success page with Pending payment status
+          console.log('COD order created successfully, redirecting to:', `/orders/${data.order_id}`);
+          
+          // Store order data in localStorage as backup
+          const orderData = {
+            _id: data.order_id,
+            order_id: data.order_number,
+            orderStatus: 'Pending',
+            paymentStatus: 'Pending',
+            total: data.total,
+            created_at: new Date().toISOString(),
+            shipping_address: shippingAddress,
+            items: cart.map(item => ({
+              product_id: item.id || item._id,
+              product_name: item.name,
+              product_image: item.image,
+              quantity: item.quantity,
+              unit_price: item.price,
+              total_price: item.price * item.quantity,
+              variant: item.variant || {}
+            })),
+            user_email: currentUser.email
+          };
+          localStorage.setItem(`order_${data.order_id}`, JSON.stringify(orderData));
+          console.log('Order data stored in localStorage:', orderData);
+          
+          setCart([]);
+          localStorage.removeItem('fithub-cart');
+          setAppliedCoupon(null);
+          setCouponCode('');
+          setCheckoutOpen(false);
+          navigate(`/orders/${data.order_id}`); // Use MongoDB _id, not human-readable order_id
+          return;
+        }
+
+        // Online Payment - Razorpay
         const rzpRes = await api.post('/shop/api/razorpay/create-order', {
-          amount: getFinalTotal(),
+          amount: data.total, // use server authoritative total
           currency: 'INR',
           receipt: data.order_number
         }, { headers: { Authorization: `Bearer ${currentUser.token}` } });
@@ -554,11 +626,15 @@ const ShopPage = () => {
         };
         if (window.Razorpay) {
           const rzp = new window.Razorpay(options);
+          rzp.on('payment.failed', (resp) => {
+            alert(`Payment failed: ${resp?.error?.description || 'Unknown error'}`);
+          });
           rzp.open();
         } else {
           alert('Razorpay SDK not loaded');
         }
       } else {
+        console.error('Order creation failed:', data);
         alert('Error creating order: ' + (data.error || 'Unknown error'));
       }
     } catch (error) {
@@ -588,9 +664,9 @@ const ShopPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       {/* Header */}
-      <div className="bg-white shadow-lg border-b border-gray-200">
+      <div className="bg-white shadow-lg border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
+          <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-3">
                 <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
@@ -607,11 +683,24 @@ const ShopPage = () => {
               </div>
             </div>
             
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-3">
+              {/* Notifications */}
+              <NotificationSystem />
+              
+              {/* Order History Button */}
+              <button
+                onClick={() => setOrderHistoryOpen(true)}
+                className="relative p-3 text-blue-600 hover:bg-blue-100 rounded-xl transition-all duration-200 group border border-blue-200"
+                title="Order History"
+              >
+                <Package className="w-6 h-6 group-hover:scale-110 transition-transform" />
+              </button>
+              
               {/* Wishlist Button */}
               <button
                 onClick={() => navigate('/wishlist')}
                 className="relative p-3 text-pink-600 hover:bg-pink-100 rounded-xl transition-all duration-200 group border border-pink-200"
+                title="Wishlist"
               >
                 <Heart className="w-6 h-6 group-hover:scale-110 transition-transform" />
                 {wishlist.length > 0 && (
@@ -625,6 +714,7 @@ const ShopPage = () => {
               <button
                 className="relative p-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 rounded-xl transition-all duration-200 group shadow-lg"
                 onClick={() => setCartOpen(true)}
+                title="Shopping Cart"
               >
                 <ShoppingCart className="w-6 h-6 group-hover:scale-110 transition-transform" />
                 {cart.length > 0 && (
@@ -819,6 +909,12 @@ const ShopPage = () => {
         onAddToCart={addToCart}
         onToggleWishlist={toggleWishlist}
         isInWishlist={wishlist.find(item => item.id === selectedProduct?.id || item.id === selectedProduct?._id)}
+      />
+
+      {/* Order History Modal */}
+      <OrderHistory
+        isOpen={orderHistoryOpen}
+        onClose={() => setOrderHistoryOpen(false)}
       />
     </div>
   );

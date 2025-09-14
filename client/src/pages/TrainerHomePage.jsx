@@ -25,6 +25,10 @@ const TrainerHomePage = () => {
     imageUrl: ''
   });
 
+  // Edit mode state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTutorialId, setEditTutorialId] = useState('');
+
   // Query response form state
   const [responseForm, setResponseForm] = useState({
     queryId: '',
@@ -79,7 +83,7 @@ const TrainerHomePage = () => {
     }
   };
 
-  const handleCreateTutorial = async (e) => {
+  const handleCreateOrUpdateTutorial = async (e) => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
@@ -89,8 +93,13 @@ const TrainerHomePage = () => {
         trainer_name: user?.name || user?.firstName + ' ' + user?.lastName || 'Anonymous'
       };
 
-      const response = await fetch('http://localhost:5000/trainer/tutorials', {
-        method: 'POST',
+      const url = isEditing
+        ? `http://localhost:5000/trainer/tutorials/${editTutorialId}`
+        : 'http://localhost:5000/trainer/tutorials';
+      const method = isEditing ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -99,7 +108,7 @@ const TrainerHomePage = () => {
       });
 
       if (response.ok) {
-        alert('Tutorial created successfully!');
+        alert(isEditing ? 'Tutorial updated successfully!' : 'Tutorial created successfully!');
         setTutorialForm({
           title: '',
           description: '',
@@ -111,10 +120,13 @@ const TrainerHomePage = () => {
           videoUrl: '',
           imageUrl: ''
         });
+        setIsEditing(false);
+        setEditTutorialId('');
+        setActiveTab('tutorials');
         fetchTrainerData(); // Refresh data
       } else {
         const error = await response.json();
-        alert('Error creating tutorial: ' + error.msg);
+        alert((isEditing ? 'Error updating tutorial: ' : 'Error creating tutorial: ') + (error.msg || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error creating tutorial:', error);
@@ -210,42 +222,42 @@ const TrainerHomePage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-950 via-purple-900 to-slate-950">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-orange-50/30 to-amber-50/40">
 
       {/* Header */}
-      <header className="bg-gradient-to-r from-pink-600 to-purple-700 text-white sticky top-0 z-30 relative">
+      <header className="bg-white/95 backdrop-blur-lg border-b border-orange-200 sticky top-0 z-30 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-4">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white/15 rounded-lg grid place-items-center text-white border border-white/20">
+                <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-500 rounded-lg grid place-items-center text-white border border-orange-300">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                 </div>
                 <div className="flex flex-col">
-                  <h1 className="text-xl font-semibold text-white">FitHub Trainer</h1>
-                  <span className="text-xs text-white/80 font-medium">Dashboard</span>
+                  <h1 className="text-xl font-semibold text-slate-900">FitHub Trainer</h1>
+                  <span className="text-xs text-slate-600 font-medium">Dashboard</span>
                 </div>
               </div>
             </div>
 
             <div className="flex items-center gap-4">
-              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-white/15 rounded-full border border-white/20">
-                <div className="w-2 h-2 bg-pink-300 rounded-full"></div>
-                <span className="text-white/90 font-medium text-sm">Welcome back, {user?.name}</span>
+              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-orange-100 rounded-full border border-orange-200">
+                <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                <span className="text-slate-700 font-medium text-sm">Welcome back, {user?.name}</span>
               </div>
 
               <div className="relative">
                 <button
-                  className="flex items-center gap-3 px-4 py-2 bg-white/15 border border-white/20 rounded-xl hover:bg-white/25 transition-all duration-200"
+                  className="flex items-center gap-3 px-4 py-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all duration-200 shadow-sm"
                   onClick={() => setShowProfileMenu(!showProfileMenu)}
                 >
-                  <div className="w-8 h-8 bg-white/20 text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                  <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-amber-500 text-white rounded-full flex items-center justify-center text-sm font-semibold">
                     {user?.name?.charAt(0).toUpperCase()}
                   </div>
-                  <span className="text-white font-medium text-sm">{user?.name}</span>
-                  <svg className="w-4 h-4 text-white/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <span className="text-slate-700 font-medium text-sm">{user?.name}</span>
+                  <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
@@ -258,16 +270,16 @@ const TrainerHomePage = () => {
                         setShowProfileMenu(false);
                       }}
                     ></div>
-                    <div className="absolute right-0 top-12 w-64 bg-white rounded-xl shadow-2xl border border-white/20 z-40 overflow-hidden">
+                    <div className="absolute right-0 top-12 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 z-40 overflow-hidden">
                       {/* Profile Header */}
-                      <div className="p-4 border-b border-secondary-200 bg-secondary-50">
+                      <div className="p-4 border-b border-slate-200 bg-slate-50">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-pink-600 to-purple-700 text-white rounded-full flex items-center justify-center font-semibold text-sm">
+                          <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-amber-500 text-white rounded-full flex items-center justify-center font-semibold text-sm">
                             {user?.name?.charAt(0).toUpperCase()}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-secondary-900 truncate">{user?.name || 'Trainer'}</h3>
-                            <p className="text-secondary-600 text-sm truncate font-medium">{user?.email || 'trainer@fithub.com'}</p>
+                            <h3 className="font-semibold text-slate-900 truncate">{user?.name || 'Trainer'}</h3>
+                            <p className="text-slate-600 text-sm truncate font-medium">{user?.email || 'trainer@fithub.com'}</p>
                           </div>
                         </div>
                       </div>
@@ -306,15 +318,15 @@ const TrainerHomePage = () => {
       </header>
 
       {/* Navigation Tabs */}
-      <div className="bg-white/10 backdrop-blur-md border-b border-white/20">
+      <div className="bg-white/80 backdrop-blur-md border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="flex space-x-2 sm:space-x-4 md:space-x-8 overflow-x-auto">
             <button
               onClick={() => setActiveTab('dashboard')}
               className={`py-3 px-3 md:px-4 border-b-2 font-medium text-sm transition ${
                 activeTab === 'dashboard'
-                  ? 'border-pink-300 text-white'
-                  : 'border-transparent text-white/70 hover:text-white hover:border-white/40'
+                  ? 'border-orange-500 text-slate-900'
+                  : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
               }`}
             >
               <div className="flex items-center gap-2">
@@ -328,8 +340,8 @@ const TrainerHomePage = () => {
               onClick={() => setActiveTab('tutorials')}
               className={`py-3 px-3 md:px-4 border-b-2 font-medium text-sm transition ${
                 activeTab === 'tutorials'
-                  ? 'border-pink-300 text-white'
-                  : 'border-transparent text-white/70 hover:text-white hover:border-white/40'
+                  ? 'border-orange-500 text-slate-900'
+                  : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
               }`}
             >
               <div className="flex items-center gap-2">
@@ -343,8 +355,8 @@ const TrainerHomePage = () => {
               onClick={() => setActiveTab('create-tutorial')}
               className={`py-3 px-3 md:px-4 border-b-2 font-medium text-sm transition ${
                 activeTab === 'create-tutorial'
-                  ? 'border-pink-300 text-white'
-                  : 'border-transparent text-white/70 hover:text-white hover:border-white/40'
+                  ? 'border-orange-500 text-slate-900'
+                  : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
               }`}
             >
               <div className="flex items-center gap-2">
@@ -358,8 +370,8 @@ const TrainerHomePage = () => {
               onClick={() => setActiveTab('queries')}
               className={`py-3 px-3 md:px-4 border-b-2 font-medium text-sm transition ${
                 activeTab === 'queries'
-                  ? 'border-pink-300 text-white'
-                  : 'border-transparent text-white/70 hover:text-white hover:border-white/40'
+                  ? 'border-orange-500 text-slate-900'
+                  : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
               }`}
             >
               <div className="flex items-center gap-2">
@@ -379,51 +391,51 @@ const TrainerHomePage = () => {
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-bold text-white mb-1">Overview</h2>
-              <p className="text-white/80">Key stats at a glance</p>
+              <h2 className="text-2xl font-bold text-slate-900 mb-1">Overview</h2>
+              <p className="text-slate-600">Key stats at a glance</p>
             </div>
 
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+              <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-slate-600 text-sm font-semibold">Total Tutorials</p>
-                    <p className="text-3xl font-bold text-slate-900 mt-1">{stats.totalTutorials || 0}</p>
+                    <p className="text-3xl font-bold text-orange-600 mt-1">{stats.totalTutorials || 0}</p>
                     <p className="text-xs text-slate-500 mt-2">All content</p>
-                  </div>
-                  <div className="w-10 h-10 bg-slate-100 rounded-lg grid place-items-center text-slate-700">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    </div>
+                  <div className="w-12 h-12 bg-orange-100 rounded-lg grid place-items-center text-orange-600">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                     </svg>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+              <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-slate-600 text-sm font-semibold">Published Tutorials</p>
-                    <p className="text-3xl font-bold text-slate-900 mt-1">{stats.publishedTutorials || 0}</p>
+                    <p className="text-3xl font-bold text-green-600 mt-1">{stats.publishedTutorials || 0}</p>
                     <p className="text-xs text-slate-500 mt-2">Live content</p>
-                  </div>
-                  <div className="w-10 h-10 bg-slate-100 rounded-lg grid place-items-center text-slate-700">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    </div>
+                  <div className="w-12 h-12 bg-green-100 rounded-lg grid place-items-center text-green-600">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
+              <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-slate-600 text-sm font-semibold">Total Views</p>
-                    <p className="text-3xl font-bold text-slate-900 mt-1">{stats.totalViews || 0}</p>
+                    <p className="text-3xl font-bold text-blue-600 mt-1">{stats.totalViews || 0}</p>
                     <p className="text-xs text-slate-500 mt-2">Engagement</p>
-                  </div>
-                  <div className="w-10 h-10 bg-slate-100 rounded-lg grid place-items-center text-slate-700">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    </div>
+                  <div className="w-12 h-12 bg-blue-100 rounded-lg grid place-items-center text-blue-600">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                     </svg>
@@ -437,7 +449,7 @@ const TrainerHomePage = () => {
                     <p className="text-slate-600 text-sm font-semibold">Total Likes</p>
                     <p className="text-3xl font-bold text-slate-900 mt-1">{stats.totalLikes || 0}</p>
                     <p className="text-xs text-slate-500 mt-2">Appreciation</p>
-                  </div>
+                    </div>
                   <div className="w-10 h-10 bg-slate-100 rounded-lg grid place-items-center text-slate-700">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
@@ -452,7 +464,7 @@ const TrainerHomePage = () => {
                     <p className="text-slate-600 text-sm font-semibold">Total Queries</p>
                     <p className="text-3xl font-bold text-slate-900 mt-1">{stats.totalQueries || 0}</p>
                     <p className="text-xs text-slate-500 mt-2">Questions</p>
-                  </div>
+                    </div>
                   <div className="w-10 h-10 bg-slate-100 rounded-lg grid place-items-center text-slate-700">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -467,7 +479,7 @@ const TrainerHomePage = () => {
                     <p className="text-slate-600 text-sm font-semibold">Resolved Queries</p>
                     <p className="text-3xl font-bold text-slate-900 mt-1">{stats.resolvedQueries || 0}</p>
                     <p className="text-xs text-slate-500 mt-2">Completed</p>
-                  </div>
+                    </div>
                   <div className="w-10 h-10 bg-slate-100 rounded-lg grid place-items-center text-slate-700">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -482,7 +494,7 @@ const TrainerHomePage = () => {
                     <p className="text-slate-600 text-sm font-semibold">Pending Queries</p>
                     <p className="text-3xl font-bold text-slate-900 mt-1">{stats.pendingQueries || 0}</p>
                     <p className="text-xs text-slate-500 mt-2">Awaiting</p>
-                  </div>
+                    </div>
                   <div className="w-10 h-10 bg-slate-100 rounded-lg grid place-items-center text-slate-700">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -497,7 +509,7 @@ const TrainerHomePage = () => {
                     <p className="text-slate-600 text-sm font-semibold">Response Rate</p>
                     <p className="text-3xl font-bold text-slate-900 mt-1">{stats.responseRate || 0}%</p>
                     <p className="text-xs text-slate-500 mt-2">Performance</p>
-                  </div>
+                    </div>
                   <div className="w-10 h-10 bg-slate-100 rounded-lg grid place-items-center text-slate-700">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -518,7 +530,7 @@ const TrainerHomePage = () => {
               </div>
               <button
                 onClick={() => setActiveTab('create-tutorial')}
-                className="bg-gradient-to-r from-pink-600 to-purple-700 text-white px-5 py-2.5 rounded-lg hover:from-pink-700 hover:to-purple-800 transition flex items-center gap-2"
+                className="bg-gradient-to-r from-orange-500 to-amber-500 text-white px-5 py-2.5 rounded-lg hover:from-orange-600 hover:to-amber-600 transition flex items-center gap-2 shadow-md hover:shadow-lg"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -537,7 +549,7 @@ const TrainerHomePage = () => {
                   <p className="text-slate-600 mb-4">Create your first tutorial to start sharing your expertise with users.</p>
                   <button
                     onClick={() => setActiveTab('create-tutorial')}
-                    className="bg-slate-900 text-white px-6 py-2.5 rounded-lg hover:bg-slate-800 transition"
+                    className="bg-gradient-to-r from-orange-500 to-amber-500 text-white px-6 py-2.5 rounded-lg hover:from-orange-600 hover:to-amber-600 transition shadow-md hover:shadow-lg"
                   >
                     Create Your First Tutorial
                   </button>
@@ -559,12 +571,50 @@ const TrainerHomePage = () => {
                       <div className="flex items-start justify-between mb-3">
                         <h3 className="text-lg font-semibold text-slate-900 line-clamp-2">{tutorial.title}</h3>
                         <div className="flex items-center gap-1 ml-2">
-                          <button className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition">
+                          <button
+                            onClick={() => {
+                              setIsEditing(true);
+                              setEditTutorialId(tutorial.id);
+                              setActiveTab('create-tutorial');
+                              setTutorialForm({
+                                title: tutorial.title || '',
+                                description: tutorial.description || '',
+                                category: tutorial.category || 'fitness',
+                                content: tutorial.content || '',
+                                difficulty: tutorial.difficulty || 'beginner',
+                                duration: tutorial.duration || '',
+                                tags: Array.isArray(tutorial.tags) ? tutorial.tags.join(', ') : (tutorial.tags || ''),
+                                videoUrl: tutorial.videoUrl || '',
+                                imageUrl: tutorial.imageUrl || ''
+                              });
+                            }}
+                            className="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition"
+                          >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                           </button>
-                          <button className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition">
+                          <button
+                            onClick={async () => {
+                              const token = localStorage.getItem('token');
+                              if (!window.confirm('Delete this tutorial?')) return;
+                              try {
+                                const resp = await fetch(`http://localhost:5000/trainer/tutorials/${tutorial.id}`, {
+                                  method: 'DELETE',
+                                  headers: { 'Authorization': `Bearer ${token}` }
+                                });
+                                if (resp.ok) {
+                                  fetchTrainerData();
+                                } else {
+                                  const err = await resp.json();
+                                  alert('Error deleting tutorial: ' + (err.msg || 'Unknown error'));
+                                }
+                              } catch (e) {
+                                alert('Error deleting tutorial');
+                              }
+                            }}
+                            className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
+                          >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                             </svg>
@@ -628,7 +678,7 @@ const TrainerHomePage = () => {
             </div>
 
             <div className="bg-white/80 backdrop-blur-sm rounded-xl shadow-xl border border-slate-200/50 p-8">
-              <form onSubmit={handleCreateTutorial} className="space-y-6">
+              <form onSubmit={handleCreateOrUpdateTutorial} className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div className="lg:col-span-2">
                     <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -673,6 +723,7 @@ const TrainerHomePage = () => {
                       <option value="cardio">Cardio</option>
                       <option value="strength">Strength Training</option>
                       <option value="wellness">Wellness</option>
+                      <option value="breathing">Breathing</option>
                     </select>
                   </div>
 
@@ -769,7 +820,7 @@ const TrainerHomePage = () => {
                   </button>
                   <button
                     type="submit"
-                    className="px-8 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl hover:from-purple-700 hover:to-indigo-700 transition-all duration-300 flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
+                    className="px-8 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl hover:from-orange-600 hover:to-amber-600 transition-all duration-300 flex items-center gap-2 shadow-lg hover:shadow-xl transform hover:scale-105"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -845,7 +896,7 @@ const TrainerHomePage = () => {
                       <div className="border-t border-slate-200 pt-4">
                         <button
                           onClick={() => handleAssignQuery(query.id)}
-                          className="bg-gradient-to-r from-pink-600 to-purple-700 text-white px-5 py-2.5 rounded-lg hover:from-pink-700 hover:to-purple-800 transition flex items-center gap-2"
+                          className="bg-gradient-to-r from-orange-500 to-amber-500 text-white px-5 py-2.5 rounded-lg hover:from-orange-600 hover:to-amber-600 transition flex items-center gap-2 shadow-md hover:shadow-lg"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

@@ -333,99 +333,389 @@ const AdminHomePage = () => {
   // Fetch all orders (admin)
   const fetchOrders = useCallback(async () => {
     try {
+      console.log('🔄 Fetching orders...');
       setOrdersLoading(true);
       const currentUser = SessionManager.getCurrentUser();
-      if (!currentUser?.token) return;
+      if (!currentUser?.token) {
+        console.log('❌ No token found');
+        return;
+      }
+      
+      console.log('📡 Making API call to fetch orders...');
       const { data } = await axios.get('http://localhost:5000/shop/api/orders', {
         headers: { Authorization: `Bearer ${currentUser.token}` }
       });
-      if (data?.success) setOrders(data.orders || []);
+      
+      console.log('✅ Orders API response:', data);
+      if (data?.success) {
+        setOrders(data.orders || []);
+        console.log('📦 Orders loaded:', data.orders?.length || 0);
+      } else {
+        console.log('❌ API returned error:', data.error);
+        alert('Failed to load orders: ' + (data.error || 'Unknown error'));
+      }
     } catch (e) {
-      console.error('Failed to load orders', e);
+      console.error('❌ Failed to load orders', e);
+      console.error('Error response:', e.response?.data);
+      alert('Error loading orders: ' + (e.response?.data?.error || e.message));
     } finally {
       setOrdersLoading(false);
     }
   }, []);
 
+  // Create a test order for testing purposes
+  const createTestOrder = async () => {
+    try {
+      console.log('🔄 Creating test order...');
+      const currentUser = SessionManager.getCurrentUser();
+      if (!currentUser?.token) {
+        alert('Please login to create test orders');
+        return;
+      }
+
+      const testOrder = {
+        _id: `test_${Date.now()}`,
+        order_id: `TEST-${Date.now()}`,
+        user_email: 'test@example.com',
+        user_name: 'Test User',
+        total: 2999,
+        orderStatus: 'Pending',
+        paymentStatus: 'Pending',
+        items: [
+          {
+            product_id: 'test-product-1',
+            name: 'Test Yoga Mat',
+            price: 1999,
+            quantity: 1
+          },
+          {
+            product_id: 'test-product-2', 
+            name: 'Test Water Bottle',
+            price: 1000,
+            quantity: 1
+          }
+        ],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      // For testing, we'll just add it to the local state
+      setOrders(prev => [testOrder, ...prev]);
+      alert('Test order created! You can now test the update functionality.');
+    } catch (e) {
+      console.error('❌ Failed to create test order', e);
+      alert('Error creating test order: ' + e.message);
+    }
+  };
+
   // Update a single order
   const updateOrderStatus = async (orderId, payload) => {
     try {
+      console.log('🔄 Updating order status:', { orderId, payload });
+      
       const currentUser = SessionManager.getCurrentUser();
-      if (!currentUser?.token) return;
-      await axios.put(`http://localhost:5000/shop/api/orders/${orderId}/status`, payload, {
+      if (!currentUser?.token) {
+        alert('Please login to update orders');
+        return;
+      }
+
+      const response = await axios.put(`http://localhost:5000/shop/api/orders/${orderId}/status`, payload, {
         headers: { Authorization: `Bearer ${currentUser.token}` }
       });
-      await fetchOrders();
+
+      console.log('✅ Order update response:', response.data);
+      
+      if (response.data.success) {
+        alert('Order updated successfully!');
+        await fetchOrders();
+      } else {
+        alert('Failed to update order: ' + (response.data.error || 'Unknown error'));
+      }
     } catch (e) {
-      console.error('Failed to update order', e);
-      alert('Failed to update order');
+      console.error('❌ Failed to update order', e);
+      console.error('Error response:', e.response?.data);
+      
+      const errorMessage = e.response?.data?.error || e.message || 'Failed to update order';
+      alert('Error: ' + errorMessage);
+    }
+  };
+
+  // Update payment status
+  const updatePaymentStatus = async (orderId, payload) => {
+    try {
+      console.log('🔄 Updating payment status:', { orderId, payload });
+      
+      const currentUser = SessionManager.getCurrentUser();
+      if (!currentUser?.token) {
+        alert('Please login to update payment status');
+        return;
+      }
+
+      const response = await axios.put(`http://localhost:5000/shop/api/orders/${orderId}/payment`, payload, {
+        headers: { Authorization: `Bearer ${currentUser.token}` }
+      });
+
+      console.log('✅ Payment update response:', response.data);
+      
+      if (response.data.success) {
+        alert('Payment status updated successfully!');
+        await fetchOrders();
+      } else {
+        alert('Failed to update payment status: ' + (response.data.error || 'Unknown error'));
+      }
+    } catch (e) {
+      console.error('❌ Failed to update payment status', e);
+      console.error('Error response:', e.response?.data);
+      
+      const errorMessage = e.response?.data?.error || e.message || 'Failed to update payment status';
+      alert('Error: ' + errorMessage);
     }
   };
 
   const renderOrders = () => {
-    const statuses = ['Pending','Processing','Packed','Shipped','Delivered'];
+    const statuses = ['Pending', 'Processing', 'Packed', 'Shipped', 'Delivered'];
+    const statusColors = {
+      'Pending': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+      'Processing': 'bg-blue-100 text-blue-800 border-blue-200',
+      'Packed': 'bg-purple-100 text-purple-800 border-purple-200',
+      'Shipped': 'bg-indigo-100 text-indigo-800 border-indigo-200',
+      'Delivered': 'bg-green-100 text-green-800 border-green-200'
+    };
+
     return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-secondary-900">Orders</h2>
-          <button className="btn-primary" onClick={fetchOrders}>Refresh</button>
-        </div>
-        {ordersLoading ? (
-          <div>Loading orders…</div>
-        ) : orders.length === 0 ? (
-          <div>No orders found.</div>
-        ) : (
-          <div className="overflow-auto border rounded-lg">
-            <table className="w-full admin-table">
-              <thead>
-                <tr>
-                  <th>Order No</th>
-                  <th>User</th>
-                  <th>Total</th>
-                  <th>Payment</th>
-                  <th>Status</th>
-                  <th>Tracking</th>
-                  <th>Updated</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.map((o) => (
-                  <tr key={o._id}>
-                    <td>{o.order_id}</td>
-                    <td>{o.user_email}</td>
-                    <td>₹{(o.total || 0).toLocaleString()}</td>
-                    <td>{o.paymentStatus || 'Pending'}</td>
-                    <td>
-                      <div className="flex items-center gap-2">
-                        <select
-                          defaultValue={o.orderStatus || 'Pending'}
-                          onChange={(e) => {
-                            o.__nextStatus = e.target.value;
-                          }}
-                        >
-                          {statuses.map(s => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                        <button className="btn-secondary" onClick={() => updateOrderStatus(o._id, { orderStatus: o.__nextStatus || o.orderStatus })}>Save</button>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="text"
-                          defaultValue={o.trackingNumber || ''}
-                          onChange={(e) => { o.__nextTrack = e.target.value; }}
-                          placeholder="Tracking #"
-                        />
-                        <button className="btn-secondary" onClick={() => updateOrderStatus(o._id, { trackingNumber: o.__nextTrack ?? o.trackingNumber })}>Save</button>
-                      </div>
-                    </td>
-                    <td>{new Date(o.updated_at || o.created_at).toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Header Section */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Order Management</h1>
+                <p className="text-gray-600">Track and manage all customer orders</p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={fetchOrders}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Refresh
+                </button>
+                <button
+                  onClick={createTestOrder}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  Create Test Order
+                </button>
+                <div className="text-sm text-gray-500 flex items-center">
+                  Total: {orders.length} orders
+                </div>
+              </div>
+            </div>
           </div>
-        )}
+
+          {/* Orders Content */}
+          {ordersLoading ? (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-12">
+              <div className="flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <span className="ml-3 text-gray-600">Loading orders...</span>
+              </div>
+            </div>
+          ) : orders.length === 0 ? (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-12 text-center">
+              <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No orders found</h3>
+              <p className="text-gray-600">Orders will appear here when customers make purchases.</p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Order Details
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Customer
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Amount
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Payment
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Status
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Tracking
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th className="px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {orders.map((order) => (
+                      <tr key={order._id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+                              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                            </div>
+                            <div>
+                              <div className="text-sm font-semibold text-gray-900">
+                                #{order.order_id || order._id?.slice(-8)}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                ID: {order._id?.slice(-12)}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">{order.user_email}</div>
+                            <div className="text-xs text-gray-500">{order.user_name || 'N/A'}</div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-semibold text-gray-900">
+                            ₹{(order.total || 0).toLocaleString()}
+                          </div>
+                          {order.originalTotal && order.originalTotal > order.total && (
+                            <div className="text-xs text-green-600">
+                              Save ₹{(order.originalTotal - order.total).toLocaleString()}
+                            </div>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <select
+                              defaultValue={order.paymentStatus || 'Pending'}
+                              onChange={(e) => { order.__nextPaymentStatus = e.target.value; }}
+                              className="text-sm border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                              <option value="Pending">Pending</option>
+                              <option value="Paid">Paid</option>
+                              <option value="Failed">Failed</option>
+                              <option value="Refunded">Refunded</option>
+                            </select>
+                            <button
+                              onClick={() => {
+                                console.log('🔄 Saving payment status:', {
+                                  orderId: order._id,
+                                  currentPaymentStatus: order.paymentStatus,
+                                  newPaymentStatus: order.__nextPaymentStatus || order.paymentStatus
+                                });
+                                updatePaymentStatus(order._id, { paymentStatus: order.__nextPaymentStatus || order.paymentStatus });
+                              }}
+                              className="px-2 py-1 text-xs bg-green-100 hover:bg-green-200 text-green-700 rounded transition-colors"
+                            >
+                              Save
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <select
+                              defaultValue={order.orderStatus || 'Pending'}
+                              onChange={(e) => { order.__nextStatus = e.target.value; }}
+                              className="text-sm border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                              {statuses.map(status => (
+                                <option key={status} value={status}>{status}</option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() => {
+                                console.log('🔄 Saving order status:', {
+                                  orderId: order._id,
+                                  currentStatus: order.orderStatus,
+                                  newStatus: order.__nextStatus || order.orderStatus
+                                });
+                                updateOrderStatus(order._id, { orderStatus: order.__nextStatus || order.orderStatus });
+                              }}
+                              className="px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded transition-colors"
+                            >
+                              Save
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              defaultValue={order.trackingNumber || ''}
+                              onChange={(e) => { order.__nextTrack = e.target.value; }}
+                              placeholder="Tracking #"
+                              className="text-sm border border-gray-300 rounded-lg px-2 py-1 w-24 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                            <button
+                              onClick={() => {
+                                console.log('🔄 Saving tracking number:', {
+                                  orderId: order._id,
+                                  currentTracking: order.trackingNumber,
+                                  newTracking: order.__nextTrack ?? order.trackingNumber
+                                });
+                                updateOrderStatus(order._id, { trackingNumber: order.__nextTrack ?? order.trackingNumber });
+                              }}
+                              className="px-2 py-1 text-xs bg-green-100 hover:bg-green-200 text-green-700 rounded transition-colors"
+                            >
+                              Save
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                          <div>{new Date(order.created_at || order.updated_at).toLocaleDateString()}</div>
+                          <div className="text-xs">{new Date(order.created_at || order.updated_at).toLocaleTimeString()}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {/* View order details */}}
+                              className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50"
+                              title="View Details"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              </svg>
+                            </button>
+                            <button
+                              onClick={() => {/* Print order */}}
+                              className="text-gray-600 hover:text-gray-900 p-1 rounded hover:bg-gray-50"
+                              title="Print Order"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                              </svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     );
   };
@@ -1578,15 +1868,21 @@ const AdminHomePage = () => {
                 <div className="bg-gradient-to-r from-secondary-50 to-primary-50 rounded-xl p-4 mb-6">
                   <div className="grid grid-cols-3 gap-4">
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-primary-600 mb-1">0</div>
+                      <div className="text-2xl font-bold text-primary-600 mb-1">
+                        {trainer.tutorials_count || tutorials.filter(t => t.trainer_email === trainer.email).length || 0}
+                      </div>
                       <div className="text-xs font-medium text-secondary-600 uppercase tracking-wide">Tutorials</div>
                     </div>
                     <div className="text-center border-x border-secondary-200">
-                      <div className="text-2xl font-bold text-primary-600 mb-1">0</div>
+                      <div className="text-2xl font-bold text-primary-600 mb-1">
+                        {trainer.clients_count || users.filter(u => u.assigned_trainer === trainer.email).length || 0}
+                      </div>
                       <div className="text-xs font-medium text-secondary-600 uppercase tracking-wide">Clients</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-yellow-500 mb-1">4.8</div>
+                      <div className="text-2xl font-bold text-yellow-500 mb-1">
+                        {trainer.rating || '4.8'}
+                      </div>
                       <div className="text-xs font-medium text-secondary-600 uppercase tracking-wide">Rating</div>
                     </div>
                   </div>
