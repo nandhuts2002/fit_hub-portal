@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Debug Tool</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .section { margin: 20px 0; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }
+        .result { margin: 10px 0; padding: 15px; background: #f8f9fa; border-radius: 4px; border-left: 4px solid #007bff; }
+        .error { background: #f8d7da; color: #721c24; border-left-color: #dc3545; }
+        .success { background: #d4edda; color: #155724; border-left-color: #28a745; }
+        .warning { background: #fff3cd; color: #856404; border-left-color: #ffc107; }
+        button { padding: 12px 24px; margin: 8px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        input, textarea { padding: 10px; margin: 5px; border: 1px solid #ddd; border-radius: 4px; width: 100%; max-width: 400px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .code { background: #f8f9fa; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; overflow-x: auto; }
+        .status { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+        .status.pending { background: #fff3cd; color: #856404; }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Order Debug Tool</h1>
+        <p>This tool helps debug order creation and retrieval issues.</p>
+        
+        <div class="grid">
+            <div class="section">
+                <h2>1. Server Status</h2>
+                <button onclick="checkServerStatus()">Check Server Status</button>
+                <div id="serverStatus" class="result"></div>
+            </div>
+
+            <div class="section">
+                <h2>2. Test Order Creation</h2>
+                <button onclick="createTestOrder()">Create Test COD Order</button>
+                <div id="createResult" class="result"></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>3. Order Retrieval Test</h2>
+            <input type="text" id="orderIdInput" placeholder="Enter Order ID (e.g., 68c6444981e645ec4c0ef699)" />
+            <button onclick="testOrderRetrieval()">Test Order Retrieval</button>
+            <div id="retrievalResult" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h2>4. User Orders List</h2>
+            <button onclick="getUserOrders()">Get All User Orders</button>
+            <div id="userOrdersResult" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h2>5. Local Storage Check</h2>
+            <button onclick="checkLocalStorage()">Check Local Storage</button>
+            <div id="localStorageResult" class="result"></div>
+        </div>
+
+        <div class="section">
+            <h2>6. API Endpoints Test</h2>
+            <button onclick="testAllEndpoints()">Test All API Endpoints</button>
+            <div id="endpointsResult" class="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000';
+        let currentUser = null;
+
+        // Check if we have user data in localStorage
+        function loadUserData() {
+            const userData = localStorage.getItem('fithub-user');
+            if (userData) {
+                try {
+                    currentUser = JSON.parse(userData);
+                    console.log('Loaded user data:', currentUser);
+                } catch (e) {
+                    console.error('Error parsing user data:', e);
+                }
+            }
+        }
+
+        async function checkServerStatus() {
+            const resultDiv = document.getElementById('serverStatus');
+            resultDiv.innerHTML = 'Checking server status...';
+            
+            try {
+                const response = await fetch(`${API_BASE}/shop/api/products`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <strong>✅ Server is running!</strong><br>
+                            Response: ${JSON.stringify(data, null, 2)}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <strong>❌ Server error!</strong><br>
+                            Status: ${response.status}<br>
+                            Response: ${JSON.stringify(data, null, 2)}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <strong>❌ Server not reachable!</strong><br>
+                        Error: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        async function createTestOrder() {
+            const resultDiv = document.getElementById('createResult');
+            resultDiv.innerHTML = 'Creating test order...';
+            
+            loadUserData();
+            
+            if (!currentUser || !currentUser.token) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <strong>❌ No user logged in!</strong><br>
+                        Please login first or check localStorage for user data.
+                    </div>
+                `;
+                return;
+            }
+            
+            try {
+                const orderData = {
+                    items: [
+                        {
+                            product_id: '507f1f77bcf86cd799439011', // Mock product ID
+                            quantity: 1,
+                            variant: {}
+                        }
+                    ],
+                    shipping_address: {
+                        name: 'Test User',
+                        email: currentUser.email,
+                        phone: '9876543210',
+                        address: '123 Test Street, Test Area',
+                        city: 'Test City',
+                        state: 'Test State',
+                        pincode: '123456'
+                    },
+                    payment_method: {
+                        type: 'cod',
+                        status: 'cod_pending'
+                    },
+                    coupon_code: ''
+                };
+
+                const response = await fetch(`${API_BASE}/shop/api/orders`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentUser.token}`
+                    },
+                    body: JSON.stringify(orderData)
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <strong>✅ Order Created Successfully!</strong><br>
+                            <div class="code">
+Order ID: ${data.order_id}<br>
+Order Number: ${data.order_number}<br>
+Total: ₹${data.total}<br>
+Message: ${data.message}
+                            </div>
+                            <button onclick="document.getElementById('orderIdInput').value='${data.order_id}'">Use this ID for testing</button>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <strong>❌ Order Creation Failed!</strong><br>
+                            Error: ${data.error}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <strong>❌ Network Error!</strong><br>
+                        Error: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        async function testOrderRetrieval() {
+            const orderId = document.getElementById('orderIdInput').value;
+            const resultDiv = document.getElementById('retrievalResult');
+            
+            if (!orderId) {
+                resultDiv.innerHTML = '<div class="error">Please enter an order ID</div>';
+                return;
+            }
+            
+            loadUserData();
+            
+            if (!currentUser || !currentUser.token) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <strong>❌ No user logged in!</strong><br>
+                        Please login first.
+                    </div>
+                `;
+                return;
+            }
+            
+            resultDiv.innerHTML = `Testing order retrieval for ID: ${orderId}...`;
+            
+            try {
+                // Test direct API call
+                const response = await fetch(`${API_BASE}/shop/api/order/${orderId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${currentUser.token}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.success && data.order) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <strong>✅ Order Found via Direct API!</strong><br>
+                            <div class="code">
+Order ID: ${data.order._id}<br>
+Order Number: ${data.order.order_id}<br>
+Status: ${data.order.orderStatus}<br>
+Payment Status: ${data.order.paymentStatus}<br>
+Total: ₹${data.order.total}<br>
+Items: ${data.order.items ? data.order.items.length : 0}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <strong>❌ Order Not Found via Direct API!</strong><br>
+                            Error: ${data.error || 'Unknown error'}<br>
+                            Status: ${response.status}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <strong>❌ Network Error!</strong><br>
+                        Error: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        async function getUserOrders() {
+            const resultDiv = document.getElementById('userOrdersResult');
+            resultDiv.innerHTML = 'Fetching user orders...';
+            
+            loadUserData();
+            
+            if (!currentUser || !currentUser.token) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <strong>❌ No user logged in!</strong><br>
+                        Please login first.
+                    </div>
+                `;
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/shop/api/orders/${encodeURIComponent(currentUser.email)}`, {
+                    headers: {
+                        'Authorization': `Bearer ${currentUser.token}`
+                    }
+                });
+
+                const data = await response.json();
+                
+                if (data.success && data.orders) {
+                    const orders = data.orders;
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <strong>✅ Found ${orders.length} orders:</strong><br>
+                            ${orders.map(order => `
+                                <div style="margin: 10px 0; padding: 15px; background: #f8f9fa; border-radius: 4px; border-left: 4px solid #007bff;">
+                                    <strong>Order ID:</strong> ${order._id}<br>
+                                    <strong>Order Number:</strong> ${order.order_id}<br>
+                                    <strong>Status:</strong> <span class="status ${order.orderStatus?.toLowerCase() || 'pending'}">${order.orderStatus || 'Pending'}</span><br>
+                                    <strong>Total:</strong> ₹${order.total || 0}<br>
+                                    <strong>Created:</strong> ${new Date(order.created_at).toLocaleString()}<br>
+                                    <button onclick="document.getElementById('orderIdInput').value='${order._id}'">Test this order</button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <strong>❌ Error fetching orders!</strong><br>
+                            Error: ${data.error || 'Unknown error'}
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <strong>❌ Network Error!</strong><br>
+                        Error: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        function checkLocalStorage() {
+            const resultDiv = document.getElementById('localStorageResult');
+            
+            try {
+                const orderKeys = Object.keys(localStorage).filter(key => key.startsWith('order_'));
+                const userData = localStorage.getItem('fithub-user');
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <strong>📦 Local Storage Contents:</strong><br>
+                        <div class="code">
+User Data: ${userData ? 'Found' : 'Not found'}<br>
+Order Keys: ${orderKeys.length} found<br>
+${orderKeys.map(key => {
+    const orderData = JSON.parse(localStorage.getItem(key));
+    return `${key}: ${orderData.order_id || orderData._id} (${orderData.orderStatus || 'Unknown'})`;
+}).join('<br>')}
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <strong>❌ Error reading localStorage!</strong><br>
+                        Error: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        async function testAllEndpoints() {
+            const resultDiv = document.getElementById('endpointsResult');
+            resultDiv.innerHTML = 'Testing all API endpoints...';
+            
+            loadUserData();
+            
+            const endpoints = [
+                { name: 'Products', url: '/shop/api/products', method: 'GET' },
+                { name: 'Categories', url: '/shop/api/categories', method: 'GET' },
+                { name: 'User Orders', url: `/shop/api/orders/${currentUser?.email || 'test@example.com'}`, method: 'GET' }
+            ];
+            
+            let results = [];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await fetch(`${API_BASE}${endpoint.url}`, {
+                        method: endpoint.method,
+                        headers: currentUser?.token ? { 'Authorization': `Bearer ${currentUser.token}` } : {}
+                    });
+                    
+                    const data = await response.json();
+                    results.push({
+                        name: endpoint.name,
+                        status: response.ok ? 'success' : 'error',
+                        statusCode: response.status,
+                        data: data
+                    });
+                } catch (error) {
+                    results.push({
+                        name: endpoint.name,
+                        status: 'error',
+                        error: error.message
+                    });
+                }
+            }
+            
+            resultDiv.innerHTML = `
+                <div class="success">
+                    <strong>🔍 API Endpoints Test Results:</strong><br>
+                    ${results.map(result => `
+                        <div style="margin: 10px 0; padding: 10px; background: ${result.status === 'success' ? '#d4edda' : '#f8d7da'}; border-radius: 4px;">
+                            <strong>${result.name}:</strong> 
+                            <span class="status ${result.status}">${result.status.toUpperCase()}</span>
+                            ${result.statusCode ? ` (${result.statusCode})` : ''}
+                            ${result.error ? `<br>Error: ${result.error}` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // Load user data on page load
+        window.onload = function() {
+            loadUserData();
+            checkServerStatus();
+        };
+    </script>
+</body>
+</html>
+
