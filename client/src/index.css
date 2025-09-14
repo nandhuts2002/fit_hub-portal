@@ -15,7 +15,8 @@
       sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background-color: #f8fafc;
+    /* Warm gradient background to complement orange CTAs */
+    background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 40%, #fed7aa 100%);
     min-height: 100vh;
   }
 
@@ -320,7 +321,9 @@
 
   /* Modal */
   .modal-overlay { @apply fixed inset-0 bg-black/40 grid place-items-center p-4 z-50; }
-  .modal-content { @apply bg-white rounded-2xl w-full max-w-2xl shadow-xl ring-1 ring-secondary-200 overflow-hidden animate-fade-in; }
+  .modal-content { @apply bg-white rounded-2xl w-full max-w-2xl shadow-xl ring-1 ring-secondary-200 animate-fade-in; }
+  .modal-content.large { @apply max-w-6xl max-h-[90vh] overflow-hidden flex flex-col; }
+  .order-details-content { @apply flex-1 overflow-y-auto p-6; }
   .modal-header { @apply flex items-center justify-between px-5 py-4 border-b border-secondary-200 bg-secondary-50; }
   .close-btn { @apply text-2xl leading-none text-secondary-500 hover:text-secondary-700; }
   .user-form { @apply p-6 space-y-6; }
