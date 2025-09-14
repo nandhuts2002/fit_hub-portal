@@ -527,6 +527,35 @@ def update_order_status(order_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+# ADMIN: update payment status/method (for COD or manual adjustments)
+@shop_bp.route('/api/orders/<order_id>/payment', methods=['PUT'])
+@jwt_required()
+def update_order_payment(order_id):
+    if not _require_admin():
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
+    try:
+        data = request.get_json() or {}
+        payment_status = data.get('paymentStatus')  # e.g., Pending | Paid | Failed
+        method = data.get('method')                 # e.g., razorpay | cod | upi | card
+        transaction_id = data.get('transactionId')  # optional
+        update = {}
+        if payment_status:
+            update['paymentStatus'] = payment_status
+            # set paid timestamp if moving to Paid
+            if payment_status == 'Paid':
+                update['timestamps.paid'] = datetime.utcnow()
+        if method:
+            update['payment_method.type'] = method
+        if transaction_id:
+            update['payment_method.transactionId'] = transaction_id
+        if not update:
+            return jsonify({'success': False, 'error': 'No fields to update'}), 400
+        update['updated_at'] = datetime.utcnow()
+        orders_collection.update_one({'_id': ObjectId(order_id)}, {'$set': update})
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 # WISHLIST API
 @shop_bp.route('/api/wishlist/<user_email>', methods=['GET'])
 @jwt_required()
@@ -632,19 +661,38 @@ def get_orders(user_email):
     if not _require_same_user(user_email):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     try:
+        print(f"Fetching orders for user: {user_email}")
         orders = list(orders_collection.find({'user_email': user_email}).sort('created_at', -1))
+        print(f"Found {len(orders)} orders in database")
         
         for order in orders:
-            order['_id'] = str(order['_id'])
-            # Get order items
-            order_items = list(order_items_collection.find({'order_id': ObjectId(order['_id'])}))
+            # Preserve original _id for lookups before converting to string for response
+            raw_id = order.get('_id')
+            order['_id'] = str(raw_id) if raw_id is not None else ''
+            # Get order items using the raw ObjectId when possible
+            order_items = []
+            try:
+                lookup_id = raw_id if isinstance(raw_id, ObjectId) else ObjectId(order['_id'])
+                order_items = list(order_items_collection.find({'order_id': lookup_id}))
+            except Exception:
+                # If lookup_id creation fails, leave items as empty and continue
+                order_items = []
+            safe_order_number = order.get('order_id') or order.get('orderNumber') or order['_id']
+            print(f"Found {len(order_items)} items for order {safe_order_number}")
             for item in order_items:
-                item['_id'] = str(item['_id'])
+                # Convert all ObjectId fields to strings for JSON serialization
+                item['_id'] = str(item.get('_id', ''))
+                if isinstance(item.get('product_id'), ObjectId):
+                    item['product_id'] = str(item['product_id'])
+                if isinstance(item.get('order_id'), ObjectId):
+                    item['order_id'] = str(item['order_id'])
             order['items'] = order_items
             
+        print(f"Returning {len(orders)} orders to client")
         return jsonify({'success': True, 'orders': orders})
         
     except Exception as e:
+        print(f"Error fetching orders: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @shop_bp.route('/api/order/<order_id>', methods=['GET'])
@@ -656,14 +704,25 @@ def get_order_detail(order_id):
         if not user_email:
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
-        order = orders_collection.find_one({'_id': ObjectId(order_id)})
+        # Try by Mongo _id first
+        order = None
+        try:
+            order = orders_collection.find_one({'_id': ObjectId(order_id)})
+        except Exception:
+            order = None
+        
+        # Fallback: if not found, try by human-readable order number
+        if not order:
+            order = orders_collection.find_one({'order_id': order_id})
+        
         if not order:
             return jsonify({'success': False, 'error': 'Order not found'}), 404
         if order.get('user_email') != user_email:
             return jsonify({'success': False, 'error': 'Forbidden'}), 403
 
+        oid = order['_id']
         order['_id'] = str(order['_id'])
-        items = list(order_items_collection.find({'order_id': ObjectId(order['_id'])}))
+        items = list(order_items_collection.find({'order_id': oid}))
         for item in items:
             item['_id'] = str(item['_id'])
         order['items'] = items
@@ -759,7 +818,10 @@ def create_order():
                 'pincode': shipping_address.get('pincode', ''),
                 'geo': shipping_address.get('geo', {})
             },
-            'payment_method': payment_method,
+            'payment_method': {
+                'type': payment_method.get('type') or 'razorpay',
+                'status': payment_method.get('status') or ('pending' if (payment_method.get('type') or 'razorpay') == 'razorpay' else 'cod_pending'),
+            },
             'created_at': datetime.utcnow(),
             'updated_at': datetime.utcnow()
         }
@@ -789,6 +851,7 @@ def create_order():
             'success': True, 
             'order_id': order_id,
             'order_number': order['order_id'],
+            'total': total,
             'message': 'Order created successfully'
         })
         
@@ -1066,6 +1129,51 @@ def init_shop_data():
         coupons_collection.insert_many(coupons)
         
         return jsonify({'success': True, 'message': 'Shop data initialized successfully'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# NOTIFICATIONS API
+@shop_bp.route('/api/notifications/<user_email>', methods=['GET'])
+@jwt_required()
+def get_notifications(user_email):
+    try:
+        identity = get_jwt_identity()
+        current_user_email = identity.get('email') if isinstance(identity, dict) else None
+        if not current_user_email or current_user_email != user_email:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+        print(f"Fetching notifications for user: {user_email}")
+        
+        # For now, return empty notifications array
+        # In a real app, this would fetch from a notifications collection
+        notifications = []
+        
+        print(f"Returning {len(notifications)} notifications to client")
+        return jsonify({'success': True, 'notifications': notifications})
+        
+    except Exception as e:
+        print(f"Error fetching notifications: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@shop_bp.route('/api/notifications/<user_email>/mark-read', methods=['POST'])
+@jwt_required()
+def mark_notification_read(user_email):
+    try:
+        identity = get_jwt_identity()
+        current_user_email = identity.get('email') if isinstance(identity, dict) else None
+        if not current_user_email or current_user_email != user_email:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+        data = request.get_json()
+        notification_id = data.get('notification_id')
+        
+        if not notification_id:
+            return jsonify({'success': False, 'error': 'Notification ID required'}), 400
+
+        # In a real app, this would update the notification in the database
+        # For now, just return success
+        return jsonify({'success': True, 'message': 'Notification marked as read'})
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500

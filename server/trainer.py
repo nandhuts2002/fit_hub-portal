@@ -83,6 +83,7 @@ def get_trainer_tutorials():
                 'title': tutorial['title'],
                 'description': tutorial['description'],
                 'category': tutorial['category'],
+                'content': tutorial.get('content', ''),
                 'difficulty': tutorial.get('difficulty', 'beginner'),
                 'duration': tutorial.get('duration', ''),
                 'tags': tutorial.get('tags', []),
