@@ -21,14 +21,19 @@ import {
 } from "lucide-react";
 import SessionManager from "../utils/sessionManager";
 
-// Bright, high-quality fitness images with movement
+// Dark, high-contrast yoga/fitness images for a premium feel (dimmer)
 const HERO_IMAGES = [
-  //  "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?q=80&w=1600&auto=format&fit=crop&ixlib=rb-4.0.3&sat=20&brightness=110",
-  // "https://asset.gecdesigns.com/img/wallpapers/yoga-day-wallpaper-human-meditate-in-a-lotus-pose-yoga-activates-seven-chakras-with-a-beautiful-aura-background-sr20062417-cover.webp",
-  "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=1600&auto=format&fit=crop&ixlib=rb-4.0.3&sat=20&brightness=110",
-  "https://images.unsplash.com/photo-1506126613408-eca07ce68773?q=80&w=1600&auto=format&fit=crop&ixlib=rb-4.0.3&sat=25&brightness=115",
-  "https://images.unsplash.com/photo-1545389336-cf5734d4d0a2?q=80&w=1600&auto=format&fit=crop&ixlib=rb-4.0.3&sat=20&brightness=110",
+   "https://images.pexels.com/photos/8534496/pexels-photo-8534496.jpeg",
+   "https://images.pexels.com/photos/4662469/pexels-photo-4662469.jpeg",
+   "https://images.pexels.com/photos/13849092/pexels-photo-13849092.jpeg",
+   "https://images.pexels.com/photos/268134/pexels-photo-268134.jpeg"
+  //  "https://images.unsplash.com/photo-1540206276209-9798b937bbfd?q=80&w=1920&auto=format&fit=crop&ixlib=rb-4.0.3&sat=10", // yoga silhouette sunset
+  //  "https://images.unsplash.com/photo-1599050751792-d5b1e8f1d6b1?q=80&w=1920&auto=format&fit=crop&ixlib=rb-4.0.3&sat=0", // mat & dumbbells
+  //  "https://images.unsplash.com/photo-1541364983171-a8ba01e95cfc?q=80&w=1920&auto=format&fit=crop&ixlib=rb-4.0.3&sat=10" // studio pose
 ];
+
+// Per-image brightness tuning (lower = darker)
+const HERO_BRIGHTNESS = [0.75, 0.8, 0.75];
 
 const UserHomePage = () => {
   const navigate = useNavigate();
@@ -268,7 +273,7 @@ const UserHomePage = () => {
   }, [menuOpen, notificationsOpen]);
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-br from-orange-100 via-amber-200 to-orange-300">
+    <div className="relative min-h-screen theme-dark bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
       <AnimatePresence>
         <NotificationToast
           toast={toast}
@@ -288,19 +293,26 @@ const UserHomePage = () => {
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 3, ease: "easeInOut" }}
           >
-            <img
+            <motion.img
+              key={`hero-${heroIndex}`}
               src={HERO_IMAGES[heroIndex]}
               alt="Yoga Background"
               className="w-full h-full object-cover"
+              style={{ filter: `brightness(${HERO_BRIGHTNESS[heroIndex] || 0.7}) contrast(1.1) saturate(1.05)` }}
+              initial={{ scale: 1.05 }}
+              animate={{ scale: 1 }}
+              transition={{ duration: 5, ease: "easeInOut" }}
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-orange-300/25 via-amber-200/15 to-transparent"></div>
+            <div className="absolute inset-0 bg-gradient-to-b from-[#0b0b12]/60 via-[#12121a]/40 to-[#0b0b12]/60" />
+            <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-orange-900/25 via-orange-800/10 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/35 to-black/20" />
           </motion.div>
         </AnimatePresence>
       </div>
 
 
       {/* Main Header */}
-      <header className="bg-white/95 backdrop-blur-lg border-b border-orange-200 sticky top-0 z-40 shadow-sm">
+      <header className="glass-nav-dark sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           {/* Logo */}
           <motion.div
@@ -310,17 +322,19 @@ const UserHomePage = () => {
             className="flex items-center gap-3 cursor-pointer"
             onClick={() => navigate("/")}
           >
-            <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
+            <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-amber-400 rounded-xl flex items-center justify-center shadow-lg">
               <span className="text-2xl">🧘‍♀️</span>
             </div>
-            <div>
-            <span className="text-xl font-bold text-slate-900">FitHub Yoga</span>
-              <p className="text-xs text-orange-600">Your Wellness Journey</p>
+            <div className="flex items-end gap-1">
+              <span className="text-2xl font-extrabold tracking-wide text-white">
+                FIT<span className="text-orange-400">HUB</span>
+              </span>
+              <span className="hidden sm:inline text-[10px] text-slate-500 mb-1">Wellness</span>
             </div>
           </motion.div>
 
           {/* Nav Links */}
-          <nav className="hidden md:flex gap-4">
+          <nav className="hidden md:flex gap-8">
             {[
               { label: "HOME", path: "/user-home", active: true },
               { label: "TUTORIALS", path: "/tutorials" },
@@ -332,10 +346,10 @@ const UserHomePage = () => {
                 whileHover={{ scale: 1.05 }}
                 transition={{ duration: 0.2, ease: "easeOut" }}
                 onClick={() => navigate(item.path)}
-                className={`flex items-center gap-1 font-medium transition-colors px-4 py-2 rounded-lg ${
-                  item.active 
-                    ? 'bg-orange-500 text-white shadow-lg' 
-                    : 'text-slate-600 hover:text-orange-600 hover:bg-orange-100'
+                className={`relative flex items-center gap-1 font-semibold tracking-wide transition-colors px-2 py-1 ${
+                  item.active
+                    ? 'text-white after:absolute after:-bottom-2 after:left-0 after:h-[3px] after:w-full after:bg-gradient-to-r from-orange-500 to-amber-400 rounded-full'
+                    : 'text-white/80 hover:text-white'
                 }`}
               >
                 {item.label}
@@ -372,13 +386,13 @@ const UserHomePage = () => {
 
             <button 
               onClick={() => navigate("/wishlist")}
-              className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center hover:bg-orange-200 transition-colors"
+              className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition-colors"
             >
               <Heart size={20} />
             </button>
             <button 
               onClick={() => navigate("/cart")}
-              className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center hover:bg-orange-200 transition-colors"
+              className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition-colors"
             >
               <ShoppingBag size={20} />
             </button>
@@ -386,7 +400,7 @@ const UserHomePage = () => {
             {/* Profile Menu Button */}
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="w-10 h-10 rounded-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold flex items-center justify-center shadow-lg hover:scale-105 transition"
+              className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold flex items-center justify-center shadow-lg hover:scale-105 transition"
             >
               {user?.firstName?.[0] || user?.email?.[0] || "U"}
             </button>
@@ -496,18 +510,18 @@ const UserHomePage = () => {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.3 }}
-                className="profile-menu absolute right-0 mt-3 w-64 bg-white shadow-2xl rounded-xl overflow-hidden border border-gray-100"
+                className="profile-menu absolute right-0 mt-3 w-80 bg-gradient-to-b from-slate-900/90 to-slate-950/90 text-white shadow-2xl rounded-2xl overflow-hidden border border-white/10 backdrop-blur-xl"
                 >
                   {/* Profile Card */}
-                <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-blue-100 to-cyan-100">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 to-cyan-600 flex items-center justify-center text-white font-bold text-lg">
+                <div className="flex items-center gap-3 px-4 py-4 bg-gradient-to-r from-orange-600 to-amber-500">
+                  <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-lg">
                     {user?.firstName?.[0] || user?.email?.[0] || "U"}
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-800">
+                      <p className="text-sm font-semibold text-white">
                       {user?.firstName || user?.email?.split('@')[0] || "Fitness Member"}
                       </p>
-                      <p className="text-xs text-gray-600">{user?.email}</p>
+                      <p className="text-xs text-white/90">{user?.email}</p>
                     </div>
                   </div>
 
@@ -515,39 +529,39 @@ const UserHomePage = () => {
                   <div className="py-2">
                     <button
                     onClick={() => { setMenuOpen(false); navigate("/user-home"); }}
-                      className="flex items-center gap-3 px-4 py-2 w-full text-left hover:bg-gray-100 text-gray-700"
+                      className="flex items-center gap-3 px-4 py-2 w-full text-left hover:bg-white/10 text-white/90"
                     >
-                    <User size={18} /> My Profile
+                    <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-white/10 mr-1">👤</span> My Profile
                     </button>
                     <button
                     onClick={() => { setMenuOpen(false); navigate("/tutorials"); }}
-                      className="flex items-center gap-3 px-4 py-2 w-full text-left hover:bg-gray-100 text-gray-700"
+                      className="flex items-center gap-3 px-4 py-2 w-full text-left hover:bg-white/10 text-white/90"
                     >
-                      <BookOpen size={18} /> My Tutorials
+                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-white/10 mr-1">📘</span> My Tutorials
                     </button>
                     <button
                     onClick={() => { setMenuOpen(false); navigate("/shop"); }}
-                      className="flex items-center gap-3 px-4 py-2 w-full text-left hover:bg-gray-100 text-gray-700"
+                      className="flex items-center gap-3 px-4 py-2 w-full text-left hover:bg-white/10 text-white/90"
                     >
-                    <ShoppingBag size={18} /> My Orders
+                    <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-white/10 mr-1">🛍️</span> My Orders
                     </button>
                     <button
                     onClick={() => { setMenuOpen(false); navigate("/queries"); }}
-                      className="flex items-center gap-3 px-4 py-2 w-full text-left hover:bg-gray-100 text-gray-700"
+                      className="flex items-center gap-3 px-4 py-2 w-full text-left hover:bg-white/10 text-white/90"
                     >
-                      <MessageCircle size={18} /> My Queries
+                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-white/10 mr-1">💬</span> My Queries
                     </button>
                     <button
                     onClick={() => { setMenuOpen(false); navigate("/wishlist"); }}
-                    className="flex items-center gap-3 px-4 py-2 w-full text-left hover:bg-gray-100 text-gray-700"
+                    className="flex items-center gap-3 px-4 py-2 w-full text-left hover:bg-white/10 text-white/90"
                   >
-                    <Heart size={18} /> My Wishlist
+                    <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-white/10 mr-1">❤️</span> My Wishlist
                   </button>
                   <button
                     onClick={() => { setMenuOpen(false); navigate("/settings"); }}
-                      className="flex items-center gap-3 px-4 py-2 w-full text-left hover:bg-gray-100 text-gray-700"
+                      className="flex items-center gap-3 px-4 py-2 w-full text-left hover:bg-white/10 text-white/90"
                     >
-                      <Settings size={18} /> Settings
+                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-white/10 mr-1">⚙️</span> Settings
                     </button>
                   </div>
 
@@ -555,9 +569,9 @@ const UserHomePage = () => {
                   <div className="border-t">
                     <button
                     onClick={() => { setMenuOpen(false); handleLogout(); }}
-                      className="flex items-center gap-3 px-4 py-3 w-full text-left text-red-600 hover:bg-red-50 font-medium"
+                      className="flex items-center gap-3 px-4 py-3 w-full text-left text-red-400 hover:bg-white/10 font-semibold"
                     >
-                      <LogOut size={18} /> Logout
+                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-red-500/10 text-red-300 mr-1">⎋</span> Logout
                     </button>
                   </div>
                 </motion.div>
@@ -573,13 +587,13 @@ const UserHomePage = () => {
             initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1.0, ease: "easeOut" }}
-            className="text-slate-900"
+            className="text-white"
           >
             <motion.p
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
-              className="uppercase tracking-[0.35em] text-orange-400 mb-5 font-semibold"
+              className="uppercase tracking-[0.35em] text-blue-400 mb-5 font-semibold"
             >
               Welcome Back
             </motion.p>
@@ -587,12 +601,12 @@ const UserHomePage = () => {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 1 }}
-              className="text-5xl md:text-7xl font-extrabold mb-6 leading-tight text-slate-900 [text-shadow:0_2px_8px_rgba(255,255,255,0.8)]"
+              className="text-5xl md:text-7xl font-extrabold mb-6 leading-tight text-white"
             >
               Continue Your <span className="text-orange-400">Yoga Journey</span>
               <br /> with <span className="text-orange-400">Personalized</span> Guidance
             </motion.h1>
-            <p className="max-w-2xl mx-auto text-slate-700 text-base md:text-lg mb-8 px-2 [text-shadow:0_1px_4px_rgba(255,255,255,0.8)]">
+            <p className="max-w-2xl mx-auto text-white/85 text-base md:text-lg mb-8 px-2">
               Your personalized dashboard with progress tracking, custom routines, and expert guidance tailored to your wellness goals.
             </p>
 
@@ -603,16 +617,16 @@ const UserHomePage = () => {
               transition={{ duration: 0.6 }}
               className="w-full max-w-2xl mx-auto"
             >
-              <div className="relative overflow-hidden rounded-2xl bg-white/95 backdrop-blur-md border border-orange-200 shadow-2xl">
+              <div className="relative overflow-hidden rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl">
                 
-                <div className="pointer-events-none absolute -top-10 -left-10 h-40 w-40 rounded-full bg-orange-200/30 blur-3xl" />
-                <div className="pointer-events-none absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-amber-200/20 blur-3xl" />
+                <div className="pointer-events-none absolute -top-10 -left-10 h-40 w-40 rounded-full bg-blue-400/20 blur-3xl" />
+                <div className="pointer-events-none absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-cyan-300/20 blur-3xl" />
 
                 <div className="relative p-6 sm:p-8 flex flex-col sm:flex-row items-center gap-6 text-left">
                   {/* Badge */}
                   <div className="shrink-0">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-100 text-orange-700 text-sm border border-orange-200">
-                      <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-white/90 text-sm border border-white/20">
+                      <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
                       Your Progress
                     </div>
                   </div>
@@ -633,7 +647,7 @@ const UserHomePage = () => {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 transition={{ duration: 0.2, ease: "easeOut" }}
-                      className="w-full sm:w-auto bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold py-3 px-8 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl flex items-center gap-2 justify-center"
+                      className="w-full sm:w-auto bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-black font-bold py-3 px-8 rounded-2xl transition-all duration-200 shadow-[0_10px_30px_rgba(255,140,0,0.25)] flex items-center gap-2 justify-center"
                 onClick={() => navigate("/tutorials")}
               >
                       Continue Practice
@@ -648,7 +662,7 @@ const UserHomePage = () => {
       </section>
 
       {/* Your Progress Overview */}
-      <section className="py-20 bg-gradient-to-br from-white via-orange-50/50 to-amber-50/30">
+      <section className="py-20 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
         <div className="max-w-6xl mx-auto text-center px-6">
           <h2 className="text-4xl font-bold mb-12 text-slate-900">
             Your <span className="text-orange-500">Wellness Journey</span>

@@ -9,23 +9,23 @@ const MyOrdersPage = () => {
   const [loading, setLoading] = useState(true);
 
   const loadOrders = async () => {
-    try {
+      try {
       setLoading(true);
-      const currentUser = SessionManager.getCurrentUser();
-      if (!currentUser?.token || !currentUser?.email) {
-        navigate('/login', { replace: true, state: { from: '/orders' } });
-        return;
-      }
-      const { data } = await api.get(`/shop/api/orders/${encodeURIComponent(currentUser.email)}`, {
-        headers: { Authorization: `Bearer ${currentUser.token}` }
-      });
-      if (data.success) setOrders(data.orders);
+        const currentUser = SessionManager.getCurrentUser();
+        if (!currentUser?.token || !currentUser?.email) {
+          navigate('/login', { replace: true, state: { from: '/orders' } });
+          return;
+        }
+        const { data } = await api.get(`/shop/api/orders/${encodeURIComponent(currentUser.email)}`, {
+          headers: { Authorization: `Bearer ${currentUser.token}` }
+        });
+        if (data.success) setOrders(data.orders);
     } catch (e) {
       console.error('Failed to load orders:', e);
     } finally {
       setLoading(false);
     }
-  };
+    };
 
   useEffect(() => {
     loadOrders();

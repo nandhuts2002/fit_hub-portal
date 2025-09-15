@@ -124,11 +124,18 @@ const ProductCard = ({
         {/* Header Section */}
         <div className="mb-4">
           <div className="flex items-start justify-between mb-2">
-            <div className="flex-1">
-              <h3 className="font-semibold text-gray-900 text-sm mb-1 line-clamp-2 h-10 flex items-center">{product.name}</h3>
-              <p className="text-xs text-gray-500 mb-2">{product.brand}</p>
+            <div className="flex-1 min-w-0">
+              <h3
+                className="font-semibold text-gray-900 text-sm mb-1 truncate leading-snug h-5"
+                title={product.name}
+              >
+                {product.name}
+              </h3>
+              {product.brand && (
+                <p className="text-xs text-gray-500 mb-2 truncate" title={product.brand}>{product.brand}</p>
+              )}
             </div>
-            <div className="flex items-center space-x-1">
+            <div className="flex items-center space-x-1 whitespace-nowrap ml-2">
               <Star className="w-4 h-4 text-yellow-400 fill-current" />
               <span className="text-sm text-gray-600">{product.rating}</span>
               <span className="text-xs text-gray-400">({product.reviews})</span>

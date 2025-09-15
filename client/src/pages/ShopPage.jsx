@@ -227,6 +227,23 @@ const ShopPage = () => {
     syncWishlist();
   }, []);
 
+  // Ensure a server-side cart document/collection exists for the logged-in user
+  useEffect(() => {
+    const initServerCart = async () => {
+      try {
+        const currentUser = SessionManager.getCurrentUser();
+        if (!currentUser?.token) return;
+        await api.post('/shop/api/cart/init', {}, {
+          headers: { Authorization: `Bearer ${currentUser.token}` }
+        });
+      } catch (e) {
+        // non-fatal; keep local cart working even if server init fails
+        console.warn('Cart init skipped:', e?.response?.data || e?.message || e);
+      }
+    };
+    initServerCart();
+  }, []);
+
   // Load products and categories from API
   useEffect(() => {
     const loadShopData = async () => {

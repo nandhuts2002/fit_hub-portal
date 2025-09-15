@@ -8,6 +8,7 @@ import os
 import hmac
 import hashlib
 from models import (
+    db,
     products_collection, 
     carts_collection, 
     wishlists_collection,
@@ -27,6 +28,12 @@ shop_bp = Blueprint('shop', __name__)
 # Helper function to generate order ID
 def generate_order_id():
     return 'ORD' + ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+
+# Helper function to generate a plausible tracking number
+def generate_tracking_number():
+    # Format example: FTB-IND-XXXXXXXX (X = upper alnum)
+    random_part = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+    return f"FTB-IND-{random_part}"
 
 def _razorpay_client_keys():
     return {
@@ -282,6 +289,38 @@ def get_categories():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # CART API
+@shop_bp.route('/api/cart/init', methods=['POST'])
+@jwt_required()
+def init_cart():
+    try:
+        # Ensure collection exists at the DB level (even before inserting docs)
+        try:
+            carts_collection.create_index('user_email', unique=True)
+        except Exception:
+            pass
+
+        identity = get_jwt_identity()
+        user_email = identity.get('email') if isinstance(identity, dict) else None
+        if not user_email:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+        # Ensure collection exists by touching it; Mongo creates on first write
+        existing = carts_collection.find_one({'user_email': user_email})
+        if not existing:
+            carts_collection.insert_one({
+                'user_email': user_email,
+                'items': [],
+                'created_at': datetime.utcnow(),
+                'updated_at': datetime.utcnow()
+            })
+            created = True
+        else:
+            created = False
+
+        return jsonify({'success': True, 'created': created})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @shop_bp.route('/api/cart/<user_email>', methods=['GET'])
 @jwt_required()
 def get_cart(user_email):
@@ -355,6 +394,7 @@ def add_to_cart(user_email):
         else:
             # Add new item
             cart['items'].append({
+                '_id': ObjectId(),
                 'product_id': ObjectId(product_id),
                 'quantity': quantity,
                 'variant': variant,
@@ -365,7 +405,7 @@ def add_to_cart(user_email):
         cart['updated_at'] = datetime.utcnow()
         carts_collection.update_one(
             {'user_email': user_email},
-            {'$set': cart}
+            {'$set': {'items': cart['items'], 'updated_at': cart['updated_at']}}
         )
         
         return jsonify({'success': True, 'message': 'Item added to cart'})
@@ -448,7 +488,13 @@ def create_razorpay_order():
         data = request.get_json() or {}
         amount = int(float(data.get('amount', 0)) * 100)  # in paise
         currency = data.get('currency', 'INR')
-        receipt = data.get('receipt', generate_order_id())
+        # Prefer client-provided identifiers to map payment back to our order later
+        receipt = (
+            data.get('receipt')
+            or data.get('internal_order_id')
+            or data.get('order_number')
+            or generate_order_id()
+        )
 
         import requests
         response = requests.post(
@@ -480,26 +526,150 @@ def verify_razorpay_signature():
         signature = payload.get('razorpay_signature')
         internal_order_id = payload.get('internal_order_id')  # Mongo _id string
 
-        if not (order_id and payment_id and signature and internal_order_id):
+        # Only require the Razorpay fields; internal_order_id is optional now
+        if not (order_id and payment_id and signature):
             return jsonify({'success': False, 'error': 'Missing fields'}), 400
 
+        # Verify signature
         body = f"{order_id}|{payment_id}".encode('utf-8')
         expected = hmac.new(keys['key_secret'].encode('utf-8'), body, hashlib.sha256).hexdigest()
         if expected != signature:
             return jsonify({'success': False, 'error': 'Signature mismatch'}), 400
 
-        # Update order document
-        orders_collection.update_one(
-            {'_id': ObjectId(internal_order_id)},
-            {'$set': {
-                'paymentStatus': 'Paid',
-                'orderStatus': 'Processing',
-                'razorpayOrderId': order_id,
-                'razorpayPaymentId': payment_id,
-                'timestamps.paid': datetime.utcnow(),
-                'updated_at': datetime.utcnow()
-            }}
-        )
+        # Build update document for payment success
+        update_doc = {
+            'paymentStatus': 'Paid',
+            'orderStatus': 'Processing',
+            'razorpayOrderId': order_id,
+            'razorpayPaymentId': payment_id,
+            'payment_method.type': 'razorpay',
+            'payment_method.status': 'paid',
+            'timestamps.paid': datetime.utcnow(),
+            'updated_at': datetime.utcnow()
+        }
+
+        matched = 0
+
+        # 1) Preferred: update by internal Mongo _id if provided
+        target_filter = None
+        if internal_order_id:
+            try:
+                target_filter = {'_id': ObjectId(internal_order_id)}
+            except Exception:
+                target_filter = None
+        if target_filter:
+            res = orders_collection.update_one(target_filter, {'$set': update_doc})
+            matched = res.matched_count
+
+        # 2) Fallback: update by razorpayOrderId if already stored earlier
+        if matched == 0:
+            res = orders_collection.update_one({'razorpayOrderId': order_id}, {'$set': update_doc})
+            matched = res.matched_count
+
+        # 3) Final fallback: fetch Razorpay order to get the receipt and map to our order
+        if matched == 0:
+            try:
+                import requests
+                r = requests.get(
+                    f'https://api.razorpay.com/v1/orders/{order_id}',
+                    auth=(keys['key_id'], keys['key_secret']),
+                    timeout=10
+                )
+                if r.status_code == 200:
+                    rz_order = r.json()
+                    receipt = rz_order.get('receipt')
+                    if receipt:
+                        # Try matching by human-readable order number fields
+                        res = orders_collection.update_one({'order_id': receipt}, {'$set': update_doc})
+                        matched = res.matched_count
+                        if matched == 0:
+                            res = orders_collection.update_one({'orderNumber': receipt}, {'$set': update_doc})
+                            matched = res.matched_count
+            except Exception:
+                # Ignore network or parsing errors and rely on previous attempts
+                pass
+
+        if matched == 0:
+            return jsonify({'success': False, 'error': 'Order not found to update'}), 404
+
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# SHIPPING MANAGEMENT (admin)
+@shop_bp.route('/api/orders/<order_id>/ship', methods=['POST'])
+@jwt_required()
+def admin_ship_order(order_id):
+    if not _require_admin():
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
+    try:
+        data = request.get_json() or {}
+        carrier = data.get('carrier') or 'Manual'
+        service = data.get('service') or 'Standard'
+        tracking_number = data.get('tracking_number') or generate_tracking_number()
+        tracking_url = data.get('tracking_url')
+        expected_delivery = data.get('expected_delivery')  # ISO string optional
+
+        update = {
+            'orderStatus': 'Shipped',
+            'shipping.status': 'shipped',
+            'shipping.carrier': carrier,
+            'shipping.service': service,
+            'shipping.tracking_number': tracking_number,
+            'shipping.tracking_url': tracking_url,
+            'shipping.dispatched_at': datetime.utcnow(),
+            'updated_at': datetime.utcnow()
+        }
+        if expected_delivery:
+            update['shipping.expected_delivery'] = expected_delivery
+
+        res = orders_collection.update_one({'_id': ObjectId(order_id)}, {'$set': update})
+        if res.matched_count == 0:
+            return jsonify({'success': False, 'error': 'Order not found'}), 404
+
+        return jsonify({'success': True, 'tracking_number': tracking_number})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@shop_bp.route('/api/orders/<order_id>/update-shipping', methods=['POST'])
+@jwt_required()
+def admin_update_shipping(order_id):
+    if not _require_admin():
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
+    try:
+        data = request.get_json() or {}
+        set_fields = {}
+        for k in ['carrier','service','tracking_number','tracking_url','charges','status','expected_delivery']:
+            if k in data:
+                set_fields[f'shipping.{k}'] = data[k]
+        # allow address corrections before dispatch
+        if 'shipping_address' in data:
+            set_fields['shipping_address'] = data['shipping_address']
+        if not set_fields:
+            return jsonify({'success': False, 'error': 'No fields to update'}), 400
+        set_fields['updated_at'] = datetime.utcnow()
+        res = orders_collection.update_one({'_id': ObjectId(order_id)}, {'$set': set_fields})
+        if res.matched_count == 0:
+            return jsonify({'success': False, 'error': 'Order not found'}), 404
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@shop_bp.route('/api/orders/<order_id>/deliver', methods=['POST'])
+@jwt_required()
+def admin_mark_delivered(order_id):
+    if not _require_admin():
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
+    try:
+        update = {
+            'orderStatus': 'Delivered',
+            'shipping.status': 'delivered',
+            'shipping.delivered_at': datetime.utcnow(),
+            'updated_at': datetime.utcnow()
+        }
+        res = orders_collection.update_one({'_id': ObjectId(order_id)}, {'$set': update})
+        if res.matched_count == 0:
+            return jsonify({'success': False, 'error': 'Order not found'}), 404
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -514,16 +684,20 @@ def update_order_status(order_id):
         data = request.get_json() or {}
         status = data.get('orderStatus')
         tracking = data.get('trackingNumber')
+        auto_generate_tracking = data.get('autoGenerateTracking', True)
         update = {}
         if status:
             update['orderStatus'] = status
+        # Auto-generate tracking number when moving to Shipped without one provided
+        if status == 'Shipped' and (not tracking) and auto_generate_tracking:
+            tracking = generate_tracking_number()
         if tracking is not None:
             update['trackingNumber'] = tracking
         if not update:
             return jsonify({'success': False, 'error': 'No fields to update'}), 400
         update['updated_at'] = datetime.utcnow()
         orders_collection.update_one({'_id': ObjectId(order_id)}, {'$set': update})
-        return jsonify({'success': True})
+        return jsonify({'success': True, 'trackingNumber': update.get('trackingNumber')})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -809,6 +983,18 @@ def create_order():
             'shipping_cost': shipping_cost,
             'discount': discount,
             'total': total,
+            # Shipment snapshot fields (safe defaults at creation)
+            'shipping': {
+                'carrier': None,
+                'service': None,
+                'tracking_number': None,
+                'tracking_url': None,
+                'charges': shipping_cost,
+                'status': 'pending',  # pending | packed | shipped | out_for_delivery | delivered | returned
+                'dispatched_at': None,
+                'delivered_at': None,
+                'expected_delivery': None
+            },
             'shipping_address': {
                 'fullName': shipping_address.get('name') or shipping_address.get('fullName', ''),
                 'phone': shipping_address.get('phone', ''),
@@ -1144,11 +1330,42 @@ def get_notifications(user_email):
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
         print(f"Fetching notifications for user: {user_email}")
-        
-        # For now, return empty notifications array
-        # In a real app, this would fetch from a notifications collection
+
+        # Synthesize notifications from recent order updates as a simple, zero-DB model demo
+        orders = list(orders_collection.find({'user_email': user_email}).sort('updated_at', -1))
+
         notifications = []
-        
+        for order in orders[:10]:
+            status = order.get('orderStatus') or 'Pending'
+            updated_at = order.get('updated_at') or order.get('created_at') or datetime.utcnow()
+            order_number = order.get('order_id') or order.get('orderNumber') or str(order.get('_id'))
+
+            # Map order statuses to notification categories
+            notif_type = 'general'
+            message = f"Order {order_number} status updated to {status}."
+            if status == 'Processing':
+                notif_type = 'general'
+            elif status == 'Packed':
+                notif_type = 'general'
+            elif status == 'Shipped':
+                notif_type = 'order_shipped'
+                message = f"Order {order_number} has been shipped."
+            elif status == 'Delivered':
+                notif_type = 'order_delivered'
+                message = f"Order {order_number} was delivered successfully."
+            elif status == 'Cancelled':
+                notif_type = 'order_cancelled'
+                message = f"Order {order_number} was cancelled."
+
+            notifications.append({
+                'id': str(order.get('_id')) + '_' + status.lower(),
+                'type': notif_type,
+                'title': f"Order {order_number}",
+                'message': message,
+                'read': False,
+                'createdAt': updated_at.isoformat() + 'Z'
+            })
+
         print(f"Returning {len(notifications)} notifications to client")
         return jsonify({'success': True, 'notifications': notifications})
         

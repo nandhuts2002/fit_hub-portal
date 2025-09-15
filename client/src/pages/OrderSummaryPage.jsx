@@ -4,7 +4,7 @@ import { Package } from 'lucide-react';
 import api from '../utils/api';
 import SessionManager from '../utils/sessionManager';
 
-const steps = ['Pending', 'Processing', 'Packed', 'Shipped', 'Delivered'];
+const steps = ['Pending', 'Processing'];
 
 const OrderSummaryPage = () => {
   const { id } = useParams();

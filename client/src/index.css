@@ -1,3 +1,45 @@
+/* Modern Wellness Theme Utilities */
+.theme-modern .glass-nav{
+  background: rgba(255,255,255,0.6);
+  backdrop-filter: blur(16px) saturate(120%);
+  -webkit-backdrop-filter: blur(16px) saturate(120%);
+  border-bottom: 1px solid rgba(255,255,255,0.5);
+  box-shadow: 0 8px 24px rgba(17, 17, 26, 0.05);
+}
+
+/* Dark variant */
+.theme-dark .glass-nav-dark{
+  background: rgba(2, 6, 23, 0.6); /* slate-950 */
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 12px 24px rgba(0,0,0,0.35);
+}
+
+.theme-modern .soft-btn{
+  background: linear-gradient(145deg, rgba(255,255,255,0.9), rgba(255,255,255,0.75));
+  border-radius: 14px;
+  box-shadow: 8px 8px 16px rgba(0,0,0,0.06), -8px -8px 16px rgba(255,255,255,0.9);
+  transition: transform .15s ease, box-shadow .2s ease;
+}
+.theme-modern .soft-btn:active{ transform: translateY(1px); }
+.theme-modern .soft-btn:hover{ box-shadow: 10px 10px 20px rgba(0,0,0,0.08), -10px -10px 20px rgba(255,255,255,0.95); }
+
+.theme-modern .card-glass{
+  background: rgba(255,255,255,0.6);
+  border: 1px solid rgba(255,255,255,0.6);
+  backdrop-filter: blur(14px) saturate(120%);
+  -webkit-backdrop-filter: blur(14px) saturate(120%);
+  border-radius: 16px;
+  box-shadow: 0 16px 40px rgba(17, 17, 26, 0.08);
+}
+
+.theme-modern .profile-card{ border-radius: 18px; overflow: hidden; }
+
+/* Circular progress simple utility */
+.progress-ring{ transform: rotate(-90deg); }
+.progress-track{ stroke: rgba(0,0,0,0.08); }
+.progress-indicator{ stroke: url(#pr-grad); stroke-linecap: round; }
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
