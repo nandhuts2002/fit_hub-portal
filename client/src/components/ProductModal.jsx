@@ -97,6 +97,9 @@ const ProductModal = ({
                       ₹{product.originalPrice.toLocaleString()}
                     </span>
                   )}
+                  <span className={`text-sm font-medium px-2 py-1 rounded border ${isInStock ? 'text-green-700 bg-green-50 border-green-200' : 'text-red-700 bg-red-50 border-red-200'}`}>
+                    {isInStock ? (typeof product.stock_quantity === 'number' ? `In stock: ${product.stock_quantity}` : 'In stock') : 'Out of stock'}
+                  </span>
                 </div>
 
                 <p className="text-gray-700 mb-6">{product.description}</p>

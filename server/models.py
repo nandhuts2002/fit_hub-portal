@@ -34,3 +34,6 @@ coupons_collection = db['coupons']        # Discount codes and promotions
 addresses_collection = db['addresses']    # User shipping addresses
 payment_methods_collection = db['payment_methods'] # Saved payment methods
 shipping_collection = db['shipping']      # Shipping rates and zones
+
+# Music/Relaxation
+music_tracks_collection = db['music_tracks']  # Admin-managed relaxation tracks

@@ -3,6 +3,113 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import SessionManager from '../utils/sessionManager';
 import AdminProductManagement from '../components/AdminProductManagement';
+import api from '../utils/api';
+// import MusicAdminPanel from '../components/MusicAdminPanel';
+
+function MusicAdminPanel() {
+  const [tracks, setTracks] = React.useState([]);
+  const [loading, setLoading] = React.useState(false);
+  const [form, setForm] = React.useState({ title: '', artist: '', url: '', order: 0, status: 'published' });
+  const [uploading, setUploading] = React.useState(false);
+
+  const loadTracks = async () => {
+    try {
+      setLoading(true);
+      const currentUser = SessionManager.getCurrentUser();
+      const { data } = await api.get('/admin/music', { headers: { Authorization: `Bearer ${currentUser.token}` } });
+      setTracks(data.tracks || []);
+    } catch (e) {
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => { loadTracks(); }, []);
+
+  const createTrack = async (e) => {
+    e.preventDefault();
+    try {
+      const currentUser = SessionManager.getCurrentUser();
+      await api.post('/admin/music', form, { headers: { Authorization: `Bearer ${currentUser.token}` } });
+      setForm({ title: '', artist: '', url: '', order: 0, status: 'published' });
+      loadTracks();
+    } catch (e) {}
+  };
+
+  const deleteTrack = async (id) => {
+    try {
+      const currentUser = SessionManager.getCurrentUser();
+      await api.delete(`/admin/music/${id}`, { headers: { Authorization: `Bearer ${currentUser.token}` } });
+      loadTracks();
+    } catch (e) {}
+  };
+
+  const onUploadFile = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const currentUser = SessionManager.getCurrentUser();
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      setUploading(true);
+      const res = await fetch('http://localhost:5000/admin/music/upload', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${currentUser.token}` },
+        body: formData
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Upload failed');
+      setForm((f) => ({ ...f, url: data.url }));
+    } catch (err) {
+    } finally {
+      setUploading(false);
+      // reset input value to allow same-file reselect
+      e.target.value = '';
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-lg font-semibold">Relaxation Music</h3>
+        <button onClick={loadTracks} className="px-3 py-1 text-sm bg-gray-100 rounded">Refresh</button>
+      </div>
+
+      <div className="flex items-center gap-3 mb-3">
+        <label className="px-3 py-2 text-sm bg-gray-100 rounded cursor-pointer">
+          {uploading ? 'Uploading...' : 'Upload MP3'}
+          <input type="file" accept="audio/*" onChange={onUploadFile} className="hidden" />
+        </label>
+        {form.url && <span className="text-xs text-gray-600 truncate">Uploaded: {form.url}</span>}
+      </div>
+
+      <form onSubmit={createTrack} className="grid grid-cols-1 md:grid-cols-5 gap-2 mb-4">
+        <input className="border rounded px-2 py-2 text-sm" placeholder="Title" value={form.title} onChange={(e)=>setForm({...form,title:e.target.value})} />
+        <input className="border rounded px-2 py-2 text-sm" placeholder="Artist" value={form.artist} onChange={(e)=>setForm({...form,artist:e.target.value})} />
+        <input className="border rounded px-2 py-2 text-sm" placeholder="URL (auto-set on upload)" value={form.url} onChange={(e)=>setForm({...form,url:e.target.value})} />
+        <input className="border rounded px-2 py-2 text-sm" type="number" placeholder="Order" value={form.order} onChange={(e)=>setForm({...form,order:Number(e.target.value)})} />
+        <button className="px-3 py-2 bg-orange-500 text-white rounded text-sm" disabled={uploading}>Add</button>
+      </form>
+
+      {loading ? (
+        <div className="text-sm text-gray-500">Loading...</div>
+      ) : (
+        <div className="divide-y">
+          {tracks.map(t => (
+            <div key={t._id} className="py-2 flex items-center justify-between">
+              <div>
+                <div className="font-medium">{t.title} <span className="text-gray-400">— {t.artist}</span></div>
+                <div className="text-xs text-gray-500 truncate max-w-[520px]">{t.url}</div>
+              </div>
+              <button onClick={()=>deleteTrack(t._id)} className="px-2 py-1 text-xs bg-red-50 text-red-600 rounded">Delete</button>
+            </div>
+          ))}
+          {tracks.length === 0 && <div className="text-sm text-gray-500">No tracks yet.</div>}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const AdminHomePage = () => {
   // Get initial tab from URL parameters
@@ -2577,6 +2684,7 @@ const AdminHomePage = () => {
                 {activeTab === 'products' && '🛍️ Products'}
                 {activeTab === 'analytics' && '📊 Analytics'}
                 {activeTab === 'settings' && '⚙️ Settings'}
+                {activeTab === 'music' && '🎵 Music'}
               </span>
             </div>
           )}
@@ -2775,6 +2883,17 @@ const AdminHomePage = () => {
 
               <div
                 className="nav-card"
+                onClick={() => handleTabChange('music')}
+              >
+                <div className="text-3xl mb-3">🎵</div>
+                <div>
+                  <h3 className="text-lg font-semibold text-secondary-900 mb-1">Music</h3>
+                  <p className="text-sm text-secondary-600">Relaxation tracks</p>
+                </div>
+              </div>
+
+              <div
+                className="nav-card"
                 onClick={() => { handleTabChange('orders'); fetchOrders(); }}
               >
                 <div className="text-3xl mb-3">📦</div>
@@ -2809,6 +2928,7 @@ const AdminHomePage = () => {
         {activeTab === 'applications' && renderTrainerApplications()}
         {activeTab === 'tutorials' && renderAdminTutorials()}
         {activeTab === 'products' && <AdminProductManagement />}
+        {activeTab === 'music' && <MusicAdminPanel />}
         {activeTab === 'orders' && renderOrders()}
         {activeTab === 'analytics' && renderAnalytics()}
         {activeTab === 'settings' && renderSettings()}

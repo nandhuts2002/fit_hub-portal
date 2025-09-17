@@ -3,7 +3,10 @@ from bson import ObjectId
 from datetime import datetime
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
-from models import tutorials_collection, users_collection
+from models import tutorials_collection, users_collection, music_tracks_collection
+from werkzeug.utils import secure_filename
+import os
+import uuid
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -133,3 +136,94 @@ def admin_delete_tutorial(tutorial_id: str):
     except Exception as e:
         print(f"❌ Admin delete_tutorial error: {str(e)}")
         return jsonify({'success': False, 'msg': 'Error deleting tutorial'}), 500
+
+# --- Music management (Admin) ---
+
+ALLOWED_AUDIO_EXTS = {'.mp3', '.wav', '.m4a', '.aac', '.ogg'}
+UPLOAD_ROOT = os.path.join(os.path.dirname(__file__), 'uploads')
+MUSIC_UPLOAD_DIR = os.path.join(UPLOAD_ROOT, 'music')
+os.makedirs(MUSIC_UPLOAD_DIR, exist_ok=True)
+
+@admin_bp.route('/music/upload', methods=['POST'])
+@jwt_required()
+def admin_upload_music():
+    identity = require_admin()
+    if not identity:
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file provided'}), 400
+    f = request.files['file']
+    if not f or not f.filename:
+        return jsonify({'success': False, 'error': 'Invalid file'}), 400
+    filename = secure_filename(f.filename)
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in ALLOWED_AUDIO_EXTS:
+        return jsonify({'success': False, 'error': 'Unsupported file type'}), 400
+    unique_name = f"{uuid.uuid4().hex}_{filename}"
+    dest_path = os.path.join(MUSIC_UPLOAD_DIR, unique_name)
+    f.save(dest_path)
+    public_url = f"/uploads/music/{unique_name}"
+    return jsonify({'success': True, 'url': public_url, 'filename': unique_name})
+
+@admin_bp.route('/music', methods=['GET'])
+@jwt_required()
+def admin_list_music():
+    identity = require_admin()
+    if not identity:
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
+    tracks = list(music_tracks_collection.find({}).sort('order', 1))
+    for t in tracks:
+        t['_id'] = str(t['_id'])
+    return jsonify({'success': True, 'tracks': tracks})
+
+@admin_bp.route('/music', methods=['POST'])
+@jwt_required()
+def admin_create_music():
+    identity = require_admin()
+    if not identity:
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
+    data = request.get_json() or {}
+    title = data.get('title')
+    url = data.get('url')
+    if not title or not url:
+        return jsonify({'success': False, 'error': 'title and url are required'}), 400
+    track = {
+        'title': title,
+        'artist': data.get('artist', 'FitHub'),
+        'url': url,
+        'duration': data.get('duration', 0),
+        'order': int(data.get('order', 0)),
+        'status': data.get('status', 'published'),
+        'created_at': datetime.utcnow(),
+        'updated_at': datetime.utcnow()
+    }
+    result = music_tracks_collection.insert_one(track)
+    return jsonify({'success': True, 'id': str(result.inserted_id)})
+
+@admin_bp.route('/music/<track_id>', methods=['PUT'])
+@jwt_required()
+def admin_update_music(track_id):
+    identity = require_admin()
+    if not identity:
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
+    data = request.get_json() or {}
+    update = {k: v for k, v in {
+        'title': data.get('title'),
+        'artist': data.get('artist'),
+        'url': data.get('url'),
+        'duration': data.get('duration'),
+        'order': int(data.get('order')) if data.get('order') is not None else None,
+        'status': data.get('status'),
+        'updated_at': datetime.utcnow()
+    }.items() if v is not None}
+    music_tracks_collection.update_one({'_id': ObjectId(track_id)}, {'$set': update})
+    return jsonify({'success': True})
+
+@admin_bp.route('/music/<track_id>', methods=['DELETE'])
+@jwt_required()
+def admin_delete_music(track_id):
+    identity = require_admin()
+    if not identity:
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
+    music_tracks_collection.delete_one({'_id': ObjectId(track_id)})
+    return jsonify({'success': True})

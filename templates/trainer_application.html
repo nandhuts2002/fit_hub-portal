@@ -71,7 +71,7 @@
                         <p class="mb-0">3. You'll be notified via email about the decision</p>
                     </div>
 
-                    <form id="trainerApplicationForm">
+                    <form id="trainerApplicationForm" enctype="multipart/form-data">
                         <!-- Personal Information -->
                         <div class="mb-4">
                             <h4 class="section-header">
@@ -170,6 +170,26 @@
                                 <label for="motivation" class="form-label">Why do you want to join Fit Hub?</label>
                                 <textarea class="form-control" id="motivation" name="motivation" rows="3" 
                                     placeholder="What motivates you to become a trainer on our platform?"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Documents Upload -->
+                        <div class="mb-4">
+                            <h4 class="section-header">
+                                <i class="fas fa-file-upload me-2"></i>Verification Documents
+                            </h4>
+                            <div class="mb-3">
+                                <label class="form-label">Certificates (PDF or images) — You can select multiple</label>
+                                <input type="file" class="form-control" id="certificatesFiles" name="certificatesFiles" accept=".pdf,image/*" multiple>
+                                <div class="form-text">Accepted: PDF, JPG, PNG. Max 10MB each.</div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">ID Proof (PDF or image)</label>
+                                <input type="file" class="form-control" id="idProofFile" name="idProofFile" accept=".pdf,image/*">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Profile Photo (image)</label>
+                                <input type="file" class="form-control" id="profilePhoto" name="profilePhoto" accept="image/*">
                             </div>
                         </div>
 
@@ -274,10 +294,7 @@
             try {
                 const response = await fetch('/trainer/apply', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(data)
+                    body: formData // browser sets Content-Type multipart/form-data with boundary
                 });
                 
                 const result = await response.json();

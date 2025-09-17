@@ -27,6 +27,92 @@ const TutorialsPage = () => {
   const [formErrors, setFormErrors] = useState({});
   const [heroIndex, setHeroIndex] = useState(0);
 
+  // Relaxation music player state
+  const [musicTracks, setMusicTracks] = useState([
+    { title: 'Deep Breath', artist: 'Calm Collective', url: '/audio/relax-1.mp3' },
+    { title: 'Ocean Waves', artist: 'Nature Space', url: '/audio/relax-2.mp3' },
+    { title: 'Crystal Yoga', artist: 'Healing Vibes', url: '/audio/relax-3.mp3' }
+  ]);
+  const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progressSeconds, setProgressSeconds] = useState(0);
+  const [durationSeconds, setDurationSeconds] = useState(0);
+  const audioRef = React.useRef(null);
+  const [musicError, setMusicError] = useState('');
+  const [volume, setVolume] = useState(0.9);
+  // Removed user add/upload states
+  // const [showAddTrack, setShowAddTrack] = useState(false);
+  // const [newTrack, setNewTrack] = useState({ title: '', artist: '', url: '' });
+
+  const currentTrack = musicTracks[currentTrackIndex];
+
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = volume;
+    }
+  }, [volume]);
+
+  const togglePlayPause = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    setMusicError('');
+    if (isPlaying) {
+      audio.pause();
+      setIsPlaying(false);
+    } else {
+      audio.play().then(() => setIsPlaying(true)).catch((err) => {
+        setMusicError('Unable to start playback. Please click Play again.');
+        setIsPlaying(false);
+      });
+    }
+  };
+
+  const playNext = () => {
+    const nextIdx = (currentTrackIndex + 1) % musicTracks.length;
+    setCurrentTrackIndex(nextIdx);
+    setTimeout(() => {
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+      }
+    }, 0);
+  };
+
+  const playPrev = () => {
+    const prevIdx = (currentTrackIndex - 1 + musicTracks.length) % musicTracks.length;
+    setCurrentTrackIndex(prevIdx);
+    setTimeout(() => {
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+      }
+    }, 0);
+  };
+
+  const onTimeUpdate = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    setProgressSeconds(audio.currentTime || 0);
+    setDurationSeconds(audio.duration || 0);
+  };
+
+  const onSeek = (e) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const val = Number(e.target.value);
+    audio.currentTime = val;
+    setProgressSeconds(val);
+  };
+
+  const formatTime = (sec) => {
+    if (!Number.isFinite(sec)) return '0:00';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+  };
+
+  // Removed addTrackFromUrl and addTrackFromFile functions
+
   // Yoga-themed background hero images
   const HERO_IMAGES = [
     "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=1600&auto=format&fit=crop&ixlib=rb-4.0.3",
@@ -54,6 +140,23 @@ const TutorialsPage = () => {
         console.warn('Failed to parse liked tutorials from localStorage');
       }
     }
+    // Load curated tracks from API
+    (async () => {
+      try {
+        const currentUser = SessionManager.getCurrentUser();
+        if (!currentUser?.token) return;
+        const { data } = await api.get('/trainer/public/music', {
+          headers: { Authorization: `Bearer ${currentUser.token}` }
+        });
+        const tracks = Array.isArray(data?.tracks) ? data.tracks : [];
+        if (tracks.length > 0) {
+          setMusicTracks(tracks.map(t => ({ title: t.title, artist: t.artist, url: t.url })));
+          setCurrentTrackIndex(0);
+        }
+      } catch (e) {
+        // Keep defaults on error
+      }
+    })();
   }, []);
 
   const fetchTutorials = async () => {
@@ -318,6 +421,100 @@ const TutorialsPage = () => {
                 {category.charAt(0).toUpperCase() + category.slice(1)}
               </motion.button>
             ))}
+          </div>
+        </motion.div>
+
+        {/* Relaxation Music Player */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="mb-8"
+        >
+          <div className="bg-gradient-to-br from-zinc-900/70 to-black/70 backdrop-blur-md rounded-xl shadow-lg p-5 border border-white/10">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h3 className="text-lg font-semibold text-white">Relaxation Music</h3>
+                <p className="text-xs text-gray-400">Cooldown after your workout with calming sounds</p>
+              </div>
+              <div className="text-sm text-gray-300">
+                {formatTime(progressSeconds)} / {formatTime(durationSeconds)}
+              </div>
+            </div>
+
+            {musicError && (
+              <div className="mb-3 text-xs text-red-300 bg-red-900/30 border border-red-800/50 px-3 py-2 rounded">
+                {musicError}
+              </div>
+            )}
+
+            <div className="flex items-center gap-4">
+              <button
+                onClick={playPrev}
+                className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white border border-white/10 transition-colors"
+                aria-label="Previous"
+              >
+                ‹
+              </button>
+              <button
+                onClick={togglePlayPause}
+                className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-black font-semibold transition-colors"
+                aria-label="Play/Pause"
+              >
+                {isPlaying ? 'Pause' : 'Play'}
+              </button>
+              <button
+                onClick={playNext}
+                className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white border border-white/10 transition-colors"
+                aria-label="Next"
+              >
+                ›
+              </button>
+
+              <div className="flex-1 flex items-center gap-3">
+                <input
+                  type="range"
+                  min={0}
+                  max={Math.max(0, Math.floor(durationSeconds))}
+                  value={Math.floor(progressSeconds)}
+                  onChange={onSeek}
+                  className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer"
+                />
+              </div>
+
+              <div className="min-w-[160px] text-right">
+                <div className="text-sm font-medium text-white truncate">{currentTrack.title}</div>
+                <div className="text-xs text-gray-400 truncate">{currentTrack.artist}</div>
+              </div>
+            </div>
+
+            <div className="mt-3 flex items-center gap-4">
+              <div className="flex items-center gap-2 text-xs text-gray-300">
+                <span>Volume</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={volume}
+                  onChange={(e) => setVolume(Number(e.target.value))}
+                  className="w-32 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer"
+                />
+              </div>
+              {/* Removed Add Track button and forms */}
+            </div>
+
+            {/* Removed Add Track UI section */}
+
+            <audio
+              ref={audioRef}
+              src={currentTrack.url}
+              preload="metadata"
+              onTimeUpdate={onTimeUpdate}
+              onLoadedMetadata={onTimeUpdate}
+              onEnded={playNext}
+              onError={() => { setMusicError('Track unavailable (missing from /public/audio). Skipping to next...'); playNext(); }}
+            />
           </div>
         </motion.div>
 

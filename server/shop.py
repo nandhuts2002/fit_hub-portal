@@ -116,9 +116,17 @@ def get_products():
         products = list(products_collection.find(filter_query).sort(list(sort_query.items())).skip(skip).limit(limit))
         total = products_collection.count_documents(filter_query)
         
-        # Convert ObjectId to string
+        # Convert ObjectId to string and join inventory
         for product in products:
-            product['_id'] = str(product['_id'])
+            product_id = product.get('_id')
+            product['_id'] = str(product_id)
+            try:
+                inv = inventory_collection.find_one({'product_id': product_id})
+                stock_val = int(inv.get('stock', 0)) if inv else int(product.get('stock_quantity', 0) or 0)
+            except Exception:
+                stock_val = int(product.get('stock_quantity', 0) or 0)
+            product['stock_quantity'] = stock_val
+            product['in_stock'] = bool(stock_val > 0)
             
         return jsonify({
             'success': True,
@@ -141,6 +149,15 @@ def get_product(product_id):
         if not product:
             return jsonify({'success': False, 'error': 'Product not found'}), 404
             
+        # Attach inventory info
+        try:
+            inv = inventory_collection.find_one({'product_id': ObjectId(product_id)})
+            stock_val = int(inv.get('stock', 0)) if inv else int(product.get('stock_quantity', 0) or 0)
+        except Exception:
+            stock_val = int(product.get('stock_quantity', 0) or 0)
+        product['stock_quantity'] = stock_val
+        product['in_stock'] = bool(stock_val > 0)
+        
         product['_id'] = str(product['_id'])
         return jsonify({'success': True, 'product': product})
         

@@ -151,6 +151,19 @@ const ProductCard = ({
             )}
           </div>
 
+          {/* Stock indicator */}
+          <div className="mb-2">
+            {product.in_stock ? (
+              <span className="text-xs font-medium text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded">
+                {typeof product.stock_quantity === 'number' ? `In stock: ${product.stock_quantity}` : 'In stock'}
+              </span>
+            ) : (
+              <span className="text-xs font-medium text-red-700 bg-red-50 border border-red-200 px-2 py-1 rounded">
+                Out of stock
+              </span>
+            )}
+          </div>
+
           {/* Tags - Fixed height */}
           <div className="flex flex-wrap gap-1 h-8 overflow-hidden">
             {product.tags?.map((tag) => (

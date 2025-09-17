@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from models import tutorials_collection, queries_collection, users_collection, trainer_applications_collection
+from models import tutorials_collection, queries_collection, users_collection, trainer_applications_collection, music_tracks_collection
 from datetime import datetime
 from bson import ObjectId
 import os
@@ -618,3 +618,24 @@ def reject_trainer_application(application_id):
             'success': False,
             'message': 'Error rejecting application'
         }), 500
+
+@trainer_bp.route('/public/music', methods=['GET'])
+@jwt_required()
+def get_public_music():
+    """List published relaxation music tracks (requires authentication)."""
+    try:
+        tracks = list(music_tracks_collection.find({'status': {'$in': ['published', 'active']}}).sort('order', 1))
+        formatted = []
+        for t in tracks:
+            formatted.append({
+                'id': str(t['_id']),
+                'title': t.get('title', 'Relaxation'),
+                'artist': t.get('artist', 'FitHub'),
+                'url': t.get('url', ''),
+                'duration': t.get('duration', 0),
+                'order': t.get('order', 0)
+            })
+        return jsonify({'tracks': formatted}), 200
+    except Exception as e:
+        print(f"❌ Error fetching public music: {str(e)}")
+        return jsonify({'msg': 'Error fetching music'}), 500

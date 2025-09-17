@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 import os
 from datetime import timedelta
 from os import path as _path
+from flask import send_from_directory
 
 load_dotenv(dotenv_path=_path.join(_path.dirname(__file__), '.env'), override=True)
 
@@ -25,6 +26,12 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(trainer_bp, url_prefix='/trainer')
 app.register_blueprint(admin_bp, url_prefix='/admin')
 app.register_blueprint(shop_bp, url_prefix='/shop')
+
+# Serve uploaded files
+UPLOAD_DIR = _path.join(_path.dirname(__file__), 'uploads')
+@app.route('/uploads/<path:filename>')
+def uploaded_file(filename):
+    return send_from_directory(UPLOAD_DIR, filename, as_attachment=False)
 
 if __name__ == '__main__':
     app.run(debug=True)
