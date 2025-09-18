@@ -154,8 +154,24 @@ const OrderHistory = ({ isOpen, onClose }) => {
     }
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
+  const formatDate = (input) => {
+    if (!input) return '—';
+    // Accept Date, ISO strings, or Mongo-like date fields
+    const tryParse = (val) => {
+      if (!val) return null;
+      if (val instanceof Date) return val;
+      if (typeof val === 'string') {
+        // Normalize common non-ISO formats
+        const s = val.replace(' ', 'T');
+        const d = new Date(s);
+        return isNaN(d.getTime()) ? null : d;
+      }
+      return null;
+    };
+
+    const d = tryParse(input) || tryParse(input?.created_at) || tryParse(input?.timestamps?.created) || tryParse(input?.createdAt);
+    if (!d) return '—';
+    return d.toLocaleDateString('en-IN', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -327,7 +343,7 @@ const OrderHistory = ({ isOpen, onClose }) => {
                                 Order #{order.order_number || order._id.slice(-8)}
                               </h4>
                               <p className="text-sm text-gray-600">
-                                {formatDate(order.created_at)}
+                                {formatDate(order.created_at || order.timestamps?.created || order.createdAt)}
                               </p>
                             </div>
                           </div>

@@ -842,7 +842,24 @@ def admin_list_orders():
     try:
         orders = list(orders_collection.find({}).sort('created_at', -1))
         for o in orders:
-            o['_id'] = str(o['_id'])
+            raw_id = o.get('_id')
+            o['_id'] = str(raw_id) if raw_id is not None else ''
+            # Normalize datetime fields to ISO strings
+            try:
+                from datetime import datetime as _dt
+                for f in ['created_at', 'updated_at']:
+                    val = o.get(f)
+                    if isinstance(val, _dt):
+                        o[f] = val.isoformat() + 'Z'
+                ts = o.get('timestamps') or {}
+                if isinstance(ts, dict):
+                    for tf in ['created', 'paid', 'updated']:
+                        tval = ts.get(tf)
+                        if isinstance(tval, _dt):
+                            ts[tf] = tval.isoformat() + 'Z'
+                    o['timestamps'] = ts
+            except Exception:
+                pass
         return jsonify({'success': True, 'orders': orders})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -879,6 +896,23 @@ def get_orders(user_email):
                     item['order_id'] = str(item['order_id'])
             order['items'] = order_items
             
+            # Normalize datetime fields to ISO strings
+            try:
+                from datetime import datetime as _dt
+                for f in ['created_at', 'updated_at']:
+                    val = order.get(f)
+                    if isinstance(val, _dt):
+                        order[f] = val.isoformat() + 'Z'
+                ts = order.get('timestamps') or {}
+                if isinstance(ts, dict):
+                    for tf in ['created', 'paid', 'updated']:
+                        tval = ts.get(tf)
+                        if isinstance(tval, _dt):
+                            ts[tf] = tval.isoformat() + 'Z'
+                    order['timestamps'] = ts
+            except Exception:
+                pass
+        
         print(f"Returning {len(orders)} orders to client")
         return jsonify({'success': True, 'orders': orders})
         
@@ -917,6 +951,24 @@ def get_order_detail(order_id):
         for item in items:
             item['_id'] = str(item['_id'])
         order['items'] = items
+
+        # Normalize datetime fields in this single order
+        try:
+            from datetime import datetime as _dt
+            for f in ['created_at', 'updated_at']:
+                val = order.get(f)
+                if isinstance(val, _dt):
+                    order[f] = val.isoformat() + 'Z'
+            ts = order.get('timestamps') or {}
+            if isinstance(ts, dict):
+                for tf in ['created', 'paid', 'updated']:
+                    tval = ts.get(tf)
+                    if isinstance(tval, _dt):
+                        ts[tf] = tval.isoformat() + 'Z'
+                order['timestamps'] = ts
+        except Exception:
+            pass
+
         return jsonify({'success': True, 'order': order})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500

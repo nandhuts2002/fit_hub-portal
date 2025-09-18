@@ -416,6 +416,16 @@ const ShopPage = () => {
     setCart(updatedCart);
   };
 
+  // Buy Now: add item to cart and open checkout directly
+  const buyNow = (product) => {
+    try {
+      addToCart(product);
+      setCheckoutOpen(true);
+    } catch (e) {
+      console.error('Buy Now failed:', e);
+    }
+  };
+
   const updateQuantity = (cartId, newQuantity) => {
     if (newQuantity <= 0) {
       removeFromCart(cartId);
@@ -869,6 +879,7 @@ const ShopPage = () => {
                     onViewProduct={openProductModal}
                     isInWishlist={wishlist.find(item => item.id === product.id || item.id === product._id)}
                     viewMode={viewMode}
+                    onBuyNow={buyNow}
                   />
                 ))}
               </div>

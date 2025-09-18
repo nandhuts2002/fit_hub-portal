@@ -248,11 +248,14 @@ def respond_to_query(query_id):
         return jsonify({'msg': 'Access denied. Trainer role required.'}), 403
     
     try:
-        data = request.json
-        response = data.get('response')
+        data = request.json or {}
+        response = (data.get('response') or '').strip()
         
-        if not response:
-            return jsonify({'msg': 'Response is required'}), 400
+        # Basic validation
+        if not response or len(response) < 5:
+            return jsonify({'msg': 'Response must be at least 5 characters'}), 400
+        if len(response) > 5000:
+            return jsonify({'msg': 'Response is too long (max 5000 characters)'}), 400
         
         # Check if query is assigned to current trainer
         query = queries_collection.find_one({
@@ -420,19 +423,49 @@ def submit_query():
     """Submit a query to trainers"""
     try:
         current_user = get_jwt_identity()
-        data = request.json
-        
-        # Validate required fields
-        if not data.get('title') or not data.get('description'):
-            return jsonify({'msg': 'Title and description are required'}), 400
-        
+        data = request.json or {}
+
+        # Extract and normalize
+        title = (data.get('title') or '').strip()
+        description = (data.get('description') or '').trim() if hasattr((data.get('description') or ''), 'trim') else (data.get('description') or '').strip()
+        category = (data.get('category') or 'general').strip().lower()
+        priority = (data.get('priority') or 'medium').strip().lower()
+
+        # Server-side validation
+        allowed_categories = {
+            'general','poses','meditation','breathing','flexibility','strength','injury','beginner','advanced','equipment','lifestyle','other'
+        }
+        allowed_priorities = {'low','medium','high'}
+
+        if not title:
+            return jsonify({'msg': 'Title is required'}), 400
+        if len(title) < 5 or len(title) > 120:
+            return jsonify({'msg': 'Title must be 5-120 characters'}), 400
+        if not description:
+            return jsonify({'msg': 'Description is required'}), 400
+        if len(description) < 10 or len(description) > 2000:
+            return jsonify({'msg': 'Description must be 10-2000 characters'}), 400
+
+        import re
+        url_pattern = re.compile(r"(https?:\/\/|www\.)", re.IGNORECASE)
+        tag_pattern = re.compile(r"<[^>]+>")
+        if url_pattern.search(title) or url_pattern.search(description):
+            return jsonify({'msg': 'Links are not allowed in title/description'}), 400
+        if tag_pattern.search(title) or tag_pattern.search(description):
+            return jsonify({'msg': 'HTML is not allowed in title/description'}), 400
+
+        if category not in allowed_categories:
+            return jsonify({'msg': 'Invalid category'}), 400
+        if priority not in allowed_priorities:
+            return jsonify({'msg': 'Invalid priority'}), 400
+
         query = {
-            'title': data['title'],
-            'description': data['description'],
-            'category': data.get('category', 'general'),
-            'priority': data.get('priority', 'medium'),
+            'title': title,
+            'description': description,
+            'category': category,
+            'priority': priority,
             'user_email': current_user['email'],
-            'user_name': data.get('user_name', current_user['email'].split('@')[0]),
+            'user_name': (data.get('user_name') or current_user['email'].split('@')[0]).strip(),
             'assigned_trainer': None,
             'status': 'open',
             'response': '',
@@ -440,15 +473,15 @@ def submit_query():
             'updated_at': datetime.utcnow(),
             'responded_at': None
         }
-        
+
         result = queries_collection.insert_one(query)
         query['_id'] = str(result.inserted_id)
-        
+
         return jsonify({
             'msg': 'Query submitted successfully',
             'query': query
         }), 201
-        
+
     except Exception as e:
         print(f"❌ Error submitting query: {str(e)}")
         return jsonify({'msg': 'Error submitting query'}), 500
@@ -521,6 +554,33 @@ def get_my_query_detail(query_id):
     except Exception as e:
         print(f"❌ Error fetching query detail: {str(e)}")
         return jsonify({'msg': 'Error fetching query'}), 500
+
+@trainer_bp.route('/public/queries/<query_id>', methods=['DELETE'])
+@jwt_required()
+def delete_my_query(query_id):
+    """Delete a query (must belong to current user)"""
+    try:
+        current_user = get_jwt_identity()
+        email = current_user.get('email') if isinstance(current_user, dict) else None
+        if not email:
+            return jsonify({'msg': 'Invalid user'}), 401
+
+        # Check if query exists and belongs to current user
+        query = queries_collection.find_one({'_id': ObjectId(query_id), 'user_email': email})
+        if not query:
+            return jsonify({'msg': 'Query not found or access denied'}), 404
+
+        # Delete the query
+        result = queries_collection.delete_one({'_id': ObjectId(query_id), 'user_email': email})
+        
+        if result.deleted_count == 1:
+            return jsonify({'msg': 'Query deleted successfully'}), 200
+        else:
+            return jsonify({'msg': 'Failed to delete query'}), 500
+
+    except Exception as e:
+        print(f"❌ Error deleting query: {str(e)}")
+        return jsonify({'msg': 'Error deleting query'}), 500
 
 # TRAINER APPLICATION MANAGEMENT ROUTES (Admin only)
 

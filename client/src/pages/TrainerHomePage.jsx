@@ -34,6 +34,9 @@ const TrainerHomePage = () => {
     queryId: '',
     response: ''
   });
+  // Editing existing response state
+  const [editingResponseId, setEditingResponseId] = useState('');
+  const [editingResponseText, setEditingResponseText] = useState('');
 
   useEffect(() => {
     // Rely on ProtectedRoute for auth/role; avoid manual redirects
@@ -159,27 +162,81 @@ const TrainerHomePage = () => {
     e.preventDefault();
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/trainer/queries/${responseForm.queryId}/respond`, {
+      const payload = { response: responseForm.response?.trim() };
+      if (!payload.response || payload.response.length < 5) {
+        alert('Response must be at least 5 characters.');
+        return;
+      }
+      if (payload.response.length > 5000) {
+        alert('Response is too long (max 5000 characters).');
+        return;
+      }
+      const resp = await fetch(`http://localhost:5000/trainer/queries/${responseForm.queryId}/respond`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ response: responseForm.response })
+        body: JSON.stringify(payload)
       });
 
-      if (response.ok) {
+      if (resp.ok) {
         alert('Response submitted successfully!');
         setResponseForm({ queryId: '', response: '' });
-        fetchTrainerData(); // Refresh data
+        fetchTrainerData();
       } else {
-        const error = await response.json();
-        alert('Error submitting response: ' + error.msg);
+        const error = await resp.json();
+        alert('Error submitting response: ' + (error.msg || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error submitting response:', error);
       alert('Error submitting response');
     }
+  };
+
+  const handleStartEditResponse = (query) => {
+    setEditingResponseId(query.id);
+    setEditingResponseText(query.response || '');
+  };
+
+  const handleSaveEditedResponse = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const text = editingResponseText.trim();
+      if (!text || text.length < 5) {
+        alert('Response must be at least 5 characters.');
+        return;
+      }
+      if (text.length > 5000) {
+        alert('Response is too long (max 5000 characters).');
+        return;
+      }
+      const resp = await fetch(`http://localhost:5000/trainer/queries/${editingResponseId}/respond`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ response: text })
+      });
+      if (resp.ok) {
+        alert('Response updated successfully!');
+        setEditingResponseId('');
+        setEditingResponseText('');
+        fetchTrainerData();
+      } else {
+        const error = await resp.json();
+        alert('Error updating response: ' + (error.msg || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Error updating response:', error);
+      alert('Error updating response');
+    }
+  };
+
+  const handleCancelEditResponse = () => {
+    setEditingResponseId('');
+    setEditingResponseText('');
   };
 
   const handleLogout = () => {
@@ -720,6 +777,8 @@ const TrainerHomePage = () => {
                       <option value="fitness">Fitness</option>
                       <option value="nutrition">Nutrition</option>
                       <option value="yoga">Yoga</option>
+                      <option value="meditation">Meditation</option>
+                      <option value="flexibility">Flexibility</option>
                       <option value="cardio">Cardio</option>
                       <option value="strength">Strength Training</option>
                       <option value="wellness">Wellness</option>
@@ -937,16 +996,55 @@ const TrainerHomePage = () => {
                     {query.response && (
                       <div className="border-t border-slate-200 pt-4 mt-4">
                         <div className="bg-emerald-50 rounded-xl p-6 border border-emerald-200 shadow-sm">
-                          <h4 className="font-semibold text-emerald-900 mb-3 flex items-center gap-2">
-                            <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                            Your Response:
-                          </h4>
-                          <p className="text-emerald-800 mb-3 leading-relaxed">{query.response}</p>
-                          <small className="text-emerald-700 font-medium">
-                            Responded on: {new Date(query.responded_at).toLocaleDateString()}
-                          </small>
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-emerald-900 mb-3 flex items-center gap-2">
+                                <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                Your Response:
+                              </h4>
+                              {editingResponseId === query.id ? (
+                                <>
+                                  <textarea
+                                    value={editingResponseText}
+                                    onChange={(e) => setEditingResponseText(e.target.value)}
+                                    rows="4"
+                                    className="w-full px-4 py-3 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-600 focus:border-emerald-600 transition-colors mb-3 bg-white"
+                                  />
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={handleSaveEditedResponse}
+                                      className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition"
+                                    >
+                                      Save
+                                    </button>
+                                    <button
+                                      onClick={handleCancelEditResponse}
+                                      className="bg-slate-200 text-slate-700 px-4 py-2 rounded-lg hover:bg-slate-300 transition"
+                                    >
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <p className="text-emerald-800 mb-3 leading-relaxed">{query.response}</p>
+                                  <small className="text-emerald-700 font-medium">
+                                    Responded on: {new Date(query.responded_at).toLocaleDateString()}
+                                  </small>
+                                </>
+                              )}
+                            </div>
+                            {editingResponseId !== query.id && (
+                              <button
+                                onClick={() => handleStartEditResponse(query)}
+                                className="self-start bg-white border border-emerald-300 text-emerald-700 px-3 py-1.5 rounded-lg hover:bg-emerald-50 transition"
+                              >
+                                Edit
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )}

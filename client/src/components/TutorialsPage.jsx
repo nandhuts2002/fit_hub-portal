@@ -9,6 +9,7 @@ const TutorialsPage = () => {
   const navigate = useNavigate();
   const [tutorials, setTutorials] = useState([]);
   const [selectedTutorial, setSelectedTutorial] = useState(null);
+  const [selectedLoading, setSelectedLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -25,6 +26,7 @@ const TutorialsPage = () => {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState({});
+  const [touched, setTouched] = useState({ title: false, category: false, priority: false, description: false });
   const [heroIndex, setHeroIndex] = useState(0);
 
   // Relaxation music player state
@@ -131,14 +133,32 @@ const TutorialsPage = () => {
 
   useEffect(() => {
     fetchTutorials();
-    // Load liked tutorials from localStorage
-    const saved = localStorage.getItem('likedTutorials');
-    if (saved) {
-      try {
-        setLikedTutorials(new Set(JSON.parse(saved)));
-      } catch (e) {
-        console.warn('Failed to parse liked tutorials from localStorage');
+    // Load liked tutorials from localStorage scoped per user (normalize to strings)
+    try {
+      const currentUser = SessionManager.getCurrentUser();
+      const emailKey = currentUser?.email ? String(currentUser.email).toLowerCase() : 'guest';
+      const scopedKey = `likedTutorials:${emailKey}`;
+      const legacyKey = 'likedTutorials';
+
+      let likesArray = [];
+      const savedScoped = localStorage.getItem(scopedKey);
+      if (savedScoped) {
+        const arr = JSON.parse(savedScoped);
+        likesArray = Array.isArray(arr) ? arr : [];
+      } else {
+        // Migrate legacy likes once to the scoped key
+        const legacy = localStorage.getItem(legacyKey);
+        if (legacy) {
+          const arr = JSON.parse(legacy);
+          likesArray = Array.isArray(arr) ? arr : [];
+          localStorage.setItem(scopedKey, JSON.stringify(likesArray));
+          localStorage.removeItem(legacyKey);
+        }
       }
+      const normalized = likesArray.map((x) => String(x));
+      setLikedTutorials(new Set(normalized));
+    } catch (e) {
+      console.warn('Failed to load liked tutorials');
     }
     // Load curated tracks from API
     (async () => {
@@ -185,14 +205,20 @@ const TutorialsPage = () => {
   };
 
   const toggleLike = (tutorialId) => {
+    const id = String(tutorialId);
     const newLikedTutorials = new Set(likedTutorials);
-    if (newLikedTutorials.has(tutorialId)) {
-      newLikedTutorials.delete(tutorialId);
+    if (newLikedTutorials.has(id)) {
+      newLikedTutorials.delete(id);
     } else {
-      newLikedTutorials.add(tutorialId);
+      newLikedTutorials.add(id);
     }
     setLikedTutorials(newLikedTutorials);
-    localStorage.setItem('likedTutorials', JSON.stringify([...newLikedTutorials]));
+    try {
+      const currentUser = SessionManager.getCurrentUser();
+      const emailKey = currentUser?.email ? String(currentUser.email).toLowerCase() : 'guest';
+      const scopedKey = `likedTutorials:${emailKey}`;
+      localStorage.setItem(scopedKey, JSON.stringify([...newLikedTutorials]));
+    } catch {}
   };
 
   const getDurationMinutes = (tutorial) => {
@@ -208,7 +234,7 @@ const TutorialsPage = () => {
     const matchesSearch = tutorial.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          tutorial.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = filter === 'all' || filter === 'liked' || tutorial.category === filter;
-    const matchesLiked = filter !== 'liked' || likedTutorials.has(tutorial.id);
+    const matchesLiked = filter !== 'liked' || likedTutorials.has(String(tutorial.id));
     const matchesDifficulty = difficultyFilter === 'all' || tutorial.difficulty === difficultyFilter;
     
     let matchesDuration = true;
@@ -236,26 +262,107 @@ const TutorialsPage = () => {
     }
   });
 
-  // Form validation
+  // Derive liked count based on intersection with current tutorials
+  const tutorialIdSet = new Set((tutorials || []).map(t => String(t?.id)));
+  const likedCount = [...likedTutorials].filter(id => tutorialIdSet.has(String(id))).length;
+
+  const openTutorial = async (tutorial) => {
+    if (!tutorial || !tutorial.id) return;
+    try {
+      setSelectedLoading(true);
+      setSelectedTutorial(tutorial);
+      const { data } = await api.get(`/trainer/public/tutorials/${tutorial.id}`);
+      if (data && data.tutorial) {
+        setSelectedTutorial(data.tutorial);
+      }
+    } catch (e) {
+      // keep basic card info if detail fetch fails
+    } finally {
+      setSelectedLoading(false);
+    }
+  };
+
+  // Validation helpers and form validation
+  const stripTags = (s = '') => s.replace(/<[^>]+>/g, '');
+  const hasLinks = (s = '') => /(https?:\/\/|www\.)/i.test(s);
+
+  // Field-level validator returning error string or ''
+  const fieldError = (name, value) => {
+    const title = (name === 'title' ? value : queryForm.title || '').trim();
+    const description = (name === 'description' ? value : queryForm.description || '').trim();
+    const category = (name === 'category' ? value : queryForm.category || '').trim().toLowerCase();
+    const priority = (name === 'priority' ? value : queryForm.priority || 'medium').trim().toLowerCase();
+
+    const allowedCategories = new Set([
+      'general','poses','meditation','breathing','flexibility','strength','injury','beginner','advanced','equipment','lifestyle','other'
+    ]);
+    const allowedPriorities = new Set(['low','medium','high']);
+
+    if (name === 'title') {
+      if (!title) return 'Query title is required';
+      if (title.length < 5 || title.length > 120) return 'Title must be 5-120 characters';
+      if (hasLinks(title) || /<[^>]+>/g.test(title)) return 'Links/HTML are not allowed in title';
+      return '';
+    }
+    if (name === 'description') {
+      if (!description) return 'Description is required';
+      if (description.length < 10 || description.length > 2000) return 'Description must be 10-2000 characters';
+      if (hasLinks(description) || /<[^>]+>/g.test(description)) return 'Links/HTML are not allowed in description';
+      return '';
+    }
+    if (name === 'category') {
+      if (!category) return 'Category is required';
+      if (!allowedCategories.has(category)) return 'Invalid category';
+      return '';
+    }
+    if (name === 'priority') {
+      if (!allowedPriorities.has(priority)) return 'Invalid priority';
+      return '';
+    }
+    return '';
+  };
+
   const validateForm = () => {
     const errors = {};
-    
-    if (!queryForm.title.trim()) {
+
+    const title = (queryForm.title || '').trim();
+    const description = (queryForm.description || '').trim();
+    const category = (queryForm.category || '').trim().toLowerCase();
+    const priority = (queryForm.priority || 'medium').trim().toLowerCase();
+
+    const allowedCategories = new Set([
+      'general','poses','meditation','breathing','flexibility','strength','injury','beginner','advanced','equipment','lifestyle','other'
+    ]);
+    const allowedPriorities = new Set(['low','medium','high']);
+
+    // Title checks
+    if (!title) {
       errors.title = 'Query title is required';
-    } else if (queryForm.title.trim().length < 5) {
-      errors.title = 'Title must be at least 5 characters';
+    } else if (title.length < 5 || title.length > 120) {
+      errors.title = 'Title must be 5-120 characters';
+    } else if (hasLinks(title) || /<[^>]+>/g.test(title)) {
+      errors.title = 'Links/HTML are not allowed in title';
     }
-    
-    if (!queryForm.description.trim()) {
+
+    // Description checks
+    if (!description) {
       errors.description = 'Description is required';
-    } else if (queryForm.description.trim().length < 10) {
-      errors.description = 'Description must be at least 10 characters';
+    } else if (description.length < 10 || description.length > 2000) {
+      errors.description = 'Description must be 10-2000 characters';
+    } else if (hasLinks(description) || /<[^>]+>/g.test(description)) {
+      errors.description = 'Links/HTML are not allowed in description';
     }
-    
-    if (!queryForm.category) {
+
+    // Category/priority checks
+    if (!category) {
       errors.category = 'Category is required';
+    } else if (!allowedCategories.has(category)) {
+      errors.category = 'Invalid category';
     }
-    
+    if (!allowedPriorities.has(priority)) {
+      errors.priority = 'Invalid priority';
+    }
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -335,7 +442,7 @@ const TutorialsPage = () => {
           {/* Right Side Actions */}
           <div className="flex items-center gap-3">
             {/* Liked Videos Button */}
-            {likedTutorials.size > 0 && (
+            {likedCount > 0 && (
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -346,7 +453,7 @@ const TutorialsPage = () => {
                 className="relative bg-red-500/20 text-red-400 hover:bg-red-500/30 font-medium py-2 px-4 rounded-xl transition-all duration-200 flex items-center gap-2"
               >
                 <FaHeart size={16} />
-                Liked ({likedTutorials.size})
+                Liked ({likedCount})
               </motion.button>
             )}
             
@@ -379,8 +486,8 @@ const TutorialsPage = () => {
               <div className="text-3xl font-bold text-orange-400 mb-2">{tutorials?.length || 0}</div>
               <div className="text-gray-300">Total Tutorials</div>
             </div>
-            <div className="bg-gradient-to-br from-zinc-900/70 to-black/70 backdrop-blur-md rounded-xl shadow-lg p-6 text-center border border-white/10">
-              <div className="text-3xl font-bold text-red-400 mb-2">{likedTutorials?.size || 0}</div>
+              <div className="bg-gradient-to-br from-zinc-900/70 to-black/70 backdrop-blur-md rounded-xl shadow-lg p-6 text-center border border-white/10">
+              <div className="text-3xl font-bold text-red-400 mb-2">{likedCount || 0}</div>
               <div className="text-gray-300">Liked Videos</div>
             </div>
             <div className="bg-gradient-to-br from-zinc-900/70 to-black/70 backdrop-blur-md rounded-xl shadow-lg p-6 text-center border border-white/10">
@@ -424,99 +531,101 @@ const TutorialsPage = () => {
           </div>
         </motion.div>
 
-        {/* Relaxation Music Player */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.3 }}
-          className="mb-8"
-        >
-          <div className="bg-gradient-to-br from-zinc-900/70 to-black/70 backdrop-blur-md rounded-xl shadow-lg p-5 border border-white/10">
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <h3 className="text-lg font-semibold text-white">Relaxation Music</h3>
-                <p className="text-xs text-gray-400">Cooldown after your workout with calming sounds</p>
+        {/* Relaxation Music Player (temporarily disabled) */}
+        {false && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="mb-8"
+          >
+            <div className="bg-gradient-to-br from-zinc-900/70 to-black/70 backdrop-blur-md rounded-xl shadow-lg p-5 border border-white/10">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Relaxation Music</h3>
+                  <p className="text-xs text-gray-400">Cooldown after your workout with calming sounds</p>
+                </div>
+                <div className="text-sm text-gray-300">
+                  {formatTime(progressSeconds)} / {formatTime(durationSeconds)}
+                </div>
               </div>
-              <div className="text-sm text-gray-300">
-                {formatTime(progressSeconds)} / {formatTime(durationSeconds)}
+  
+              {musicError && (
+                <div className="mb-3 text-xs text-red-300 bg-red-900/30 border border-red-800/50 px-3 py-2 rounded">
+                  {musicError}
+                </div>
+              )}
+  
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={playPrev}
+                  className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white border border-white/10 transition-colors"
+                  aria-label="Previous"
+                >
+                  ‹
+                </button>
+                <button
+                  onClick={togglePlayPause}
+                  className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-black font-semibold transition-colors"
+                  aria-label="Play/Pause"
+                >
+                  {isPlaying ? 'Pause' : 'Play'}
+                </button>
+                <button
+                  onClick={playNext}
+                  className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white border border-white/10 transition-colors"
+                  aria-label="Next"
+                >
+                  ›
+                </button>
+  
+                <div className="flex-1 flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={0}
+                    max={Math.max(0, Math.floor(durationSeconds))}
+                    value={Math.floor(progressSeconds)}
+                    onChange={onSeek}
+                    className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer"
+                  />
+                </div>
+  
+                <div className="min-w-[160px] text-right">
+                  <div className="text-sm font-medium text-white truncate">{currentTrack.title}</div>
+                  <div className="text-xs text-gray-400 truncate">{currentTrack.artist}</div>
+                </div>
               </div>
+  
+              <div className="mt-3 flex items-center gap-4">
+                <div className="flex items-center gap-2 text-xs text-gray-300">
+                  <span>Volume</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    value={volume}
+                    onChange={(e) => setVolume(Number(e.target.value))}
+                    className="w-32 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer"
+                  />
+                </div>
+                {/* Removed Add Track button and forms */}
+              </div>
+  
+              {/* Removed Add Track UI section */}
+  
+              <audio
+                ref={audioRef}
+                src={currentTrack.url}
+                preload="metadata"
+                onTimeUpdate={onTimeUpdate}
+                onLoadedMetadata={onTimeUpdate}
+                onEnded={playNext}
+                onError={() => { setMusicError('Track unavailable (missing from /public/audio). Skipping to next...'); playNext(); }}
+              />
             </div>
-
-            {musicError && (
-              <div className="mb-3 text-xs text-red-300 bg-red-900/30 border border-red-800/50 px-3 py-2 rounded">
-                {musicError}
-              </div>
-            )}
-
-            <div className="flex items-center gap-4">
-              <button
-                onClick={playPrev}
-                className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white border border-white/10 transition-colors"
-                aria-label="Previous"
-              >
-                ‹
-              </button>
-              <button
-                onClick={togglePlayPause}
-                className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-black font-semibold transition-colors"
-                aria-label="Play/Pause"
-              >
-                {isPlaying ? 'Pause' : 'Play'}
-              </button>
-              <button
-                onClick={playNext}
-                className="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-white border border-white/10 transition-colors"
-                aria-label="Next"
-              >
-                ›
-              </button>
-
-              <div className="flex-1 flex items-center gap-3">
-                <input
-                  type="range"
-                  min={0}
-                  max={Math.max(0, Math.floor(durationSeconds))}
-                  value={Math.floor(progressSeconds)}
-                  onChange={onSeek}
-                  className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer"
-                />
-              </div>
-
-              <div className="min-w-[160px] text-right">
-                <div className="text-sm font-medium text-white truncate">{currentTrack.title}</div>
-                <div className="text-xs text-gray-400 truncate">{currentTrack.artist}</div>
-              </div>
-            </div>
-
-            <div className="mt-3 flex items-center gap-4">
-              <div className="flex items-center gap-2 text-xs text-gray-300">
-                <span>Volume</span>
-                <input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={volume}
-                  onChange={(e) => setVolume(Number(e.target.value))}
-                  className="w-32 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer"
-                />
-              </div>
-              {/* Removed Add Track button and forms */}
-            </div>
-
-            {/* Removed Add Track UI section */}
-
-            <audio
-              ref={audioRef}
-              src={currentTrack.url}
-              preload="metadata"
-              onTimeUpdate={onTimeUpdate}
-              onLoadedMetadata={onTimeUpdate}
-              onEnded={playNext}
-              onError={() => { setMusicError('Track unavailable (missing from /public/audio). Skipping to next...'); playNext(); }}
-            />
-          </div>
-        </motion.div>
+          </motion.div>
+        )}
 
         {/* Filters and Search */}
           <motion.div
@@ -641,7 +750,7 @@ const TutorialsPage = () => {
                   transition={{ delay: index * 0.1 }}
                   whileHover={{ scale: 1.02 }}
                   className="bg-gradient-to-br from-zinc-900/70 to-black/70 backdrop-blur-md rounded-xl shadow-xl border border-white/10 overflow-hidden hover:border-orange-500/30 transition-all duration-300 cursor-pointer"
-                  onClick={() => setSelectedTutorial(tutorial)}
+                  onClick={() => openTutorial(tutorial)}
                 >
                   {/* Tutorial Image */}
                   <div className="relative h-48 overflow-hidden">
@@ -716,7 +825,7 @@ const TutorialsPage = () => {
                       }}
                         className="text-red-500 hover:text-red-400 transition-colors"
                       >
-                        {likedTutorials.has(tutorial.id) ? <FaHeart /> : <FaRegHeart />}
+                        {likedTutorials.has(String(tutorial.id)) ? <FaHeart /> : <FaRegHeart />}
                     </button>
                     </div>
                 </div>
@@ -758,6 +867,9 @@ const TutorialsPage = () => {
 
               {/* Modal Content */}
             <div className="p-6">
+              {selectedLoading && (
+                <div className="mb-4 text-sm text-gray-500">Loading content...</div>
+              )}
               <div className="flex flex-wrap gap-2 mb-4">
                   <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm">
                     {selectedTutorial.category}
@@ -866,11 +978,15 @@ const TutorialsPage = () => {
                     placeholder="e.g., How to improve my downward dog pose?"
                     value={queryForm.title}
                     onChange={(e) => {
-                      setQueryForm({...queryForm, title: e.target.value});
-                      if (formErrors.title) {
-                        setFormErrors({...formErrors, title: ''});
+                      const val = e.target.value;
+                      setQueryForm({...queryForm, title: val});
+                      if (touched.title) {
+                        const err = fieldError('title', val);
+                        setFormErrors(prev => ({ ...prev, title: err }));
                       }
                     }}
+                    onFocus={() => setTouched(prev => ({ ...prev, title: true }))}
+                    onBlur={(e) => setFormErrors(prev => ({ ...prev, title: fieldError('title', e.target.value) }))}
                     className={`w-full px-3 py-2 bg-white/80 backdrop-blur-sm border rounded-lg text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 transition-all duration-200 ${
                       formErrors.title ? 'border-red-300 focus:ring-red-500' : 'border-indigo-200 focus:ring-indigo-500 hover:border-indigo-300'
                     }`}
@@ -884,11 +1000,15 @@ const TutorialsPage = () => {
                   <select
                     value={queryForm.category}
                     onChange={(e) => {
-                      setQueryForm({...queryForm, category: e.target.value});
-                      if (formErrors.category) {
-                        setFormErrors({...formErrors, category: ''});
+                      const val = e.target.value;
+                      setQueryForm({...queryForm, category: val});
+                      if (touched.category) {
+                        const err = fieldError('category', val);
+                        setFormErrors(prev => ({ ...prev, category: err }));
                       }
                     }}
+                    onFocus={() => setTouched(prev => ({ ...prev, category: true }))}
+                    onBlur={(e) => setFormErrors(prev => ({ ...prev, category: fieldError('category', e.target.value) }))}
                     className={`w-full px-3 py-2 bg-white/80 backdrop-blur-sm border rounded-lg text-gray-800 focus:outline-none focus:ring-2 transition-all duration-200 ${
                       formErrors.category ? 'border-red-300 focus:ring-red-500' : 'border-indigo-200 focus:ring-indigo-500 hover:border-indigo-300'
                     }`}
@@ -914,13 +1034,23 @@ const TutorialsPage = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Priority Level</label>
                   <select
                     value={queryForm.priority}
-                    onChange={(e) => setQueryForm({...queryForm, priority: e.target.value})}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setQueryForm({...queryForm, priority: val});
+                      if (touched.priority) {
+                        const err = fieldError('priority', val);
+                        setFormErrors(prev => ({ ...prev, priority: err }));
+                      }
+                    }}
+                    onFocus={() => setTouched(prev => ({ ...prev, priority: true }))}
+                    onBlur={(e) => setFormErrors(prev => ({ ...prev, priority: fieldError('priority', e.target.value) }))}
                     className="w-full px-3 py-2 bg-white/80 backdrop-blur-sm border border-indigo-200 rounded-lg text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 hover:border-indigo-300 transition-all duration-200"
                   >
                     <option value="low">Low - General inquiry</option>
                     <option value="medium">Medium - Need guidance</option>
                     <option value="high">High - Urgent help needed</option>
                   </select>
+                  {formErrors.priority && <p className="text-red-500 text-xs mt-1">{formErrors.priority}</p>}
                 </div>
 
                 {/* Description */}
@@ -930,11 +1060,15 @@ const TutorialsPage = () => {
                     placeholder="Please describe your question in detail..."
                     value={queryForm.description}
                     onChange={(e) => {
-                      setQueryForm({...queryForm, description: e.target.value});
-                      if (formErrors.description) {
-                        setFormErrors({...formErrors, description: ''});
+                      const val = e.target.value;
+                      setQueryForm({...queryForm, description: val});
+                      if (touched.description) {
+                        const err = fieldError('description', val);
+                        setFormErrors(prev => ({ ...prev, description: err }));
                       }
                     }}
+                    onFocus={() => setTouched(prev => ({ ...prev, description: true }))}
+                    onBlur={(e) => setFormErrors(prev => ({ ...prev, description: fieldError('description', e.target.value) }))}
                     className={`w-full px-3 py-2 bg-white/80 backdrop-blur-sm border rounded-lg text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 h-24 resize-none transition-all duration-200 ${
                       formErrors.description ? 'border-red-300 focus:ring-red-500' : 'border-indigo-200 focus:ring-indigo-500 hover:border-indigo-300'
                     }`}
@@ -962,6 +1096,7 @@ const TutorialsPage = () => {
                     onClick={() => {
                       setShowQueryForm(false);
                       setFormErrors({});
+                      setTouched({ title: false, category: false, priority: false, description: false });
                     }}
                     className="flex-1 px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm"
                   >

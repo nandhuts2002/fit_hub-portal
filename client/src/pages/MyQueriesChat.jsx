@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaArrowLeft, FaSearch, FaFilter, FaPlus, FaClock, FaCheckCircle, FaTag, FaShieldAlt, FaTimes, FaPaperPlane } from 'react-icons/fa';
+import { FaArrowLeft, FaSearch, FaFilter, FaPlus, FaClock, FaCheckCircle, FaTag, FaShieldAlt, FaTimes, FaPaperPlane, FaTrash } from 'react-icons/fa';
 import SessionManager from "../utils/sessionManager";
 
 // Formatters
@@ -21,7 +21,12 @@ const statusStyles = {
 };
 
 // Query Card
-const QueryCard = ({ query, onOpen }) => {
+const QueryCard = ({ query, onOpen, onDelete }) => {
+  const handleDeleteClick = (e) => {
+    e.stopPropagation(); // Prevent opening the query detail
+    onDelete(query.id);
+  };
+
   return (
     <motion.div
       layout
@@ -33,9 +38,9 @@ const QueryCard = ({ query, onOpen }) => {
       onClick={() => onOpen(query)}
     >
       <div className="p-6">
-        {/* Status + Priority */}
+        {/* Status + Priority + Delete Button */}
         <div className="flex items-start justify-between gap-3 mb-3">
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 mb-1">
               <span
                 className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium ${
@@ -54,6 +59,15 @@ const QueryCard = ({ query, onOpen }) => {
               {query.title || "Untitled Query"}
             </h3>
           </div>
+          
+          {/* Delete Button */}
+          <button
+            onClick={handleDeleteClick}
+            className="flex-shrink-0 p-2 text-gray-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all duration-200 group"
+            title="Delete query"
+          >
+            <FaTrash className="w-4 h-4 group-hover:scale-110 transition-transform" />
+          </button>
         </div>
 
         {/* User description */}
@@ -337,6 +351,43 @@ const MyQueriesChat = () => {
 
   const openDetail = (q) => navigate(`/queries/${q.id}`, { state: { query: q } });
 
+  // Delete query
+  const handleDelete = async (queryId) => {
+    if (!window.confirm('Are you sure you want to delete this query? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const { token } = SessionManager.getCurrentUser() || {};
+      if (!token) throw new Error("No auth token");
+      
+      const res = await fetch(`http://localhost:5000/trainer/public/queries/${queryId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      
+      if (res.status === 401) {
+        alert("Your session has expired. Please log in again.");
+        SessionManager.clearSession();
+        return;
+      }
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.msg || `HTTP ${res.status}`);
+      }
+      
+      // Remove the query from the local state
+      setQueries((prev) => prev.filter((q) => q.id !== queryId));
+      
+    } catch (err) {
+      console.error("Failed to delete query:", err);
+      alert(`Failed to delete query: ${err.message}`);
+    }
+  };
+
   return (
     <div className="relative min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900">
       {/* Header */}
@@ -458,6 +509,7 @@ const MyQueriesChat = () => {
                     key={q.id}
                     query={q}
                     onOpen={openDetail}
+                    onDelete={handleDelete}
                   />
                 ))}
               </AnimatePresence>

@@ -56,10 +56,14 @@ const CheckoutModal = ({
   // Real-time validation functions
   const validateField = (field, value) => {
     switch (field) {
-      case 'name':
-        if (!value.trim()) return 'Full name is required';
-        if (value.trim().length < 2) return 'Name must be at least 2 characters';
+      case 'name': {
+        const trimmed = (value || '').trim();
+        if (!trimmed) return 'Full name is required';
+        if (/[^a-zA-Z\s'.-]/.test(trimmed)) return 'Name can contain only letters and spaces';
+        if (/\d/.test(trimmed)) return 'Numbers are not allowed in name';
+        if (trimmed.length < 2) return 'Name must be at least 2 characters';
         return '';
+      }
       
       case 'email':
         if (!value.trim()) return 'Email is required';
@@ -95,12 +99,54 @@ const CheckoutModal = ({
   };
 
   const handleFieldChange = (field, value) => {
-    setShippingAddress({...shippingAddress, [field]: value});
-    
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors({...errors, [field]: ''});
+    let newValue = value;
+
+    // Sanitize inputs per field for live validation UX
+    switch (field) {
+      case 'name': {
+        // Allow letters, spaces, and common name punctuation; strip digits and others
+        newValue = (value || '').replace(/[^a-zA-Z\s'.-]/g, '');
+        newValue = newValue.replace(/\s{2,}/g, ' ');
+        break;
+      }
+      case 'city':
+      case 'state': {
+        newValue = (value || '').replace(/[^a-zA-Z\s'.-]/g, '');
+        newValue = newValue.replace(/\s{2,}/g, ' ');
+        break;
+      }
+      case 'phone': {
+        newValue = (value || '').replace(/\D/g, '').slice(0, 10);
+        break;
+      }
+      case 'pincode': {
+        newValue = (value || '').replace(/\D/g, '').slice(0, 6);
+        break;
+      }
+      case 'email': {
+        newValue = (value || '').trim();
+        break;
+      }
+      default:
+        break;
     }
+
+    setShippingAddress({ ...shippingAddress, [field]: newValue });
+
+    // Live-validate when the field has been focused (touched)
+    if (touched[field]) {
+      const error = validateField(field, newValue);
+      setErrors({ ...errors, [field]: error });
+    } else if (errors[field]) {
+      // Clear stale error as user starts typing before focus state is set
+      setErrors({ ...errors, [field]: '' });
+    }
+  };
+
+  const handleFieldFocus = (field) => {
+    setTouched({ ...touched, [field]: true });
+    const error = validateField(field, shippingAddress[field]);
+    setErrors({ ...errors, [field]: error });
   };
 
   const handleFieldBlur = (field) => {
@@ -185,6 +231,7 @@ const CheckoutModal = ({
                         type="text"
                         value={shippingAddress.name}
                         onChange={(e) => handleFieldChange('name', e.target.value)}
+                        onFocus={() => handleFieldFocus('name')}
                         onBlur={() => handleFieldBlur('name')}
                         className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 ${
                           errors.name && touched.name ? 'border-red-500 bg-red-50' : 
@@ -208,6 +255,7 @@ const CheckoutModal = ({
                         type="email"
                         value={shippingAddress.email}
                         onChange={(e) => handleFieldChange('email', e.target.value)}
+                        onFocus={() => handleFieldFocus('email')}
                         onBlur={() => handleFieldBlur('email')}
                         className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 ${
                           errors.email && touched.email ? 'border-red-500 bg-red-50' : 
@@ -233,6 +281,7 @@ const CheckoutModal = ({
                       type="tel"
                       value={shippingAddress.phone}
                       onChange={(e) => handleFieldChange('phone', e.target.value)}
+                      onFocus={() => handleFieldFocus('phone')}
                       onBlur={() => handleFieldBlur('phone')}
                       className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 ${
                         errors.phone && touched.phone ? 'border-red-500 bg-red-50' : 
@@ -256,6 +305,7 @@ const CheckoutModal = ({
                     <textarea
                       value={shippingAddress.address}
                       onChange={(e) => handleFieldChange('address', e.target.value)}
+                      onFocus={() => handleFieldFocus('address')}
                       onBlur={() => handleFieldBlur('address')}
                       className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 ${
                         errors.address && touched.address ? 'border-red-500 bg-red-50' : 
@@ -282,6 +332,7 @@ const CheckoutModal = ({
                         type="text"
                         value={shippingAddress.city}
                         onChange={(e) => handleFieldChange('city', e.target.value)}
+                        onFocus={() => handleFieldFocus('city')}
                         onBlur={() => handleFieldBlur('city')}
                         className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 ${
                           errors.city && touched.city ? 'border-red-500 bg-red-50' : 
@@ -305,6 +356,7 @@ const CheckoutModal = ({
                         type="text"
                         value={shippingAddress.state}
                         onChange={(e) => handleFieldChange('state', e.target.value)}
+                        onFocus={() => handleFieldFocus('state')}
                         onBlur={() => handleFieldBlur('state')}
                         className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 ${
                           errors.state && touched.state ? 'border-red-500 bg-red-50' : 
@@ -328,6 +380,7 @@ const CheckoutModal = ({
                         type="text"
                         value={shippingAddress.pincode}
                         onChange={(e) => handleFieldChange('pincode', e.target.value)}
+                        onFocus={() => handleFieldFocus('pincode')}
                         onBlur={() => handleFieldBlur('pincode')}
                         className={`w-full px-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 ${
                           errors.pincode && touched.pincode ? 'border-red-500 bg-red-50' : 

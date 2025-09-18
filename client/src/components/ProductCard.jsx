@@ -8,7 +8,8 @@ const ProductCard = ({
   onToggleWishlist, 
   onViewProduct, 
   isInWishlist = false,
-  viewMode = "grid" 
+  viewMode = "grid",
+  onBuyNow = () => {}
 }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [message, setMessage] = useState(null);
@@ -24,6 +25,7 @@ const ProductCard = ({
   const discountPercentage = product.originalPrice 
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
+  const isInStock = (product.in_stock !== undefined ? product.in_stock : (product.inStock !== undefined ? product.inStock : true));
 
   const handleAddToCart = async () => {
     if (isAdding) return; // Prevent multiple clicks
@@ -60,7 +62,7 @@ const ProductCard = ({
   return (
     <motion.div
       className={`bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden group hover:shadow-2xl transition-all duration-300 flex flex-col ${
-        viewMode === "list" ? "flex" : "h-[500px]"
+        viewMode === "list" ? "flex" : "h-[520px]"
       }`}
       whileHover={{ y: -8, scale: 1.02 }}
       initial={{ opacity: 0, y: 20 }}
@@ -98,7 +100,7 @@ const ProductCard = ({
             {discountPercentage}% OFF
           </div>
         )}
-        {!product.in_stock && (
+        {!isInStock && (
           <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center backdrop-blur-sm">
             <span className="text-white font-bold text-lg">Out of Stock</span>
           </div>
@@ -153,7 +155,7 @@ const ProductCard = ({
 
           {/* Stock indicator */}
           <div className="mb-2">
-            {product.in_stock ? (
+            {isInStock ? (
               <span className="text-xs font-medium text-green-700 bg-green-50 border border-green-200 px-2 py-1 rounded">
                 {typeof product.stock_quantity === 'number' ? `In stock: ${product.stock_quantity}` : 'In stock'}
               </span>
@@ -182,6 +184,15 @@ const ProductCard = ({
 
         {/* Actions Section - Fixed at bottom */}
         <div className="flex flex-col space-y-3">
+          {/* Buy Now Button */}
+          <button
+            onClick={() => onBuyNow(product)}
+            disabled={!isInStock}
+            className="w-full flex items-center justify-center space-x-2 px-6 py-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none"
+          >
+            <span className="text-base">Buy Now</span>
+          </button>
+
           {/* Add to Cart Button */}
           <button
             onClick={handleAddToCart}
