@@ -7,8 +7,17 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
   const isAuthenticated = SessionManager.isAuthenticated();
   const currentUser = SessionManager.getCurrentUser();
 
+  // Debug logging
+  console.log('ProtectedRoute check:', {
+    path: location.pathname,
+    isAuthenticated,
+    currentUser: currentUser?.role,
+    requiredRole
+  });
+
   // If not authenticated, redirect to login with current location
   if (!isAuthenticated) {
+    console.log('Not authenticated, redirecting to login');
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
@@ -17,11 +26,13 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
 
   // If specific role is required and user doesn't have it
   if (requiredRole && (!currentUser || currentUser.role !== requiredRole)) {
+    console.log('Role mismatch, redirecting to appropriate dashboard');
     // Redirect to appropriate dashboard based on user's actual role
     const redirectPath = SessionManager.getRedirectPath(currentUser?.role);
     return <Navigate to={redirectPath} replace />;
   }
 
+  console.log('Access granted to protected route');
   return children;
 };
 

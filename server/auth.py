@@ -144,6 +144,33 @@ def signup():
     users_collection.insert_one(user_doc)
     return jsonify({'msg': 'Signup successful'}), 201
 
+@auth_bp.route('/email-exists', methods=['POST'])
+def check_email_exists():
+    """Check if email already exists in users or trainer applications"""
+    try:
+        data = request.json
+        email = data.get('email', '').strip().lower()
+        
+        if not email:
+            return jsonify({'exists': False, 'msg': 'Email is required'}), 400
+        
+        # Check in users collection
+        user_exists = users_collection.find_one({'email': email})
+        if user_exists:
+            return jsonify({'exists': True, 'msg': 'Email already registered'}), 200
+        
+        # Check in trainer applications collection
+        from models import trainer_applications_collection
+        app_exists = trainer_applications_collection.find_one({'email': email})
+        if app_exists:
+            return jsonify({'exists': True, 'msg': 'Email already has a pending application'}), 200
+        
+        return jsonify({'exists': False, 'msg': 'Email is available'}), 200
+        
+    except Exception as e:
+        print(f"❌ Error checking email existence: {str(e)}")
+        return jsonify({'exists': False, 'msg': 'Error checking email availability'}), 500
+
 @auth_bp.route('/login', methods=['POST'])
 def login():
     data = request.json

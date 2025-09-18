@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import SessionManager from '../utils/sessionManager';
@@ -18,6 +18,15 @@ const ProfessionalLoginPage = () => {
   const [errors, setErrors] = useState({});
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Redirect authenticated users away from login page
+  useEffect(() => {
+    if (SessionManager.isAuthenticated()) {
+      const currentUser = SessionManager.getCurrentUser();
+      const redirectPath = SessionManager.getRedirectPath(currentUser?.role || 'user');
+      navigate(redirectPath, { replace: true });
+    }
+  }, [navigate]);
 
   // Form validation
   const validateField = (name, value) => {

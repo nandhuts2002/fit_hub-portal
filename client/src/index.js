@@ -28,15 +28,14 @@ if (!rootElement) {
   }
 }
 
-// Ensure auth is re-validated on back/forward cache restores
-window.addEventListener('pageshow', (event) => {
+// Function to check authentication and redirect if needed
+const checkAuthAndRedirect = () => {
   try {
-    // Only enforce on true BFCache restores to avoid false positives
-    const isBfcacheRestore = event.persisted === true;
-
-    if (!isBfcacheRestore) return;
-
     const path = window.location.pathname;
+    const isAuthenticated = SessionManager.isAuthenticated();
+    
+    console.log('Auth check:', { path, isAuthenticated });
+    
     const protectedMatchers = [
       '/user-home',
       '/admin-home',
@@ -48,20 +47,52 @@ window.addEventListener('pageshow', (event) => {
       '/wishlist',
       '/cart',
       '/community',
+      '/orders',
+      /^\/orders\//,
     ];
 
     const isProtected = protectedMatchers.some((m) =>
       typeof m === 'string' ? m === path : m.test(path)
     );
 
-    if (isProtected && !SessionManager.isAuthenticated()) {
+    console.log('Route protection check:', { path, isProtected, isAuthenticated });
+
+    // Only redirect if user is on a protected route AND not authenticated
+    if (isProtected && !isAuthenticated) {
+      console.log('Redirecting to login from protected route');
       const search = window.location.search || '';
       const hash = window.location.hash || '';
       const from = encodeURIComponent(`${path}${search}${hash}`);
       window.location.replace(`/login?from=${from}`);
     }
   } catch (err) {
+    console.error('Auth check error:', err);
+  }
+};
+
+// Check authentication on page load
+checkAuthAndRedirect();
+
+// Ensure auth is re-validated on back/forward cache restores
+window.addEventListener('pageshow', (event) => {
+  try {
+    // Check on both BFCache restores and regular page shows
+    const isBfcacheRestore = event.persisted === true;
+    
+    if (isBfcacheRestore) {
+      // Add a small delay for BFCache restores to ensure localStorage is accessible
+      setTimeout(checkAuthAndRedirect, 100);
+    } else {
+      // Immediate check for regular page shows
+      checkAuthAndRedirect();
+    }
+  } catch (err) {
     // no-op
   }
+});
+
+// Check authentication on back/forward button navigation
+window.addEventListener('popstate', () => {
+  setTimeout(checkAuthAndRedirect, 50);
 });
 

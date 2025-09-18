@@ -5,17 +5,37 @@ export const SessionManager = {
   isAuthenticated: () => {
     try {
       const raw = localStorage.getItem('session');
+      console.log('SessionManager.isAuthenticated - raw session:', raw);
+      
       if (raw) {
         const session = JSON.parse(raw);
-        if (!session || !session.token) return false;
-        if (session.expiresAt && Date.now() > Number(session.expiresAt)) return false;
+        console.log('SessionManager.isAuthenticated - parsed session:', session);
+        
+        if (!session || !session.token) {
+          console.log('SessionManager.isAuthenticated - no session or token');
+          return false;
+        }
+        
+        if (session.expiresAt && Date.now() > Number(session.expiresAt)) {
+          console.log('SessionManager.isAuthenticated - session expired');
+          // Auto-clear expired session
+          SessionManager.clearSession();
+          return false;
+        }
+        
+        console.log('SessionManager.isAuthenticated - session valid');
         return true;
       }
-    } catch {}
+    } catch (err) {
+      console.log('SessionManager.isAuthenticated - error parsing session:', err);
+      // If session is corrupted, clear it
+      SessionManager.clearSession();
+    }
 
     // Fallback to legacy keys
     const token = localStorage.getItem('token');
     const userName = localStorage.getItem('userName');
+    console.log('SessionManager.isAuthenticated - legacy check:', { token, userName });
     return !!(token && userName && token !== 'null' && userName !== 'null');
   },
 

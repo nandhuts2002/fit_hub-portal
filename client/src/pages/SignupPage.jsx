@@ -30,6 +30,8 @@ const SignupPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isOtpStep, setIsOtpStep] = useState(false);
   const [otp, setOtp] = useState('');
+  const [emailChecking, setEmailChecking] = useState(false);
+  const [emailStatus, setEmailStatus] = useState(null); // 'available', 'exists', 'checking', null
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -40,6 +42,52 @@ const SignupPage = () => {
       setFormData(prev => ({ ...prev, role: preselectedRole }));
     }
   }, [location.state]);
+
+  // Debounced email checking
+  useEffect(() => {
+    const email = formData.email.trim();
+    
+    // Reset status if email is empty
+    if (!email) {
+      setEmailStatus(null);
+      setEmailChecking(false);
+      return;
+    }
+
+    // Basic email format validation
+    const emailRegex = /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i;
+    if (!emailRegex.test(email)) {
+      setEmailStatus(null);
+      setEmailChecking(false);
+      return;
+    }
+
+    // Set checking status
+    setEmailChecking(true);
+    setEmailStatus('checking');
+
+    // Debounce the API call
+    const timeoutId = setTimeout(async () => {
+      try {
+        const response = await axios.post('http://localhost:5000/email-exists', {
+          email: email
+        });
+        
+        if (response.data.exists) {
+          setEmailStatus('exists');
+        } else {
+          setEmailStatus('available');
+        }
+      } catch (error) {
+        console.error('Error checking email:', error);
+        setEmailStatus(null);
+      } finally {
+        setEmailChecking(false);
+      }
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [formData.email]);
 
   const validateField = (name, value) => {
     let error = '';
@@ -58,6 +106,7 @@ case 'lastName':
       case 'email':
         if (!value.trim()) error = 'Email is required';
         else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) error = 'Please enter a valid email address';
+        else if (emailStatus === 'exists') error = 'This email is already registered or has a pending application';
         break;
       case 'phone':
         if (!value.trim()) {
@@ -222,6 +271,18 @@ case 'lastName':
     e.preventDefault();
     if (!validateForm()) return;
 
+    // Prevent submission if email is being checked or already exists
+    if (emailChecking || emailStatus === 'exists') {
+      setErrors({ submit: 'Please wait for email validation to complete or use a different email address.' });
+      return;
+    }
+
+    // Ensure email is available before proceeding
+    if (emailStatus !== 'available') {
+      setErrors({ submit: 'Please ensure your email is available before submitting.' });
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -379,17 +440,49 @@ case 'lastName':
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="flex flex-col gap-2">
                     <label htmlFor="email" className="block text-sm font-medium text-gray-200 mb-2">Email Address <span className="text-orange-400">*</span></label>
-                    <input
-                      type="email"
-                      id="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      onBlur={handleBlur}
-                      className={`w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 ${errors.email ? 'border-red-400 focus:ring-red-500' : ''}`}
-                      placeholder="Enter your email address"
-                    />
+                    <div className="relative">
+                      <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        onBlur={handleBlur}
+                        className={`w-full px-3 py-2 pr-10 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 ${
+                          errors.email ? 'border-red-400 focus:ring-red-500' : 
+                          emailStatus === 'available' ? 'border-green-400 focus:ring-green-500' :
+                          emailStatus === 'exists' ? 'border-red-400 focus:ring-red-500' : ''
+                        }`}
+                        placeholder="Enter your email address"
+                      />
+                      {/* Email status icon */}
+                      {emailStatus === 'checking' && (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-orange-400 border-t-transparent"></div>
+                        </div>
+                      )}
+                      {emailStatus === 'available' && (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          <svg className="h-4 w-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                      )}
+                      {emailStatus === 'exists' && (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          <svg className="h-4 w-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
                     {errors.email && <span className="text-sm text-red-400 mt-1 block">{errors.email}</span>}
+                    {emailStatus === 'available' && !errors.email && (
+                      <span className="text-sm text-green-400 mt-1 block">✓ Email is available</span>
+                    )}
+                    {emailStatus === 'exists' && !errors.email && (
+                      <span className="text-sm text-red-400 mt-1 block">✗ This email is already registered</span>
+                    )}
                   </div>
 
                   <div className="flex flex-col gap-2">
