@@ -2604,6 +2604,24 @@ const AdminHomePage = () => {
                     <span className="text-secondary-900 text-sm">{application.motivation.substring(0, 80)}...</span>
                   </div>
                 )}
+                {application.resumeUrl && (
+                  <div className="flex justify-between items-start">
+                    <span className="text-secondary-600 text-sm font-medium">📎 Resume:</span>
+                    <a
+                      href={(function(){
+                        const url = application.resumeUrl || '';
+                        if (/^https?:\/\//.test(url)) return url;
+                        const apiBase = (process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000').replace(/\/$/, '');
+                        if (url.startsWith('/uploads/')) return `${apiBase}${url}`;
+                        return `${window.location.origin}${url.startsWith('/') ? '' : '/'}${url}`;
+                      })()}
+                      target="_blank" rel="noreferrer"
+                      className="text-primary-600 hover:text-primary-700 text-sm underline"
+                    >
+                      View Resume
+                    </a>
+                  </div>
+                )}
               </div>
 
               {application.status === 'pending' && (

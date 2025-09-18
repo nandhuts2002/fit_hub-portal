@@ -21,8 +21,10 @@ const SignupPage = () => {
     certifications: '',
     specializations: '',
     bio: '',
-    motivation: ''
+    motivation: '',
+    resumeUrl: ''
   });
+  const [resumeUploading, setResumeUploading] = useState(false);
   const [errors, setErrors] = useState({});
   const [validationStatus, setValidationStatus] = useState({});
   const [isLoading, setIsLoading] = useState(false);
@@ -239,7 +241,8 @@ case 'lastName':
           certifications: formData.certifications,
           specializations: formData.specializations,
           bio: formData.bio,
-          motivation: formData.motivation
+          motivation: formData.motivation,
+          resumeUrl: formData.resumeUrl
         })
       };
 
@@ -515,6 +518,51 @@ case 'lastName':
                       <strong className="text-orange-300">Trainer Application</strong>
                       <p className="text-orange-200 text-sm mt-1">Please provide your professional details to help us review your application.</p>
                     </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="block text-sm font-medium text-gray-200 mb-2">Upload Resume (PDF/DOC/DOCX)</label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="file"
+                        accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        onChange={async (e) => {
+                          const file = e.target.files && e.target.files[0];
+                          if (!file) return;
+                          setResumeUploading(true);
+                          try {
+                            const form = new FormData();
+                            form.append('file', file);
+                            form.append('email', formData.email || '');
+                            const res = await axios.post('http://localhost:5000/upload/resume', form, {
+                              headers: { 'Content-Type': 'multipart/form-data' }
+                            });
+                            if (res.data?.success && res.data?.url) {
+                              setFormData((prev) => ({ ...prev, resumeUrl: res.data.url }));
+                            }
+                          } catch (_) {
+                            alert('Resume upload failed. Please try again.');
+                          } finally {
+                            setResumeUploading(false);
+                          }
+                        }}
+                        className="block w-full text-sm text-gray-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-orange-500/20 file:text-orange-200 hover:file:bg-orange-500/30"
+                      />
+                      {resumeUploading && <span className="text-orange-300 text-sm">Uploading…</span>}
+                    </div>
+                    {formData.resumeUrl && (
+                      <a
+                        href={(function(){
+                          const url = formData.resumeUrl || '';
+                          if (/^https?:\/\//.test(url)) return url;
+                          const apiBase = (process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000').replace(/\/$/, '');
+                          if (url.startsWith('/uploads/')) return `${apiBase}${url}`;
+                          return `${window.location.origin}${url.startsWith('/') ? '' : '/'}${url}`;
+                        })()}
+                        target="_blank" rel="noreferrer" className="text-orange-300 text-sm underline">
+                        View uploaded resume
+                      </a>
+                    )}
                   </div>
 
                   <div className="flex flex-col gap-2">

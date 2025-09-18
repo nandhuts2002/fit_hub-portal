@@ -1,0 +1,46 @@
+53f770a chore: push pending changes for trainer application flow and UI updates
+18f4f7b Fix order flow: update client pages, product card, and shop backend
+dfc9251 chore(debug): add order debug page
+7de465d docs: add order flow fixes summary
+6096e16 backend: update shop and trainer modules
+0b0dc01 style(css): update generated and base styles
+da4c07e feat(pages): update admin, orders, auth and home flows
+fef4d0a feat(components): add NotificationSystem and OrderHistory; update checkout/product/tutorial components
+54a5a31 chore(frontend): update dependencies and lockfile
+20d41b5 chore: update modified client and server files
+a57b203 feat(pages): add MyOrdersPage and OrderSummaryPage
+6d799c2 Security: protect admin/user routes with JWT + admin role checks; begin tightening shop endpoints; update client pages accordingly
+55da205 feat(auth): add ForgotPasswordPage
+7741247 fix(auth): load server .env with override; add SMTP debug + Gmail host fallback; improve reset email flow
+21b2c4d Add client utils: api.js
+857945b Add client pages: Cart, Community, MyQueriesChat, QueryDetail, Shop, Wishlist
+ae393a1 Add client components: AdminProductManagement, CartSidebar, CheckoutModal, FilterSidebar, OrderSuccessModal, ProductCard, ProductModal
+9cd9bcd Add client assets: fitness-hero.jpg
+399eeea Add server: shop API module
+b246c84 Add docs: ECOMMERCE_SHOP_README.md
+5aaead6 Update: client/package-lock.json, client/package.json, client/src/App.js, client/src/components/TutorialsPage.jsx, client/src/generated.css, client/src/index.css, client/src/pages/AdminHomePage.jsx, client/src/pages/ProfessionalLoginPage.jsx, client/src/pages/SignupPage.jsx, client/src/pages/TrainerHomePage.jsx, client/src/pages/UserHomePage.jsx, client/src/pages/YogaIndexPage.jsx, client/src/utils/sessionManager.js, server/app.py, server/models.py
+782500a 🎨 Major UI Overhaul: Migrate to Tailwind CSS & Enhance All Dashboards
+03b3aa3 chore(frontend): update dependencies and lockfile
+1b32ea2 backend: update auth/app/trainer modules and add admin.py
+d6f4eb7 feat(utils): add utility modules
+574662c assets(src): add app assets
+d0f0785 assets(public): add images
+bdf2c50 docs: add architecture and flow summaries
+7597fd5 style(css): update page styles
+8712f68 chore(app): update app routing/imports
+260f718 refactor(components): rename .js to .jsx
+99e9a22 refactor(pages): rename .js to .jsx
+0c94ad5 fix: Update UserHomePage.js
+53c34ce cleanup: Remove unused server-side files
+f701186 cleanup: Remove unused client-side files
+3c4716d feat: Update App.js to use ProfessionalLoginPage
+9933465 feat: Add professional login page with modern design
+61e20e7 Add yoga-themed index page with redirect to login
+9eb51c1 � Frontend: UI updates for trainer and signup pages
+2892f06 � Backend: trainer management, tutorials, and signup flow improvements
+69cb05e ⚛️ Frontend: Add complete React application structure
+3d12d3a 🔧 Backend: Add debugging and maintenance utilities
+7e10581 👑 Backend: Add admin creation utilities
+96a4e54 🔐 Backend: Implement comprehensive authentication system
+566b46c 🗄️ Backend: Add core Flask application and database models
+60b7df2 📝 Initial project setup: Add README and gitignore

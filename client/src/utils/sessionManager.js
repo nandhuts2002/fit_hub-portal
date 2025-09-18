@@ -48,6 +48,26 @@ export const SessionManager = {
 
   // Set user session (optionally with ttlMinutes)
   setSession: (userData, ttlMinutes = 60 * 24 * 7) => {
+    // Migrate/clear cart & wishlist from previous user to user-scoped keys
+    try {
+      const prevRaw = localStorage.getItem('session');
+      const prev = prevRaw ? JSON.parse(prevRaw) : null;
+      const prevEmail = prev?.email;
+      const newEmail = userData.email || '';
+      if (prevEmail && newEmail && prevEmail !== newEmail) {
+        const cart = localStorage.getItem('fithub-cart');
+        if (cart) {
+          localStorage.setItem(`fithub-cart:${prevEmail}`, cart);
+          localStorage.removeItem('fithub-cart');
+        }
+        const wishlist = localStorage.getItem('fithub-wishlist');
+        if (wishlist) {
+          localStorage.setItem(`fithub-wishlist:${prevEmail}`, wishlist);
+          localStorage.removeItem('fithub-wishlist');
+        }
+      }
+    } catch {}
+
     const expiresAt = Date.now() + (ttlMinutes > 0 ? ttlMinutes * 60 * 1000 : 0);
     const session = {
       token: userData.token || '',
@@ -73,6 +93,9 @@ export const SessionManager = {
     localStorage.removeItem('userName');
     localStorage.removeItem('userEmail');
     localStorage.removeItem('userRole');
+    // Also clear shared cart/wishlist to avoid leakage across guest/new users
+    localStorage.removeItem('fithub-cart');
+    localStorage.removeItem('fithub-wishlist');
     sessionStorage.clear();
   },
 

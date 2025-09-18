@@ -32,21 +32,23 @@ const WishlistPage = () => {
           setWishlist(normalized);
           localStorage.setItem('fithub-wishlist', JSON.stringify(normalized));
         } else {
-          const savedWishlist = localStorage.getItem('fithub-wishlist');
-          if (savedWishlist) setWishlist(JSON.parse(savedWishlist));
+          const anon = localStorage.getItem('fithub-wishlist');
+          if (anon) setWishlist(JSON.parse(anon));
         }
       } catch (e) {
-        const savedWishlist = localStorage.getItem('fithub-wishlist');
-        if (savedWishlist) setWishlist(JSON.parse(savedWishlist));
+        const user = SessionManager.getCurrentUser();
+        const key = user?.email ? `fithub-wishlist:${user.email}` : 'fithub-wishlist';
+        const saved = localStorage.getItem(key);
+        if (saved) setWishlist(JSON.parse(saved));
       }
     };
     loadWishlist();
 
     // Load cart from localStorage
-    const savedCart = localStorage.getItem('fithub-cart');
-    if (savedCart) {
-      setCart(JSON.parse(savedCart));
-    }
+    const user = SessionManager.getCurrentUser();
+    const cartKey = user?.email ? `fithub-cart:${user.email}` : 'fithub-cart';
+    const savedCart = localStorage.getItem(cartKey);
+    if (savedCart) setCart(JSON.parse(savedCart));
     
     setLoading(false);
   }, []);
@@ -91,11 +93,19 @@ const WishlistPage = () => {
           : item
       );
       setCart(updatedCart);
-      localStorage.setItem('fithub-cart', JSON.stringify(updatedCart));
+      {
+        const current = SessionManager.getCurrentUser();
+        const key = current?.email ? `fithub-cart:${current.email}` : 'fithub-cart';
+        localStorage.setItem(key, JSON.stringify(updatedCart));
+      }
     } else {
       const updatedCart = [...cart, cartItem];
       setCart(updatedCart);
-      localStorage.setItem('fithub-cart', JSON.stringify(updatedCart));
+      {
+        const current = SessionManager.getCurrentUser();
+        const key = current?.email ? `fithub-cart:${current.email}` : 'fithub-cart';
+        localStorage.setItem(key, JSON.stringify(updatedCart));
+      }
     }
   };
 
@@ -108,11 +118,19 @@ const WishlistPage = () => {
     
     const updatedCart = [...cart, ...newCartItems];
     setCart(updatedCart);
-    localStorage.setItem('fithub-cart', JSON.stringify(updatedCart));
+    {
+      const current = SessionManager.getCurrentUser();
+      const cartKey = current?.email ? `fithub-cart:${current.email}` : 'fithub-cart';
+      localStorage.setItem(cartKey, JSON.stringify(updatedCart));
+    }
     
     // Clear wishlist
     setWishlist([]);
-    localStorage.removeItem('fithub-wishlist');
+    {
+      const current = SessionManager.getCurrentUser();
+      if (current?.email) localStorage.removeItem(`fithub-wishlist:${current.email}`);
+      else localStorage.removeItem('fithub-wishlist');
+    }
     
     alert('All items moved to cart!');
   };

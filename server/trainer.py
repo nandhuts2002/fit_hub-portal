@@ -547,6 +547,7 @@ def get_trainer_applications():
                 'specializations': app.get('specializations', ''),
                 'bio': app.get('bio', ''),
                 'motivation': app.get('motivation', ''),
+                'resumeUrl': app.get('resumeUrl', ''),
                 'status': app['status'],
                 'applied_at': app['applied_at'].isoformat() if app.get('applied_at') else '',
                 'reviewed_at': app['reviewed_at'].isoformat() if app.get('reviewed_at') else None,

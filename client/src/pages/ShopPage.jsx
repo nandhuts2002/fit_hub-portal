@@ -157,12 +157,20 @@ const categories = [
 const ShopPage = () => {
   const navigate = useNavigate();
   const [cart, setCart] = useState(() => {
-    const savedCart = localStorage.getItem('fithub-cart');
-    return savedCart ? JSON.parse(savedCart) : [];
+    const user = SessionManager.getCurrentUser();
+    const key = user?.email ? `fithub-cart:${user.email}` : 'fithub-cart';
+    const savedPerUser = user?.email ? localStorage.getItem(key) : null;
+    const savedLegacy = localStorage.getItem('fithub-cart');
+    const initial = savedPerUser || savedLegacy;
+    return initial ? JSON.parse(initial) : [];
   });
   const [wishlist, setWishlist] = useState(() => {
-    const savedWishlist = localStorage.getItem('fithub-wishlist');
-    return savedWishlist ? JSON.parse(savedWishlist) : [];
+    const user = SessionManager.getCurrentUser();
+    const key = user?.email ? `fithub-wishlist:${user.email}` : 'fithub-wishlist';
+    const savedPerUser = user?.email ? localStorage.getItem(key) : null;
+    const savedLegacy = localStorage.getItem('fithub-wishlist');
+    const initial = savedPerUser || savedLegacy;
+    return initial ? JSON.parse(initial) : [];
   });
   const [cartOpen, setCartOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -196,7 +204,10 @@ const ShopPage = () => {
 
   // Sync cart with localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem('fithub-cart', JSON.stringify(cart));
+    const user = SessionManager.getCurrentUser();
+    const key = user?.email ? `fithub-cart:${user.email}` : 'fithub-cart';
+    localStorage.setItem(key, JSON.stringify(cart));
+    if (user?.email) localStorage.removeItem('fithub-cart');
   }, [cart]);
 
   // Sync wishlist from server when logged in
@@ -308,7 +319,10 @@ const ShopPage = () => {
 
   // Save wishlist to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem('fithub-wishlist', JSON.stringify(wishlist));
+    const user = SessionManager.getCurrentUser();
+    const key = user?.email ? `fithub-wishlist:${user.email}` : 'fithub-wishlist';
+    localStorage.setItem(key, JSON.stringify(wishlist));
+    if (user?.email) localStorage.removeItem('fithub-wishlist');
   }, [wishlist]);
 
   // Refresh products when component mounts or when needed
