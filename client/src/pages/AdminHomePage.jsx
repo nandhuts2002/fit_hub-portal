@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import SessionManager from '../utils/sessionManager';
 import AdminProductManagement from '../components/AdminProductManagement';
+import LocationAdminPanel from '../components/LocationAdminPanel';
+import BookingManagement from '../components/BookingManagement';
 import api from '../utils/api';
 // import MusicAdminPanel from '../components/MusicAdminPanel';
 
@@ -2703,6 +2705,8 @@ const AdminHomePage = () => {
                 {activeTab === 'analytics' && '📊 Analytics'}
                 {activeTab === 'settings' && '⚙️ Settings'}
                 {activeTab === 'music' && '🎵 Music'}
+                {activeTab === 'location' && '📍 Location'}
+                {activeTab === 'bookings' && '📋 Bookings'}
               </span>
             </div>
           )}
@@ -2912,12 +2916,34 @@ const AdminHomePage = () => {
 
               <div
                 className="nav-card"
+                onClick={() => handleTabChange('location')}
+              >
+                <div className="text-3xl mb-3">📍</div>
+                <div>
+                  <h3 className="text-lg font-semibold text-secondary-900 mb-1">Location</h3>
+                  <p className="text-sm text-secondary-600">Gyms, trainers & events</p>
+                </div>
+              </div>
+
+              <div
+                className="nav-card"
                 onClick={() => { handleTabChange('orders'); fetchOrders(); }}
               >
                 <div className="text-3xl mb-3">📦</div>
                 <div>
                   <h3 className="text-lg font-semibold text-secondary-900 mb-1">Orders</h3>
                   <p className="text-sm text-secondary-600">Track & update statuses</p>
+                </div>
+              </div>
+
+              <div
+                className="nav-card"
+                onClick={() => handleTabChange('bookings')}
+              >
+                <div className="text-3xl mb-3">📋</div>
+                <div>
+                  <h3 className="text-lg font-semibold text-secondary-900 mb-1">Bookings</h3>
+                  <p className="text-sm text-secondary-600">Event & gym bookings</p>
                 </div>
               </div>
             </div>
@@ -2947,6 +2973,8 @@ const AdminHomePage = () => {
         {activeTab === 'tutorials' && renderAdminTutorials()}
         {activeTab === 'products' && <AdminProductManagement />}
         {activeTab === 'music' && <MusicAdminPanel />}
+        {activeTab === 'location' && <LocationAdminPanel />}
+        {activeTab === 'bookings' && <BookingManagement />}
         {activeTab === 'orders' && renderOrders()}
         {activeTab === 'analytics' && renderAnalytics()}
         {activeTab === 'settings' && renderSettings()}

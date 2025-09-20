@@ -5,6 +5,8 @@ from auth import auth_bp
 from trainer import trainer_bp
 from admin import admin_bp
 from shop import shop_bp
+from exercises import exercises_bp
+from location import location_bp
 from dotenv import load_dotenv
 import os
 from datetime import timedelta
@@ -26,6 +28,8 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(trainer_bp, url_prefix='/trainer')
 app.register_blueprint(admin_bp, url_prefix='/admin')
 app.register_blueprint(shop_bp, url_prefix='/shop')
+app.register_blueprint(exercises_bp, url_prefix='/exercises')
+app.register_blueprint(location_bp, url_prefix='/location')
 
 # Serve uploaded files
 UPLOAD_DIR = _path.join(_path.dirname(__file__), 'uploads')

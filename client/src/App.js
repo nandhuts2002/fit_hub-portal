@@ -20,6 +20,9 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import OrderSummaryPage from './pages/OrderSummaryPage';
 import MyOrdersPage from './pages/MyOrdersPage';
+import LocationFeaturesPage from './pages/LocationFeaturesPage';
+import ExerciseDatabasePage from './pages/ExerciseDatabasePageFixed';
+import ServicesPage from './pages/ServicesPage';
 
 function App() {
   console.log('App component rendering...');
@@ -95,6 +98,21 @@ function App() {
         <Route path="/orders/:id" element={
           <ProtectedRoute>
             <OrderSummaryPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/location-features" element={
+          <ProtectedRoute>
+            <LocationFeaturesPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/exercise-database" element={
+          <ProtectedRoute>
+            <ExerciseDatabasePage />
+          </ProtectedRoute>
+        } />
+        <Route path="/services" element={
+          <ProtectedRoute>
+            <ServicesPage />
           </ProtectedRoute>
         } />
         

@@ -37,3 +37,12 @@ shipping_collection = db['shipping']      # Shipping rates and zones
 
 # Music/Relaxation
 music_tracks_collection = db['music_tracks']  # Admin-managed relaxation tracks
+
+# Location-based features
+gyms_collection = db['gyms']          # Gym locations and details
+trainers_collection = db['trainers']  # Trainer profiles with location data
+events_collection = db['events']      # Local fitness events
+
+# Booking and membership collections
+event_bookings_collection = db['event_bookings']    # Event bookings with payment details
+gym_memberships_collection = db['gym_memberships']  # Gym memberships with payment details

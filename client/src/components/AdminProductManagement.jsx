@@ -37,6 +37,60 @@ const AdminProductManagement = () => {
     tags: ['']
   });
 
+  // Live validation state
+  const [touched, setTouched] = useState({});
+  const [formErrors, setFormErrors] = useState({});
+
+  // Field-level validator
+  const fieldError = (name, value) => {
+    switch (name) {
+      case 'name':
+        if (!value || value.trim().length === 0) return 'Product name is required';
+        if (value.trim().length < 3) return 'Name must be at least 3 characters';
+        return '';
+      case 'price':
+        if (value === '' || value === null || isNaN(Number(value))) return 'Price is required';
+        if (Number(value) <= 0) return 'Price must be greater than 0';
+        return '';
+      case 'stockQuantity':
+        if (value === '' || value === null || isNaN(Number(value))) return 'Stock quantity is required';
+        if (!Number.isInteger(Number(value))) return 'Stock must be an integer';
+        if (Number(value) < 0) return 'Stock cannot be negative';
+        return '';
+      case 'originalPrice':
+        if (value === '' || value === null) return '';
+        if (isNaN(Number(value))) return 'Original price must be a number';
+        if (formData.price && !isNaN(Number(formData.price)) && Number(value) < Number(formData.price)) {
+          return 'Original price should be greater than or equal to price';
+        }
+        return '';
+      default:
+        return '';
+    }
+  };
+
+  const onFieldFocus = (name, currentValue) => {
+    setTouched(prev => ({ ...prev, [name]: true }));
+    const msg = fieldError(name, currentValue);
+    setFormErrors(prev => ({ ...prev, [name]: msg || undefined }));
+  };
+
+  const onFieldBlur = (name, currentValue) => {
+    const msg = fieldError(name, currentValue);
+    setFormErrors(prev => ({ ...prev, [name]: msg || undefined }));
+  };
+
+  const validateAll = () => {
+    const fields = ['name', 'price', 'stockQuantity', 'originalPrice'];
+    const nextErrors = {};
+    fields.forEach((f) => {
+      const msg = fieldError(f, formData[f]);
+      if (msg) nextErrors[f] = msg;
+    });
+    setFormErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
   // Load products and categories
   useEffect(() => {
     loadProducts();
@@ -74,10 +128,18 @@ const AdminProductManagement = () => {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
+    const nextValue = type === 'checkbox' ? checked : value;
+
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: nextValue
     }));
+
+    // Live-validate on change once field was focused (touched)
+    if (touched[name]) {
+      const msg = fieldError(name, nextValue);
+      setFormErrors(prev => ({ ...prev, [name]: msg || undefined }));
+    }
   };
 
   const handleArrayChange = (field, index, value) => {
@@ -103,6 +165,14 @@ const AdminProductManagement = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Validate all required fields before submit
+    if (!validateAll()) {
+      // Mark core fields as touched to reveal errors
+      setTouched(prev => ({ ...prev, name: true, price: true, stockQuantity: true, originalPrice: true }));
+      return alert('Please fix the highlighted errors before submitting.');
+    }
+
     setLoading(true);
 
     try {
@@ -263,10 +333,15 @@ const AdminProductManagement = () => {
                         name="name"
                         value={formData.name}
                         onChange={handleInputChange}
+                        onFocus={() => onFieldFocus('name', formData.name)}
+                        onBlur={(e) => onFieldBlur('name', e.target.value)}
                         required
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent ${formErrors.name ? 'border-red-500' : 'border-gray-300'}`}
                         placeholder="Enter product name"
                       />
+                      {touched.name && formErrors.name && (
+                        <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Brand</label>
@@ -302,12 +377,17 @@ const AdminProductManagement = () => {
                         name="price"
                         value={formData.price}
                         onChange={handleInputChange}
+                        onFocus={() => onFieldFocus('price', formData.price)}
+                        onBlur={(e) => onFieldBlur('price', e.target.value)}
                         required
                         min="0"
                         step="0.01"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent ${formErrors.price ? 'border-red-500' : 'border-gray-300'}`}
                         placeholder="0.00"
                       />
+                      {touched.price && formErrors.price && (
+                        <p className="mt-1 text-sm text-red-600">{formErrors.price}</p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Original Price</label>

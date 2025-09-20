@@ -1,0 +1,23 @@
+# Fallback GIF Placeholder
+# This is a placeholder file for the fallback.gif image
+# You need to replace this with an actual GIF file
+
+# Instructions:
+# 1. Create or download a simple exercise-related GIF
+# 2. Save it as "fallback.gif" in the client/public/images/ directory
+# 3. The GIF should be around 300x200 pixels for best results
+# 4. It will be used when ExerciseDB images fail to load
+
+# Suggested sources for fallback GIF:
+# - Create a simple animated GIF with exercise-related content
+# - Use a generic fitness/workout GIF
+# - Use a simple animated placeholder with "Exercise" text
+
+
+
+
+
+
+
+
+

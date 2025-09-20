@@ -1,44 +1,33 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaArrowRight } from "react-icons/fa";
 import {
-  User,
-  Settings,
-  LogOut,
-  BookOpen,
   ShoppingBag,
-  MessageCircle,
   Search,
-  Heart,
   Menu,
-  ChevronDown,
-  Globe,
-  DollarSign,
-  HelpCircle,
-  Star,
   Dumbbell,
+  Sun,
+  Moon,
 } from "lucide-react";
 import SessionManager from "../utils/sessionManager";
 
 // Dark, high-contrast yoga/fitness images for a premium feel (dimmer)
 const HERO_IMAGES = [
-   "https://images.pexels.com/photos/8534496/pexels-photo-8534496.jpeg",
-   "https://images.pexels.com/photos/4662469/pexels-photo-4662469.jpeg",
-   "https://images.pexels.com/photos/13849092/pexels-photo-13849092.jpeg",
-   "https://images.pexels.com/photos/268134/pexels-photo-268134.jpeg"
-  //  "https://images.unsplash.com/photo-1540206276209-9798b937bbfd?q=80&w=1920&auto=format&fit=crop&ixlib=rb-4.0.3&sat=10", // yoga silhouette sunset
-  //  "https://images.unsplash.com/photo-1599050751792-d5b1e8f1d6b1?q=80&w=1920&auto=format&fit=crop&ixlib=rb-4.0.3&sat=0", // mat & dumbbells
-  //  "https://images.unsplash.com/photo-1541364983171-a8ba01e95cfc?q=80&w=1920&auto=format&fit=crop&ixlib=rb-4.0.3&sat=10" // studio pose
+  "https://images.pexels.com/photos/8534496/pexels-photo-8534496.jpeg",
+  "https://images.pexels.com/photos/4662469/pexels-photo-4662469.jpeg",
+  "https://images.pexels.com/photos/13849092/pexels-photo-13849092.jpeg",
+  "https://images.pexels.com/photos/268134/pexels-photo-268134.jpeg"
 ];
 
 // Per-image brightness tuning (lower = darker)
-const HERO_BRIGHTNESS = [0.75, 0.8, 0.75];
+const HERO_BRIGHTNESS = [0.35, 0.45, 0.45];
 
 const UserHomePage = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [theme, setTheme] = useState(() => localStorage.getItem('user_theme') || 'dark');
   const [heroIndex, setHeroIndex] = useState(0);
   const [stats, setStats] = useState({ sessions: 0, minutes: 0, streak: 0, rating: 0 });
   const [activity, setActivity] = useState([]);
@@ -59,10 +48,19 @@ const UserHomePage = () => {
   // Auto-rotate hero background
   useEffect(() => {
     const id = setInterval(() => {
-      setHeroIndex((idx) => (idx + 1) % HERO_IMAGES.length);
+      setHeroIndex((idx) => {
+        const newIndex = (idx + 1) % HERO_IMAGES.length;
+        console.log('Rotating to hero image:', newIndex, HERO_IMAGES[newIndex]);
+        return newIndex;
+      });
     }, 5000);
     return () => clearInterval(id);
   }, []);
+
+  // Persist theme
+  useEffect(() => {
+    try { localStorage.setItem('user_theme', theme); } catch {}
+  }, [theme]);
 
   // Fetch real user stats and recent activity
   useEffect(() => {
@@ -273,7 +271,7 @@ const UserHomePage = () => {
   }, [menuOpen, notificationsOpen]);
 
   return (
-    <div className="relative min-h-screen theme-dark bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
+    <div className={`relative min-h-screen ${theme === 'dark' ? 'bg-gray-950' : 'bg-gray-50'}`}>
       <AnimatePresence>
         <NotificationToast
           toast={toast}
@@ -293,130 +291,192 @@ const UserHomePage = () => {
             exit={{ opacity: 0, scale: 0.95 }}
             transition={{ duration: 3, ease: "easeInOut" }}
           >
-            <motion.img
-              key={`hero-${heroIndex}`}
+            <img
               src={HERO_IMAGES[heroIndex]}
               alt="Yoga Background"
               className="w-full h-full object-cover"
-              style={{ filter: `brightness(${HERO_BRIGHTNESS[heroIndex] || 0.7}) contrast(1.1) saturate(1.05)` }}
-              initial={{ scale: 1.05 }}
-              animate={{ scale: 1 }}
-              transition={{ duration: 5, ease: "easeInOut" }}
+              style={{ filter: `brightness(${HERO_BRIGHTNESS[heroIndex] || 0.7}) contrast(1.1) saturate(1.0)` }}
+              onLoad={() => console.log('Image loaded successfully:', HERO_IMAGES[heroIndex])}
+              onError={(e) => console.error('Image failed to load:', HERO_IMAGES[heroIndex], e)}
             />
-            <div className="absolute inset-0 bg-gradient-to-b from-[#0b0b12]/60 via-[#12121a]/40 to-[#0b0b12]/60" />
-            <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-orange-900/25 via-orange-800/10 to-transparent" />
-            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/35 to-black/20" />
+            {/* Stronger overlays for dark aesthetic */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/60" />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-black/50" />
           </motion.div>
         </AnimatePresence>
       </div>
 
 
-      {/* Main Header */}
-      <header className="glass-nav-dark sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          {/* Logo */}
-          <motion.div
-            initial={{ opacity: 0, x: -50 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            className="flex items-center gap-3 cursor-pointer"
-            onClick={() => navigate("/")}
-          >
-            <div className="w-10 h-10 bg-gradient-to-r from-orange-500 to-amber-400 rounded-xl flex items-center justify-center shadow-lg">
-              <span className="text-2xl">🧘‍♀️</span>
-            </div>
-            <div className="flex items-end gap-1">
-              <span className="text-2xl font-extrabold tracking-wide text-white">
-                FIT<span className="text-orange-400">HUB</span>
-              </span>
-              <span className="hidden sm:inline text-[10px] text-slate-500 mb-1">Wellness</span>
-            </div>
-          </motion.div>
+      {/* FITTUB Header - Fitness E-commerce */}
+      <header className={`${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} sticky top-0 z-50 shadow-lg border-b`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            {/* FITTUB Logo */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, ease: "easeOut" }}
+              className="flex items-center gap-3 cursor-pointer"
+              onClick={() => navigate("/")}
+            >
+              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center shadow-lg">
+                <Dumbbell className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex flex-col">
+                <span className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                  FITTUB
+                </span>
+                <span className={`text-xs -mt-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Fitness & Wellness</span>
+              </div>
+            </motion.div>
 
-          {/* Nav Links */}
-          <nav className="hidden md:flex gap-8">
-            {[
-              { label: "HOME", path: "/user-home", active: true },
-              { label: "TUTORIALS", path: "/tutorials" },
-              { label: "QUERIES", path: "/queries" },
-              { label: "SHOP", path: "/shop" },
-            ].map((item, idx) => (
+            {/* Navigation - Blue Theme with Services Page Link */}
+            <nav className="flex items-center gap-3 flex-nowrap overflow-x-auto py-2 flex-1">
               <motion.button
-                key={idx}
-                whileHover={{ scale: 1.05 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
-                onClick={() => navigate(item.path)}
-                className={`relative flex items-center gap-1 font-semibold tracking-wide transition-colors px-2 py-1 ${
-                  item.active
-                    ? 'text-white after:absolute after:-bottom-2 after:left-0 after:h-[3px] after:w-full after:bg-gradient-to-r from-orange-500 to-amber-400 rounded-full'
-                    : 'text-white/80 hover:text-white'
-                }`}
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => navigate("/user-home")}
+                className="px-4 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-md flex items-center gap-2"
               >
-                {item.label}
-                <ChevronDown size={12} />
+                <span className="text-lg">🏠</span>
+                <span className="text-sm font-semibold">Home</span>
               </motion.button>
-            ))}
-          </nav>
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => navigate("/location-features")}
+                className="px-4 py-2.5 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 flex items-center gap-2"
+              >
+                <span className="text-lg">📍</span>
+                <span className="text-sm font-semibold">Find My Gym</span>
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => navigate("/tutorials")}
+                className="px-4 py-2.5 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 flex items-center gap-2"
+              >
+                <span className="text-lg">💪</span>
+                <span className="text-sm font-semibold">Workouts</span>
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => navigate("/shop")}
+                className="px-4 py-2.5 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 flex items-center gap-2"
+              >
+                <span className="text-lg">🛍️</span>
+                <span className="text-sm font-semibold">Shop</span>
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => navigate("/community-posts")}
+                className="px-4 py-2.5 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 flex items-center gap-2"
+              >
+                <span className="text-lg">👥</span>
+                <span className="text-sm font-semibold">Community</span>
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => navigate("/services")}
+                className="px-4 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-md flex items-center gap-2"
+              >
+                <span className="text-lg">🧰</span>
+                <span className="text-sm font-semibold">More Services</span>
+              </motion.button>
+            </nav>
 
-          {/* Right Icons */}
-          <div className="flex items-center gap-4">
-            {/* Notifications Button */}
-              <button
-                onClick={() => { setNotificationsOpen(!notificationsOpen); setUnreadCount(0); localStorage.setItem("user_query_last_seen", String(Date.now())); }}
-              className={`relative w-10 h-10 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center hover:bg-orange-500/30 transition ${unreadCount>0 ? 'ring-2 ring-orange-400/70' : ''}`}
-                title="Notifications"
-              >
-                <motion.span
-                  animate={unreadCount>0 ? { rotate: [0, -15, 15, -10, 10, 0] } : {}}
-                  transition={{ duration: 0.6 }}
-                  className="text-lg"
-                >
-                  🔔
-                </motion.span>
-                {unreadCount > 0 && (
-              <motion.span 
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center"
-              >
-                {unreadCount}
-              </motion.span>
-                )}
+            {/* Right Actions - Fitness Icons */}
+            <div className="flex items-center gap-2 sm:gap-4">
+              {/* Search */}
+              <button className={`p-2.5 rounded-lg transition-all duration-200 ${theme === 'dark' ? 'text-gray-300 hover:text-orange-300 hover:bg-white/10' : 'text-gray-600 hover:text-orange-600 hover:bg-orange-50'}`}>
+                <Search className="w-5 h-5" />
               </button>
 
-            <button 
-              onClick={() => navigate("/wishlist")}
-              className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition-colors"
-            >
-              <Heart size={20} />
-            </button>
-            <button 
-              onClick={() => navigate("/cart")}
-              className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center hover:bg-blue-100 transition-colors"
-            >
-              <ShoppingBag size={20} />
-            </button>
-            
-            {/* Profile Menu Button */}
-            <button
-              onClick={() => setMenuOpen(!menuOpen)}
-              className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold flex items-center justify-center shadow-lg hover:scale-105 transition"
-            >
-              {user?.firstName?.[0] || user?.email?.[0] || "U"}
-            </button>
-            
-            {/* Mobile Menu Button */}
-            <button
-              onClick={() => setMenuOpen(!menuOpen)}
-              className="md:hidden text-slate-600 hover:text-orange-600 transition-colors"
-            >
-              <Menu size={24} />
-            </button>
-          </div>
+              {/* Theme Toggle */}
+              <button
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                className={`p-2.5 rounded-lg transition-all duration-200 ${theme === 'dark' ? 'text-gray-200 hover:bg-white/10' : 'text-gray-700 hover:bg-gray-100'}`}
+              >
+                {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              </button>
+              
+              {/* Cart */}
+              <button 
+                onClick={() => navigate("/cart")}
+                className={`relative p-2.5 rounded-lg transition-all duration-200 ${theme === 'dark' ? 'text-gray-300 hover:text-orange-300 hover:bg-white/10' : 'text-gray-600 hover:text-orange-600 hover:bg-orange-50'}`}
+              >
+                <ShoppingBag className="w-5 h-5" />
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 text-white text-xs rounded-full flex items-center justify-center">3</span>
+              </button>
+              
+              {/* User Profile */}
+              <button
+                onClick={() => setMenuOpen(!menuOpen)}
+                className="w-10 h-10 rounded-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold flex items-center justify-center shadow-lg hover:scale-105 transition"
+              >
+                {user?.firstName?.[0] || user?.email?.[0] || "U"}
+              </button>
+              
+              {/* Mobile Menu Button */}
+              <button
+                onClick={() => setMenuOpen(!menuOpen)}
+                className={`lg:hidden transition-colors ${theme === 'dark' ? 'text-gray-200 hover:text-orange-300' : 'text-gray-600 hover:text-orange-600'}`}
+              >
+                <Menu size={24} />
+              </button>
             </div>
+          </div>
+        </div>
+      </header>
 
-        {/* Notifications and Profile Menu */}
-        <div className="relative">
+      {/* Mobile Navigation Menu */}
+      <AnimatePresence>
+        {menuOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="lg:hidden bg-white border-t border-gray-200 shadow-lg z-40"
+          >
+            <div className="px-4 py-4 space-y-2 bg-gray-50">
+              {[
+                { label: "Home", path: "/user-home", icon: "🏠" },
+                { label: "Find My Gym", path: "/location-features", icon: "📍" },
+                { label: "Workouts", path: "/tutorials", icon: "💪" },
+                { label: "Community", path: "/community-posts", icon: "👥" },
+                { label: "Shop", path: "/shop", icon: "🛍️" },
+              ].map((item, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => {
+                    navigate(item.path);
+                    setMenuOpen(false);
+                  }}
+                  className={`w-full text-left px-4 py-3 rounded-xl transition-colors flex items-center gap-3 bg-white border border-gray-200 shadow-sm text-gray-900 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700`}
+                >
+                  <span className="text-lg">{item.icon}</span>
+                  <span className="font-medium">{item.label}</span>
+                </button>
+              ))}
+              {/* More Services - Mobile direct link */}
+              <button
+                onClick={() => { navigate('/services'); setMenuOpen(false); }}
+                className="w-full text-left px-4 py-3 rounded-xl transition-colors flex items-center gap-3 bg-blue-600 text-white shadow-md hover:bg-blue-700"
+              >
+                <span className="text-lg">🧰</span>
+                <span className="font-semibold">More Services</span>
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Notifications and Profile Menu */}
+      <div className="relative">
             <AnimatePresence>
               {notificationsOpen && (
                 <motion.div
@@ -510,7 +570,7 @@ const UserHomePage = () => {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ duration: 0.3 }}
-                className="profile-menu absolute right-0 mt-3 w-80 bg-gradient-to-b from-slate-900/90 to-slate-950/90 text-white shadow-2xl rounded-2xl overflow-hidden border border-white/10 backdrop-blur-xl"
+                  className="profile-menu absolute right-0 mt-3 w-80 bg-white text-gray-900 shadow-2xl rounded-2xl overflow-hidden border border-gray-300 backdrop-blur-xl z-50"
                 >
                   {/* Profile Card */}
                 <div className="flex items-center gap-3 px-4 py-4 bg-gradient-to-r from-orange-600 to-amber-500">
@@ -526,334 +586,369 @@ const UserHomePage = () => {
                   </div>
 
                   {/* Menu Options */}
-                  <div className="py-2">
+                  <div className="py-3 px-2 bg-gray-50">
                     <button
-                    onClick={() => { setMenuOpen(false); navigate("/user-home"); }}
-                      className="flex items-center gap-3 px-4 py-2 w-full text-left hover:bg-white/10 text-white/90"
+                      onClick={() => { setMenuOpen(false); navigate("/user-home"); }}
+                      className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
                     >
-                    <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-white/10 mr-1">👤</span> My Profile
+                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1">👤</span> My Profile
                     </button>
                     <button
-                    onClick={() => { setMenuOpen(false); navigate("/tutorials"); }}
-                      className="flex items-center gap-3 px-4 py-2 w-full text-left hover:bg-white/10 text-white/90"
+                      onClick={() => { setMenuOpen(false); navigate("/tutorials"); }}
+                      className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
                     >
-                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-white/10 mr-1">📘</span> My Tutorials
+                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1">📘</span> My Tutorials
                     </button>
                     <button
-                    onClick={() => { setMenuOpen(false); navigate("/shop"); }}
-                      className="flex items-center gap-3 px-4 py-2 w-full text-left hover:bg-white/10 text-white/90"
+                      onClick={() => { setMenuOpen(false); navigate("/community-posts"); }}
+                      className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
                     >
-                    <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-white/10 mr-1">🛍️</span> My Orders
+                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1">👥</span> Community Posts
                     </button>
                     <button
-                    onClick={() => { setMenuOpen(false); navigate("/queries"); }}
-                      className="flex items-center gap-3 px-4 py-2 w-full text-left hover:bg-white/10 text-white/90"
+                      onClick={() => { setMenuOpen(false); navigate("/shop"); }}
+                      className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
                     >
-                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-white/10 mr-1">💬</span> My Queries
+                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1">🛍️</span> My Orders
                     </button>
                     <button
-                    onClick={() => { setMenuOpen(false); navigate("/wishlist"); }}
-                    className="flex items-center gap-3 px-4 py-2 w-full text-left hover:bg-white/10 text-white/90"
-                  >
-                    <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-white/10 mr-1">❤️</span> My Wishlist
-                  </button>
-                  <button
-                    onClick={() => { setMenuOpen(false); navigate("/settings"); }}
-                      className="flex items-center gap-3 px-4 py-2 w-full text-left hover:bg-white/10 text-white/90"
+                      onClick={() => { setMenuOpen(false); navigate("/queries"); }}
+                      className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
                     >
-                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-white/10 mr-1">⚙️</span> Settings
+                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1">💬</span> My Queries
+                    </button>
+                    <button
+                      onClick={() => { setMenuOpen(false); navigate("/wishlist"); }}
+                      className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
+                    >
+                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1">❤️</span> My Wishlist
+                    </button>
+                    <button
+                      onClick={() => { setMenuOpen(false); navigate("/settings"); }}
+                      className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
+                    >
+                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1">⚙️</span> Settings
                     </button>
                   </div>
 
                   {/* Logout */}
-                  <div className="border-t">
+                  <div className="border-t border-gray-200">
                     <button
-                    onClick={() => { setMenuOpen(false); handleLogout(); }}
-                      className="flex items-center gap-3 px-4 py-3 w-full text-left text-red-400 hover:bg-white/10 font-semibold"
+                      onClick={() => { setMenuOpen(false); handleLogout(); }}
+                      className="flex items-center gap-3 px-4 py-3 w-full text-left text-red-600 hover:bg-red-50 font-semibold transition-all duration-200 rounded-lg mx-2"
                     >
-                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-red-500/10 text-red-300 mr-1">⎋</span> Logout
+                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-red-100 text-red-600 mr-1">⎋</span> Logout
                     </button>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
         </div>
-      </header>
 
-      {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center">
-        <div className="max-w-7xl mx-auto px-6 py-20 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1.0, ease: "easeOut" }}
-            className="text-white"
-          >
-            <motion.p
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              className="uppercase tracking-[0.35em] text-blue-400 mb-5 font-semibold"
-            >
-              Welcome Back
-            </motion.p>
-            <motion.h1
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 1 }}
-              className="text-5xl md:text-7xl font-extrabold mb-6 leading-tight text-white"
-            >
-              Continue Your <span className="text-orange-400">Yoga Journey</span>
-              <br /> with <span className="text-orange-400">Personalized</span> Guidance
-            </motion.h1>
-            <p className="max-w-2xl mx-auto text-white/85 text-base md:text-lg mb-8 px-2">
-              Your personalized dashboard with progress tracking, custom routines, and expert guidance tailored to your wellness goals.
-            </p>
-
-            {/* Personal Dashboard Card */}
+      {/* Hero Section - FITTUB Style with Better Readability */}
+      <section className={`relative min-h-[80vh] flex items-center justify-center ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-950 to-black' : 'bg-gradient-to-br from-gray-100 via-white to-gray-50'}`}>
+        <div className="max-w-7xl mx-auto px-6 py-20">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left Content */}
             <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              className="w-full max-w-2xl mx-auto"
+              initial={{ opacity: 0, x: -50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className="text-left"
             >
-              <div className="relative overflow-hidden rounded-2xl bg-white/5 backdrop-blur-xl border border-white/10 shadow-2xl">
-                
-                <div className="pointer-events-none absolute -top-10 -left-10 h-40 w-40 rounded-full bg-blue-400/20 blur-3xl" />
-                <div className="pointer-events-none absolute -bottom-10 -right-10 h-40 w-40 rounded-full bg-cyan-300/20 blur-3xl" />
-
-                <div className="relative p-6 sm:p-8 flex flex-col sm:flex-row items-center gap-6 text-left">
-                  {/* Badge */}
-                  <div className="shrink-0">
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-white/90 text-sm border border-white/20">
-                      <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
-                      Your Progress
-                    </div>
-                  </div>
-
-                  {/* Copy */}
-                  <div className="text-left flex-1">
-                    <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
-                      Ready for today's session?
-                    </h3>
-                    <p className="mt-2 text-slate-600 text-sm sm:text-base">
-                      You've completed {stats.sessions || 0} sessions this month. Keep up the great work!
-                    </p>
-                  </div>
-
-                  {/* CTA */}
-                  <div className="w-full sm:w-auto">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
-                      className="w-full sm:w-auto bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-black font-bold py-3 px-8 rounded-2xl transition-all duration-200 shadow-[0_10px_30px_rgba(255,140,0,0.25)] flex items-center gap-2 justify-center"
-                onClick={() => navigate("/tutorials")}
+              <motion.h1
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.3 }}
+                className={`text-4xl md:text-6xl font-bold mb-6 leading-tight ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}
               >
-                      Continue Practice
-                      <FaArrowRight className="text-sm" />
-              </motion.button>
-            </div>
+                Shop Premium <span className="text-orange-600">Fitness Gear</span> & Equipment
+              </motion.h1>
+              
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
+                className={`text-lg mb-8 max-w-lg ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}
+              >
+                Discover high-quality fitness equipment, supplements, and gear to enhance your workout experience. Free shipping on orders over ₹999!
+              </motion.p>
+
+              {/* CTA Buttons */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.5 }}
+                className="flex flex-col sm:flex-row gap-4 mb-8"
+              >
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => navigate("/shop")}
+                  className="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-4 px-8 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 text-lg"
+                >
+                  Shop Now
+                  <FaArrowRight className="text-sm" />
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => navigate("/tutorials")}
+                  className="bg-transparent border-2 border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white font-semibold py-4 px-8 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                >
+                  Start Workout
+                </motion.button>
+              </motion.div>
+
+              {/* Feature Stats */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.6 }}
+                className={`flex flex-col sm:flex-row gap-6 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">📦</span>
+                  <span className="text-sm font-semibold">500+ Products</span>
                 </div>
-              </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">⭐</span>
+                  <span className="text-sm font-semibold">4.9 Rating</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl">🛡️</span>
+                  <span className="text-sm font-semibold">24/7 Support</span>
+                </div>
+              </motion.div>
             </motion.div>
-          </motion.div>
+
+            {/* Right Content - Fitness Image */}
+            <motion.div
+              initial={{ opacity: 0, x: 50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.8, delay: 0.4 }}
+              className="relative"
+            >
+              <img
+                src="https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?q=80&w=800&auto=format&fit=crop&ixlib=rb-4.0.3"
+                alt="Fitness woman doing lunge exercise"
+                className="w-full h-96 object-cover rounded-2xl shadow-2xl"
+                style={{ filter: 'brightness(1.1) contrast(1.2)' }}
+              />
+            </motion.div>
+          </div>
         </div>
       </section>
 
-      {/* Your Progress Overview */}
-      <section className="py-20 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
-        <div className="max-w-6xl mx-auto text-center px-6">
-          <h2 className="text-4xl font-bold mb-12 text-slate-900">
-            Your <span className="text-orange-500">Wellness Journey</span>
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
+      {/* Featured Products Section - FITTUB Style */}
+      <section className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-white'} py-20`}>
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className={`text-4xl font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Featured Products</h2>
+            <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} text-lg`}>Discover our latest fitness innovations</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
-              { icon: "📈", title: "Progress Tracking", desc: "Monitor your daily practice and see improvements over time." },
-              { icon: "🎯", title: "Personal Goals", desc: "Set and achieve your own wellness milestones." },
-              { icon: "📚", title: "Learning Path", desc: "Access tutorials and courses tailored to your level." },
-              { icon: "👥", title: "Community Support", desc: "Connect with fellow practitioners and share experiences." },
-            ].map((feature, i) => (
+              {
+                name: "Premium Dumbbells Set",
+                price: "Starting at ₹2,999",
+                discount: "-20%",
+                image: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?q=80&w=400&auto=format&fit=crop&ixlib=rb-4.0.3",
+                category: "Equipment"
+              },
+              {
+                name: "Yoga Mat Pro",
+                price: "Starting at ₹899",
+                discount: "-15%",
+                image: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=400&auto=format&fit=crop&ixlib=rb-4.0.3",
+                category: "Equipment"
+              },
+              {
+                name: "Protein Powder",
+                price: "Starting at ₹1,299",
+                discount: "-25%",
+                image: "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?q=80&w=400&auto=format&fit=crop&ixlib=rb-4.0.3",
+                category: "Supplements"
+              }
+            ].map((product, idx) => (
               <motion.div
-                key={feature.title}
+                key={product.name}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                transition={{ delay: i * 0.2 }}
-                className="p-8 bg-white rounded-xl shadow-lg hover:shadow-xl transition border border-orange-200"
+                transition={{ delay: idx * 0.1 }}
+                whileHover={{ y: -5 }}
+                className={`group rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'}`}
               >
-                <div className="text-orange-500 mb-4 flex justify-center text-4xl">{feature.icon}</div>
-                <h3 className="text-xl font-semibold mb-2 text-slate-900">{feature.title}</h3>
-                <p className="text-slate-600">{feature.desc}</p>
+                <div className="relative">
+                  <img
+                    src={product.image}
+                    alt={product.name}
+                    className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  <div className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold">
+                    {product.discount}
+                  </div>
+                </div>
+                <div className="p-6">
+                  <div className="text-sm text-orange-500 font-medium mb-2">{product.category}</div>
+                  <h3 className={`text-xl font-bold mb-2 group-hover:text-orange-400 transition-colors ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                    {product.name}
+                  </h3>
+                  <div className={`text-lg font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{product.price}</div>
+                </div>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Main Content */}
-      <main className="relative z-10 bg-gradient-to-br from-slate-50 via-orange-50/30 to-amber-50/40">
-        {/* Quick Stats */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1.0, delay: 0.4, ease: "easeOut" }}
-          className="max-w-7xl mx-auto px-6 py-16"
-        >
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-slate-900 mb-4">Quick Stats</h2>
-            <p className="text-slate-600">Track your yoga journey progress</p>
+      {/* Features Section - Your Original Features with CURSOR Styling */}
+      <section className={`${theme === 'dark' ? 'bg-gray-950' : 'bg-white'} py-20`}>
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className={`text-4xl font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+              Your <span className="text-orange-500">Wellness Journey</span>
+            </h2>
+            <p className={`text-lg max-w-2xl mx-auto ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>
+              Everything you need to achieve your fitness goals in one place
+            </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-16">
-          {[
-              { value: String(stats.sessions || 0), label: "Yoga Sessions", icon: "🧘‍♀️", color: "from-indigo-400 to-purple-400" },
-              { value: String(stats.minutes || 0), label: "Minutes Practiced", icon: "⏱️", color: "from-green-400 to-emerald-400" },
-            { value: String(stats.streak || 0), label: "Day Streak", icon: "🔥", color: "from-orange-400 to-red-400" },
-            { value: String(stats.rating || 0), label: "Average Rating", icon: "⭐", color: "from-yellow-400 to-orange-400" },
-          ].map((stat, idx) => (
-            <motion.div
-              key={idx}
-              whileHover={{ scale: 1.05, y: -5 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-                className="bg-white rounded-xl shadow-lg p-6 text-center border border-orange-200 hover:shadow-xl transition-shadow"
-            >
-              <div className={`text-4xl mb-3 bg-gradient-to-r ${stat.color} bg-clip-text text-transparent`}>
-                {stat.icon}
-              </div>
-              <p className="text-3xl font-bold text-orange-500 mb-2">{stat.value}</p>
-                <p className="text-sm text-slate-600">{stat.label}</p>
-            </motion.div>
-          ))}
-          </div>
-
-        {/* Feature Cards */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1.0, delay: 0.6, ease: "easeOut" }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16"
-        >
-          {[
-            {
-                title: "Yoga Classes",
-                description: "Expert-led yoga sessions for all levels",
-              icon: "🧘‍♀️",
-                color: "from-blue-500 to-cyan-600",
-              action: () => navigate("/tutorials")
-            },
-            {
-                title: "Yoga Shop",
-                description: "Premium yoga mats, props & accessories",
-              icon: "🛍️",
-                color: "from-green-500 to-emerald-600",
-              action: () => navigate("/shop")
-            },
-            {
-              title: "Community",
-                description: "Connect with yoga practitioners",
-              icon: "👥",
-                color: "from-orange-500 to-red-600",
-              action: () => navigate("/community")
-            },
-            {
-                title: "Personal Guidance",
-                description: "Get guidance from certified yoga instructors",
-                icon: "🧘‍♂️",
-                color: "from-purple-500 to-pink-600",
-              action: () => navigate("/queries")
-            },
-            {
-              title: "Progress Tracking",
-                description: "Monitor your yoga journey",
-              icon: "📊",
-                color: "from-yellow-500 to-orange-600",
-              action: () => navigate("/progress")
-            },
-            {
-                title: "Meditation",
-                description: "Mindfulness and meditation practices",
-                icon: "🕯️",
-                color: "from-teal-500 to-cyan-600",
-                action: () => navigate("/meditation")
-            }
-          ].map((feature, idx) => (
-            <motion.div
-              key={idx}
-              whileHover={{ scale: 1.05, y: -5 }}
-              whileTap={{ scale: 0.95 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-                className="bg-white rounded-xl shadow-lg p-8 text-center border border-orange-200 cursor-pointer hover:border-orange-300 hover:shadow-xl transition-all"
-              onClick={feature.action}
-            >
-              <div className={`text-5xl mb-4 bg-gradient-to-r ${feature.color} bg-clip-text text-transparent`}>
-                {feature.icon}
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">{feature.title}</h3>
-                <p className="text-slate-600 mb-4">{feature.description}</p>
-              <div className={`inline-block px-4 py-2 rounded-lg bg-gradient-to-r ${feature.color} text-white text-sm font-semibold`}>
-                Explore →
-              </div>
-            </motion.div>
-          ))}
-        </motion.div>
-
-        {/* Recent Activity */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1.0, delay: 0.8, ease: "easeOut" }}
-            className="bg-white rounded-xl shadow-lg p-8 border border-orange-200"
-        >
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-slate-900">Recent Activity</h2>
-            <button
-              onClick={() => window.location.reload()}
-              className="flex items-center gap-2 px-4 py-2 bg-orange-100 hover:bg-orange-200 text-orange-700 rounded-lg transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Refresh
-            </button>
-          </div>
-          <div className="space-y-4">
-            {activity.length === 0 ? (
-              <div className="text-center text-slate-500">No recent activity yet.</div>
-            ) : (
-              activity.map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-4 p-4 bg-orange-50 rounded-xl border border-orange-200">
-                  <div className="text-2xl">{item.icon}</div>
-                  <div className="flex-1">
-                    <p className="text-slate-900 font-medium">{item.action}</p>
-                    <p className="text-slate-600 text-sm">{item.time}</p>
-                    {item.status && (
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          item.status === 'Delivered' ? 'bg-green-100 text-green-800' :
-                          item.status === 'Shipped' ? 'bg-blue-100 text-blue-800' :
-                          item.status === 'Processing' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {item.status}
-                        </span>
-                        {item.paymentStatus && (
-                          <span className={`px-2 py-1 text-xs rounded-full ${
-                            item.paymentStatus === 'Paid' ? 'bg-green-100 text-green-800' :
-                            'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {item.paymentStatus}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {[
+              { 
+                icon: "📈", 
+                title: "Progress Tracking", 
+                desc: "Monitor your daily practice and see improvements over time.",
+                color: "from-blue-500 to-blue-600"
+              },
+              { 
+                icon: "🎯", 
+                title: "Personal Goals", 
+                desc: "Set and achieve your own wellness milestones.",
+                color: "from-green-500 to-green-600"
+              },
+              { 
+                icon: "📚", 
+                title: "Learning Path", 
+                desc: "Access tutorials and courses tailored to your level.",
+                color: "from-purple-500 to-purple-600"
+              },
+              { 
+                icon: "👥", 
+                title: "Community Support", 
+                desc: "Connect with fellow practitioners and share experiences.",
+                color: "from-orange-500 to-orange-600"
+              },
+            ].map((feature, i) => (
+              <motion.div
+                key={feature.title}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                whileHover={{ y: -5 }}
+                className={`group rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border ${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-100'}`}
+              >
+                <div className={`h-2 bg-gradient-to-r ${feature.color}`}></div>
+                <div className="p-8">
+                  <div className="text-4xl mb-4">{feature.icon}</div>
+                  <h3 className={`text-xl font-bold mb-3 group-hover:text-orange-400 transition-colors ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+                    {feature.title}
+                  </h3>
+                  <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} leading-relaxed`}>{feature.desc}</p>
                 </div>
-              ))
-            )}
+              </motion.div>
+            ))}
           </div>
-          </motion.div>
-        </motion.div>
+        </div>
+      </section>
+
+      {/* Quick Actions Section - Your Original Actions with CURSOR Styling */}
+      <main className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-100'}`}>
+        <div className="max-w-7xl mx-auto px-6 py-20">
+          <div className="text-center mb-16">
+            <h2 className={`text-3xl font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Quick Actions</h2>
+            <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} text-lg`}>Get started with your fitness journey</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              {
+                title: "🏋️‍♀️ Find My Gym",
+                description: "Discover nearby fitness centers",
+                icon: "📍",
+                color: "from-blue-500 to-blue-600",
+                highlight: true,
+                action: () => navigate("/location-features")
+              },
+              {
+                title: "💪 Exercise",
+                description: "Start your fitness session",
+                icon: "🏃‍♂️",
+                color: "from-green-500 to-green-600",
+                highlight: true,
+                action: () => navigate("/tutorials")
+              },
+              {
+                title: "🛍️ Shop Now",
+                description: "Browse premium fitness equipment",
+                icon: "🛒",
+                color: "from-orange-500 to-orange-600",
+                action: () => navigate("/shop")
+              },
+              {
+                title: "📊 View Progress",
+                description: "Track your achievements",
+                icon: "📈",
+                color: "from-purple-500 to-purple-600",
+                action: () => navigate("/user-home")
+              }
+            ].map((action, idx) => (
+              <motion.button
+                key={idx}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: idx * 0.1 }}
+                whileHover={{ scale: 1.05, y: -5 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={action.action}
+                className={`group rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border p-8 text-left ${
+                  action.highlight 
+                    ? 'bg-gradient-to-br from-orange-500 to-orange-600 text-white border-orange-300' 
+                    : theme === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-100'
+                }`}
+              >
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition-transform ${
+                  action.highlight 
+                    ? 'bg-white/20 text-white' 
+                    : theme === 'dark' ? 'bg-gray-700 text-white' : `bg-gradient-to-r ${action.color} text-white`
+                }`}>
+                  {action.icon}
+                </div>
+                <h3 className={`text-xl font-bold mb-2 group-hover:text-orange-400 transition-colors ${
+                  action.highlight ? 'text-white' : theme === 'dark' ? 'text-white' : 'text-gray-900'
+                }`}>
+                  {action.title}
+                </h3>
+                <p className={action.highlight ? 'text-orange-100' : theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}>
+                  {action.description}
+                </p>
+                {action.highlight && (
+                  <div className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-white/90">
+                    <span>Get Started</span>
+                    <FaArrowRight className="text-xs" />
+                  </div>
+                )}
+              </motion.button>
+            ))}
+          </div>
+        </div>
       </main>
+
     </div>
   );
 };
