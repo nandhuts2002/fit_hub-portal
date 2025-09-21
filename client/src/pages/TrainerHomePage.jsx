@@ -452,6 +452,28 @@ const TrainerHomePage = () => {
               <p className="text-slate-600">Key stats at a glance</p>
             </div>
 
+            {/* Live Sessions management CTA */}
+            <div className="bg-gradient-to-br from-white to-orange-50 rounded-2xl border border-orange-200 shadow-sm p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <div className="text-lg font-semibold text-slate-900">Live Sessions (Zoom/Meet)</div>
+                <div className="text-slate-700 text-sm mt-1">Create and manage your live training sessions. Share Zoom/Meet links, set capacity, and see reservations.</div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => navigate('/services/live?mine=1')}
+                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow"
+                >
+                  Manage Sessions
+                </button>
+                <button
+                  onClick={() => navigate('/services/live?mine=1')}
+                  className="px-4 py-2 rounded-lg bg-orange-600 hover:bg-orange-700 text-white font-semibold shadow"
+                >
+                  Create New
+                </button>
+              </div>
+            </div>
+
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow">

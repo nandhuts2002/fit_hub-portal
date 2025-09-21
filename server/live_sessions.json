@@ -1,0 +1,93 @@
+{
+  "sessions": [
+    {
+      "id": "de8e25503e6340f5b8802d6f0e203516",
+      "title": "fit hub",
+      "description": "join live session ",
+      "trainerId": "trainer1234@gmail.com",
+      "trainerName": "TrainerA Ts",
+      "platform": "meet",
+      "meetingUrl": "https://meet.google.com/ohk-tmkq-mjh",
+      "startTime": "2025-09-21T16:00:00.000Z",
+      "duration": 60,
+      "capacity": 20,
+      "price": 20.0,
+      "level": "all",
+      "style": "yoga",
+      "reservations": [
+        {
+          "email": "nandhunandhuts007@gmail.com",
+          "name": "nandhu ts",
+          "reservedAt": "2025-09-21T16:01:45.706496+00:00",
+          "status": "pending",
+          "requestedAt": "2025-09-21T16:17:19.541535+00:00"
+        },
+        {
+          "email": "nandhunandhuts@gmail.com",
+          "name": "Nandhu",
+          "requestedAt": "2025-09-21T16:24:05.121463+00:00",
+          "status": "pending",
+          "payStatus": "unpaid"
+        }
+      ],
+      "createdAt": "2025-09-21T16:00:51.702047+00:00"
+    },
+    {
+      "id": "178d9a36a36340dcb593c81d0b9dbb91",
+      "title": "new",
+      "description": "come ",
+      "trainerId": "trainer1234@gmail.com",
+      "trainerName": "TrainerA Ts",
+      "platform": "meet",
+      "meetingUrl": "https://meet.google.com/ohk-tmkq-mjh",
+      "startTime": "2025-09-21T16:19:00.000Z",
+      "duration": 60,
+      "capacity": 20,
+      "price": 100.0,
+      "level": "all",
+      "style": "yoga",
+      "reservations": [
+        {
+          "email": "nandhunandhuts@gmail.com",
+          "name": "Nandhu",
+          "requestedAt": "2025-09-21T16:20:43.852122+00:00",
+          "status": "approved",
+          "payStatus": "unpaid"
+        }
+      ],
+      "createdAt": "2025-09-21T16:19:49.104543+00:00"
+    },
+    {
+      "id": "f1bd3f505f984ed180951665e6defc29",
+      "title": "one peice",
+      "description": "join",
+      "trainerId": "trainer1234@gmail.com",
+      "trainerName": "TrainerA Ts",
+      "platform": "meet",
+      "meetingUrl": "https://meet.google.com/zxt-qzgv-amb",
+      "startTime": "2025-09-24T16:31:00.000Z",
+      "duration": 60,
+      "capacity": 20,
+      "price": 90.0,
+      "level": "all",
+      "style": "yoga",
+      "reservations": [
+        {
+          "email": "nandhunandhuts@gmail.com",
+          "name": "Nandhu",
+          "requestedAt": "2025-09-21T16:34:18.044204+00:00",
+          "status": "approved",
+          "payStatus": "unpaid"
+        },
+        {
+          "email": "amymaria123@gmail.com",
+          "name": "amy mariya",
+          "requestedAt": "2025-09-21T16:36:03.106954+00:00",
+          "status": "approved",
+          "payStatus": "paid"
+        }
+      ],
+      "createdAt": "2025-09-21T16:31:51.779124+00:00"
+    }
+  ]
+}

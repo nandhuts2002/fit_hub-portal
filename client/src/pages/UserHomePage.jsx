@@ -35,6 +35,7 @@ const UserHomePage = () => {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [toast, setToast] = useState(null); // {title, preview}
+  const [tutorialsList, setTutorialsList] = useState([]); // real tutorials for recommendations
 
   useEffect(() => {
     const currentUser = SessionManager.getCurrentUser();
@@ -55,6 +56,27 @@ const UserHomePage = () => {
       });
     }, 5000);
     return () => clearInterval(id);
+  }, []);
+
+  // Load upcoming live sessions (real data)
+  const [liveItems, setLiveItems] = useState([]);
+  useEffect(() => {
+    const loadLive = async () => {
+      try {
+        const resp = await fetch('http://localhost:5000/live/sessions');
+        const json = await resp.json();
+        const list = json?.data || [];
+        // sort by startTime ascending and take next 3
+        const sorted = list
+          .filter(s => !!s.startTime)
+          .sort((a,b)=> String(a.startTime).localeCompare(String(b.startTime)))
+          .slice(0,3);
+        setLiveItems(sorted);
+      } catch (e) {
+        // ignore for home rendering
+      }
+    };
+    loadLive();
   }, []);
 
   // Persist theme
@@ -88,13 +110,14 @@ const UserHomePage = () => {
         const tResp = await fetch("http://localhost:5000/trainer/public/tutorials", { headers });
         const tJson = tResp.ok ? await tResp.json() : { tutorials: [] };
         const tutorials = tJson.tutorials || [];
+        setTutorialsList(tutorials);
 
-        // Build stats (replace when dedicated endpoint available)
+        // Build fitness-oriented stats (from real data we have)
         const computedStats = {
-          sessions: Math.min(orders.length + tutorials.length, 999),
+          sessions: tutorials.length, // count tutorials as workouts completed/viewed
           minutes: tutorials.length * 20,
           streak: Math.max(1, Math.min(7, queries.length % 9)),
-          rating: 4.8,
+          rating: 4.9,
         };
         setStats(computedStats);
 
@@ -307,11 +330,11 @@ const UserHomePage = () => {
       </div>
 
 
-      {/* FITTUB Header - Fitness E-commerce */}
+      {/* FITHUB Header - Fitness E-commerce */}
       <header className={`${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} sticky top-0 z-50 shadow-lg border-b`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            {/* FITTUB Logo */}
+            {/* FITHUB Logo */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -324,7 +347,7 @@ const UserHomePage = () => {
               </div>
               <div className="flex flex-col">
                 <span className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                  FITTUB
+                  FITHUB
                 </span>
                 <span className={`text-xs -mt-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-500'}`}>Fitness & Wellness</span>
               </div>
@@ -645,7 +668,7 @@ const UserHomePage = () => {
             </AnimatePresence>
         </div>
 
-      {/* Hero Section - FITTUB Style with Better Readability */}
+      {/* Hero Section - FitHub Fitness & Yoga Focus */}
       <section className={`relative min-h-[80vh] flex items-center justify-center ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-950 to-black' : 'bg-gradient-to-br from-gray-100 via-white to-gray-50'}`}>
         <div className="max-w-7xl mx-auto px-6 py-20">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
@@ -662,7 +685,7 @@ const UserHomePage = () => {
                 transition={{ duration: 0.8, delay: 0.3 }}
                 className={`text-4xl md:text-6xl font-bold mb-6 leading-tight ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}
               >
-                Shop Premium <span className="text-orange-600">Fitness Gear</span> & Equipment
+                Elevate Your <span className="text-orange-600">Fitness & Yoga</span> Journey
               </motion.h1>
               
               <motion.p
@@ -671,7 +694,7 @@ const UserHomePage = () => {
                 transition={{ duration: 0.6, delay: 0.4 }}
                 className={`text-lg mb-8 max-w-lg ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}
               >
-                Discover high-quality fitness equipment, supplements, and gear to enhance your workout experience. Free shipping on orders over ₹999!
+                Personalised workouts, live trainer sessions, and mindful yoga flows—designed to help you build strength, mobility, and balance. Join a live class or start a guided plan now.
               </motion.p>
 
               {/* CTA Buttons */}
@@ -684,19 +707,19 @@ const UserHomePage = () => {
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => navigate("/shop")}
+                  onClick={() => navigate("/tutorials")}
                   className="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-4 px-8 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 text-lg"
                 >
-                  Shop Now
+                  Start Workout
                   <FaArrowRight className="text-sm" />
                 </motion.button>
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => navigate("/tutorials")}
+                  onClick={() => navigate("/services/live")}
                   className="bg-transparent border-2 border-orange-500 text-orange-600 hover:bg-orange-500 hover:text-white font-semibold py-4 px-8 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
                 >
-                  Start Workout
+                  Join Live Session
                 </motion.button>
               </motion.div>
 
@@ -708,16 +731,25 @@ const UserHomePage = () => {
                 className={`flex flex-col sm:flex-row gap-6 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">📦</span>
-                  <span className="text-sm font-semibold">500+ Products</span>
+                  <span className="text-xl">🏋️‍♀️</span>
+                  <div>
+                    <div className="text-sm font-semibold">{stats.sessions}+ Workouts</div>
+                    <div className="text-xs opacity-80">Completed or saved</div>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">⭐</span>
-                  <span className="text-sm font-semibold">4.9 Rating</span>
+                  <span className="text-xl">🔥</span>
+                  <div>
+                    <div className="text-sm font-semibold">{stats.minutes} mins</div>
+                    <div className="text-xs opacity-80">Guided training</div>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">🛡️</span>
-                  <span className="text-sm font-semibold">24/7 Support</span>
+                  <span className="text-xl">📅</span>
+                  <div>
+                    <div className="text-sm font-semibold">{stats.streak}-day Streak</div>
+                    <div className="text-xs opacity-80">Keep it going</div>
+                  </div>
                 </div>
               </motion.div>
             </motion.div>
@@ -740,67 +772,74 @@ const UserHomePage = () => {
         </div>
       </section>
 
-      {/* Featured Products Section - FITTUB Style */}
-      <section className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-white'} py-20`}>
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className={`text-4xl font-bold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Featured Products</h2>
-            <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} text-lg`}>Discover our latest fitness innovations</p>
+      {/* Upcoming Live Sessions (real data) */}
+      <section className="relative">
+        <div className="max-w-7xl mx-auto px-6 py-10">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Upcoming Live Sessions</h2>
+            <button onClick={()=>navigate('/services/live')} className={`${theme==='dark'?'text-orange-300 hover:text-white':'text-orange-600 hover:text-orange-700'} text-sm font-semibold`}>View all →</button>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[
-              {
-                name: "Premium Dumbbells Set",
-                price: "Starting at ₹2,999",
-                discount: "-20%",
-                image: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?q=80&w=400&auto=format&fit=crop&ixlib=rb-4.0.3",
-                category: "Equipment"
-              },
-              {
-                name: "Yoga Mat Pro",
-                price: "Starting at ₹899",
-                discount: "-15%",
-                image: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=400&auto=format&fit=crop&ixlib=rb-4.0.3",
-                category: "Equipment"
-              },
-              {
-                name: "Protein Powder",
-                price: "Starting at ₹1,299",
-                discount: "-25%",
-                image: "https://images.unsplash.com/photo-1593095948071-474c5cc2989d?q=80&w=400&auto=format&fit=crop&ixlib=rb-4.0.3",
-                category: "Supplements"
-              }
-            ].map((product, idx) => (
-              <motion.div
-                key={product.name}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: idx * 0.1 }}
-                whileHover={{ y: -5 }}
-                className={`group rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border ${theme === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'}`}
-              >
-                <div className="relative">
-                  <img
-                    src={product.image}
-                    alt={product.name}
-                    className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                  <div className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold">
-                    {product.discount}
+          {liveItems.length === 0 ? (
+            <div className={`${theme==='dark'?'bg-gray-900 border-gray-800 text-gray-300':'bg-white border-gray-200 text-gray-700'} rounded-2xl border p-6`}>No upcoming sessions yet. Check back soon or explore tutorials.</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {liveItems.map((s, i) => (
+                <motion.div key={s.id||i} whileHover={{ y: -4 }} className={`${theme==='dark'?'bg-gray-900 border-gray-800':'bg-white border-gray-200'} rounded-2xl border shadow-sm overflow-hidden`}> 
+                  <div className="p-5">
+                    <div className="flex items-center justify-between">
+                      <div className={`text-xs px-2 py-0.5 rounded-full ${theme==='dark'?'bg-gray-800 text-gray-200':'bg-gray-100 text-gray-700'}`}>{(s.platform||'MEET').toUpperCase()}</div>
+                      <div className={`text-xs ${theme==='dark'?'text-gray-300':'text-gray-600'}`}>{new Date(s.startTime).toLocaleString()}</div>
+                    </div>
+                    <div className={`mt-3 text-lg font-bold ${theme==='dark'?'text-white':'text-gray-900'}`}>{s.title || 'Live Workout'}</div>
+                    <div className={`text-sm mt-1 line-clamp-2 ${theme==='dark'?'text-gray-300':'text-gray-600'}`}>{s.description || 'Guided session with trainer.'}</div>
+                    <div className="mt-4 flex items-center justify-between text-sm">
+                      <div className={`${theme==='dark'?'text-gray-300':'text-gray-700'}`}>Cap: {s.capacity || '∞'}</div>
+                      <div className={`${theme==='dark'?'text-gray-300':'text-gray-700'}`}>{s.price? `₹${s.price}`:'Free'}</div>
+                    </div>
+                    <div className="mt-5">
+                      <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={()=>navigate(`/services/live/${s.id}`)} className={`w-full px-4 py-2 rounded-lg font-semibold ${theme==='dark'?'bg-orange-600 hover:bg-orange-700 text-white':'bg-orange-600 hover:bg-orange-700 text-white'}`}>View details</motion.button>
+                    </div>
                   </div>
-                </div>
-                <div className="p-6">
-                  <div className="text-sm text-orange-500 font-medium mb-2">{product.category}</div>
-                  <h3 className={`text-xl font-bold mb-2 group-hover:text-orange-400 transition-colors ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
-                    {product.name}
-                  </h3>
-                  <div className={`text-lg font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{product.price}</div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Recommended Workouts & Yoga (from database tutorials) */}
+      <section className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-white'} py-16`}>
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className={`text-2xl font-bold ${theme==='dark'?'text-white':'text-gray-900'}`}>Recommended Workouts & Yoga</h2>
+            <button onClick={()=>navigate('/tutorials')} className={`${theme==='dark'?'text-orange-300 hover:text-white':'text-orange-600 hover:text-orange-700'} text-sm font-semibold`}>Explore all →</button>
           </div>
+          {tutorialsList.length === 0 ? (
+            <div className={`${theme==='dark'?'bg-gray-950 border-gray-800 text-gray-300':'bg-gray-50 border-gray-200 text-gray-700'} border rounded-2xl p-6`}>No workouts to show yet. Check back soon.</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {tutorialsList.slice(0,6).map((t, i) => (
+                <motion.div key={t.id || i} whileHover={{ y: -4 }} className={`${theme==='dark'?'bg-gray-950 border-gray-800':'bg-white border-gray-200'} border rounded-2xl overflow-hidden shadow-sm`}>
+                  {t.imageUrl && (
+                    <div className="h-40 bg-gray-100 overflow-hidden">
+                      <img src={t.imageUrl} alt={t.title} className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                  <div className="p-5">
+                    <div className="flex items-center justify-between">
+                      <div className={`text-xs px-2 py-0.5 rounded-full ${theme==='dark'?'bg-gray-800 text-gray-200':'bg-gray-100 text-gray-700'}`}>{(t.category || 'fitness').toUpperCase()}</div>
+                      <div className={`text-xs ${theme==='dark'?'text-gray-300':'text-gray-600'}`}>{(t.difficulty || 'beginner')}</div>
+                    </div>
+                    <div className={`mt-2 font-bold ${theme==='dark'?'text-white':'text-gray-900'}`}>{t.title}</div>
+                    <div className={`${theme==='dark'?'text-gray-300':'text-gray-600'} text-sm line-clamp-2 mt-1`}>{t.description}</div>
+                    <div className="mt-4">
+                      <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={()=>navigate('/tutorials')} className={`px-4 py-2 rounded-lg font-semibold ${theme==='dark'?'bg-orange-600 hover:bg-orange-700 text-white':'bg-orange-600 hover:bg-orange-700 text-white'}`}>Start</motion.button>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

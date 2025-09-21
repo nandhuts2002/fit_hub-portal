@@ -7,11 +7,13 @@ from admin import admin_bp
 from shop import shop_bp
 from exercises import exercises_bp
 from location import location_bp
+from live import live_bp
 from dotenv import load_dotenv
 import os
 from datetime import timedelta
 from os import path as _path
-from flask import send_from_directory
+from flask import send_from_directory, Response, request
+import requests
 
 load_dotenv(dotenv_path=_path.join(_path.dirname(__file__), '.env'), override=True)
 
@@ -30,12 +32,29 @@ app.register_blueprint(admin_bp, url_prefix='/admin')
 app.register_blueprint(shop_bp, url_prefix='/shop')
 app.register_blueprint(exercises_bp, url_prefix='/exercises')
 app.register_blueprint(location_bp, url_prefix='/location')
+app.register_blueprint(live_bp, url_prefix='/live')
 
 # Serve uploaded files
 UPLOAD_DIR = _path.join(_path.dirname(__file__), 'uploads')
 @app.route('/uploads/<path:filename>')
 def uploaded_file(filename):
     return send_from_directory(UPLOAD_DIR, filename, as_attachment=False)
+
+# Proxy: ExerciseDB GIFs (to avoid CDN DNS blocks)
+@app.route('/proxy/exercise-gif/<path:gif_id>')
+def proxy_exercise_gif(gif_id: str):
+    # gif_id is usually the numeric id with .gif implied; accept both "1234" and "1234.gif"
+    url_id = gif_id if gif_id.endswith('.gif') else f"{gif_id}.gif"
+    upstream = f"https://d205bpvrqc9yn1.cloudfront.net/{url_id}"
+    try:
+        r = requests.get(upstream, stream=True, timeout=20)
+        headers = {
+            'Content-Type': r.headers.get('Content-Type', 'image/gif'),
+            'Cache-Control': 'public, max-age=3600',
+        }
+        return Response(r.iter_content(chunk_size=8192), status=r.status_code, headers=headers)
+    except requests.RequestException:
+        return Response(b'', status=502)
 
 if __name__ == '__main__':
     app.run(debug=True)

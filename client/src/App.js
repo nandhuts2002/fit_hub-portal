@@ -23,6 +23,11 @@ import MyOrdersPage from './pages/MyOrdersPage';
 import LocationFeaturesPage from './pages/LocationFeaturesPage';
 import ExerciseDatabasePage from './pages/ExerciseDatabasePageFixed';
 import ServicesPage from './pages/ServicesPage';
+import AIPlannerPage from './pages/services/AIPlannerPage';
+import ExerciseExplorerPage from './pages/services/ExerciseExplorerPage';
+import LiveSessionsPage from './pages/services/LiveSessionsPage';
+import LiveSessionDetail from './pages/services/LiveSessionDetail';
+// If you want a dedicated page for Plate Analyzer later, we can add it similarly.
 
 function App() {
   console.log('App component rendering...');
@@ -113,6 +118,26 @@ function App() {
         <Route path="/services" element={
           <ProtectedRoute>
             <ServicesPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/services/live" element={
+          <ProtectedRoute>
+            <LiveSessionsPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/services/live/:id" element={
+          <ProtectedRoute>
+            <LiveSessionDetail />
+          </ProtectedRoute>
+        } />
+        <Route path="/services/exercises" element={
+          <ProtectedRoute>
+            <ExerciseExplorerPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/services/ai-planner" element={
+          <ProtectedRoute>
+            <AIPlannerPage />
           </ProtectedRoute>
         } />
         
