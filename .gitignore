@@ -12,8 +12,8 @@ __pycache__/
 *.so
 
 # Environment variables
-# server/.env
-# .env
+server/.env
+.env
 
 # IDE
 .vscode/
@@ -40,3 +40,7 @@ client/dist/
 
 # Test files
 test_*.html
+
+# .gitignore
+.env
+*.env
