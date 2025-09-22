@@ -19,15 +19,22 @@
           "email": "nandhunandhuts007@gmail.com",
           "name": "nandhu ts",
           "reservedAt": "2025-09-21T16:01:45.706496+00:00",
-          "status": "pending",
+          "status": "approved",
           "requestedAt": "2025-09-21T16:17:19.541535+00:00"
         },
         {
           "email": "nandhunandhuts@gmail.com",
           "name": "Nandhu",
           "requestedAt": "2025-09-21T16:24:05.121463+00:00",
-          "status": "pending",
+          "status": "approved",
           "payStatus": "unpaid"
+        },
+        {
+          "email": "amymaria123@gmail.com",
+          "name": "amy mariya",
+          "requestedAt": "2025-09-22T09:03:30.834776+00:00",
+          "status": "approved",
+          "payStatus": "paid"
         }
       ],
       "createdAt": "2025-09-21T16:00:51.702047+00:00"
@@ -51,6 +58,13 @@
           "email": "nandhunandhuts@gmail.com",
           "name": "Nandhu",
           "requestedAt": "2025-09-21T16:20:43.852122+00:00",
+          "status": "approved",
+          "payStatus": "unpaid"
+        },
+        {
+          "email": "amymaria123@gmail.com",
+          "name": "amy mariya",
+          "requestedAt": "2025-09-21T18:07:48.776607+00:00",
           "status": "approved",
           "payStatus": "unpaid"
         }

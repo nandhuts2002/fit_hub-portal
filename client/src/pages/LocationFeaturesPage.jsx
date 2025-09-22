@@ -36,6 +36,7 @@ const LocationFeaturesPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [selectedGym, setSelectedGym] = useState(null);
+  const [mapView, setMapView] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showGymModal, setShowGymModal] = useState(false);
   const [showEventModal, setShowEventModal] = useState(false);
@@ -85,7 +86,7 @@ const LocationFeaturesPage = () => {
   const loadNearbyGyms = async (city = selectedCity) => {
     try {
       console.log('Loading gyms for city:', city);
-      const gyms = await locationService.getGymsByCity(city);
+      const gyms = await locationService.getRealGymsByCity(city);
       console.log('Loaded gyms:', gyms);
       setNearbyGyms(gyms);
     } catch (err) {
@@ -128,7 +129,7 @@ const LocationFeaturesPage = () => {
     try {
       // Load data for the new city directly
       const [gyms, trainers, events] = await Promise.all([
-        locationService.getGymsByCity(newCity),
+        locationService.getRealGymsByCity(newCity),
         locationService.getTrainersByCity(newCity),
         locationService.getEventsByCity(newCity)
       ]);
@@ -326,7 +327,7 @@ const LocationFeaturesPage = () => {
                 />
               </div>
             </div>
-            <div className="flex gap-4">
+            <div className="flex gap-4 items-center">
               <select
                 value={selectedCity}
                 onChange={(e) => handleCityChange(e.target.value)}
@@ -341,7 +342,19 @@ const LocationFeaturesPage = () => {
                 <option value="Palakkad">Palakkad</option>
                 <option value="Kannur">Kannur</option>
                 <option value="Kasargod">Kasargod</option>
+                <option value="Kattappana">Kattappana</option>
+                <option value="Mundakayam">Mundakayam</option>
+                <option value="Kanjirappally">Kanjirappally</option>
               </select>
+
+              <button
+                type="button"
+                onClick={() => setMapView(v => !v)}
+                className={`px-3 py-2 rounded-lg border ${mapView ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300'} hover:shadow-sm transition`}
+                title="Toggle Map View"
+              >
+                {mapView ? 'Map View: On' : 'Map View: Off'}
+              </button>
             </div>
           </div>
         </div>
@@ -421,10 +434,41 @@ const LocationFeaturesPage = () => {
                         >
                           View Details
                         </button>
+                        <a
+                          href={`https://www.openstreetmap.org/?mlat=${gym.latitude}&mlon=${gym.longitude}#map=16/${gym.latitude}/${gym.longitude}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                          title="Open in OpenStreetMap"
+                        >
+                          <MapPin className="w-4 h-4" />
+                        </a>
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${gym.latitude},${gym.longitude}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                          title="Open in Google Maps"
+                        >
+                          <Navigation className="w-4 h-4" />
+                        </a>
                         <button className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors">
                           <Phone className="w-4 h-4" />
                         </button>
                       </div>
+
+                      {mapView && gym.latitude && gym.longitude && (
+                        <div className="mt-4 overflow-hidden rounded-lg border border-gray-200">
+                          <iframe
+                            title={`map-${gym.id}`}
+                            width="100%"
+                            height="220"
+                            loading="lazy"
+                            referrerPolicy="no-referrer-when-downgrade"
+                            src={`https://www.openstreetmap.org/export/embed.html?bbox=${gym.longitude-0.01}%2C${gym.latitude-0.01}%2C${gym.longitude+0.01}%2C${gym.latitude+0.01}&layer=mapnik&marker=${gym.latitude}%2C${gym.longitude}`}
+                          />
+                        </div>
+                      )}
                     </motion.div>
                   ))}
                 </div>

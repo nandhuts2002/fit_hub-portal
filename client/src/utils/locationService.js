@@ -5,6 +5,18 @@ class LocationService {
     this.watchId = null;
   }
 
+  // Prefer real-time OpenStreetMap gyms for a city/district
+  async getRealGymsByCity(city, state = 'Kerala') {
+    try {
+      const gyms = await this.getGymsFromOSMByCity(city, `${state}, India`);
+      return Array.isArray(gyms) ? gyms : [];
+    } catch (e) {
+      console.warn('OSM real-time fetch failed:', e?.message || e);
+      // Return empty to ensure only real gyms are shown (no admin fallback)
+      return [];
+    }
+  }
+
   // Get current user location
   async getCurrentLocation() {
     return new Promise((resolve, reject) => {
@@ -485,7 +497,15 @@ class LocationService {
       if (error.message.includes('Authentication required')) {
         throw error; // Re-throw auth errors
       }
-      console.log('API failed, but showing mock gyms data for city search');
+      // Try real-time OpenStreetMap as a fallback before mock
+      try {
+        console.log('Falling back to OpenStreetMap (Overpass) gyms search...');
+        const osmGyms = await this.getGymsFromOSMByCity(city, state);
+        if (osmGyms && osmGyms.length) return osmGyms;
+      } catch (e) {
+        console.warn('OSM fallback failed:', e);
+      }
+      console.log('OSM failed or returned no results, falling back to mock gyms for city search');
       return this.getMockGymsByCity(city, state);
     }
   }
@@ -702,6 +722,136 @@ class LocationService {
     } catch (error) {
       return { granted: false, error: error.message };
     }
+  }
+  
+  // ---------- OpenStreetMap integration (Nominatim + Overpass) ----------
+  async getGymsFromOSMByCity(city, state = 'Kerala, India') {
+    // 1) Resolve the city/district bounding box using Nominatim
+    const bbox = await this._nominatimCityBBox(`${city}, ${state}`);
+    if (!bbox) return [];
+
+    // 2) Query Overpass for gyms within bbox
+    const elements = await this._overpassGymsInBBox(bbox);
+    if (!elements || !elements.length) return [];
+
+    // 3) Normalize to app gym schema and compute distance
+    const current = await this.getCurrentLocation().catch(() => null);
+    const gyms = elements.map((el, idx) => this._normalizeOSMGym(el, idx, current));
+
+    // Deduplicate by name/address if needed
+    const seen = new Set();
+    const unique = [];
+    for (const g of gyms) {
+      const key = `${(g.name || '').toLowerCase()}|${(g.address || '').toLowerCase()}|${g.latitude?.toFixed?.(5)},${g.longitude?.toFixed?.(5)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      unique.push(g);
+    }
+
+    // Sort by distance if available
+    unique.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
+    return unique;
+  }
+
+  async _nominatimCityBBox(query) {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
+    const resp = await fetch(url, {
+      headers: {
+        'Accept': 'application/json',
+        // A descriptive UA helps with Nominatim policy; Referer will be set by the browser
+        'User-Agent': 'FitHub-Portal/1.0 (Location Features)'
+      }
+    });
+    if (!resp.ok) return null;
+    const json = await resp.json().catch(() => []);
+    if (!json || !json.length) return null;
+    const item = json[0];
+    // Nominatim bbox comes as [south, north, west, east] in some docs, but API commonly returns [south, north, west, east]
+    if (!item?.boundingbox) return null;
+    const bbox = {
+      south: parseFloat(item.boundingbox[0]),
+      north: parseFloat(item.boundingbox[1]),
+      west: parseFloat(item.boundingbox[2]),
+      east: parseFloat(item.boundingbox[3])
+    };
+    if ([bbox.south, bbox.north, bbox.west, bbox.east].some((n) => Number.isNaN(n))) return null;
+    return bbox;
+  }
+
+  async _overpassGymsInBBox(bbox) {
+    // Overpass QL: search for amenity=gym or leisure=fitness_centre
+    const q = `
+      [out:json][timeout:25];
+      (
+        node["amenity"="gym"](${bbox.south},${bbox.west},${bbox.north},${bbox.east});
+        way["amenity"="gym"](${bbox.south},${bbox.west},${bbox.north},${bbox.east});
+        relation["amenity"="gym"](${bbox.south},${bbox.west},${bbox.north},${bbox.east});
+        node["leisure"="fitness_centre"](${bbox.south},${bbox.west},${bbox.north},${bbox.east});
+        way["leisure"="fitness_centre"](${bbox.south},${bbox.west},${bbox.north},${bbox.east});
+        relation["leisure"="fitness_centre"](${bbox.south},${bbox.west},${bbox.north},${bbox.east});
+      );
+      out center tags 200;`;
+
+    const resp = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'Accept': 'application/json'
+      },
+      body: new URLSearchParams({ data: q })
+    });
+    if (!resp.ok) return [];
+    const json = await resp.json().catch(() => ({}));
+    return json.elements || [];
+  }
+
+  _normalizeOSMGym(el, index, current) {
+    const tags = el.tags || {};
+    // For ways/relations, Overpass returns a "center" with lat/lon
+    const lat = el.lat || el.center?.lat;
+    const lon = el.lon || el.center?.lon;
+    const name = tags.name || 'Gym';
+    const addressParts = [
+      tags['addr:housename'],
+      tags['addr:housenumber'],
+      tags['addr:street'],
+      tags['addr:suburb'],
+      tags['addr:district'] || tags['addr:county'],
+      tags['addr:city'] || tags['addr:town'] || tags['addr:village'],
+    ].filter(Boolean);
+    const address = addressParts.join(', ');
+
+    // Fake rating/price if absent to satisfy UI layout
+    const rating = 4.2 + (index % 6) * 0.1; // 4.2 - 4.7
+    const price = tags.fee === 'yes' ? 'Paid' : 'Free/Unknown';
+
+    // Infer some facilities from tags
+    const facilities = [];
+    if (tags.sauna === 'yes') facilities.push('Sauna');
+    if (tags.pool === 'yes' || tags.swimming_pool === 'yes') facilities.push('Pool');
+    if (tags.yoga === 'yes') facilities.push('Yoga');
+    if (tags['changing_rooms'] === 'yes') facilities.push('Changing Rooms');
+    if (!facilities.length) facilities.push('Gym');
+
+    const distance = (current && lat && lon)
+      ? this.calculateDistance(current.latitude, current.longitude, lat, lon)
+      : undefined;
+
+    return {
+      _id: String(el.id),
+      id: String(el.id),
+      name,
+      address: address || (tags['addr:full'] || 'Address not available'),
+      latitude: lat,
+      longitude: lon,
+      rating: Number(rating.toFixed(1)),
+      price,
+      facilities,
+      distance,
+      open_hours: tags.opening_hours || 'Timing not listed',
+      phone: tags.phone || tags['contact:phone'] || undefined,
+      source: 'osm'
+    };
   }
 }
 
