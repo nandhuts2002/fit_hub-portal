@@ -27,6 +27,9 @@ import AIPlannerPage from './pages/services/AIPlannerPage';
 import ExerciseExplorerPage from './pages/services/ExerciseExplorerPage';
 import LiveSessionsPage from './pages/services/LiveSessionsPage';
 import LiveSessionDetail from './pages/services/LiveSessionDetail';
+import ShopProfilePage from './pages/ShopProfilePage';
+import ProductDetailsPage from './pages/ProductDetailsPage';
+import ProfilePage from './pages/ProfilePage';
 // If you want a dedicated page for Plate Analyzer later, we can add it similarly.
 
 function App() {
@@ -80,6 +83,31 @@ function App() {
             <ShopPage />
           </ProtectedRoute>
         } />
+        <Route path="/shop/products/:id" element={
+          <ProtectedRoute>
+            <ProductDetailsPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/shop/profile" element={
+          <ProtectedRoute>
+            <ShopProfilePage />
+          </ProtectedRoute>
+        } />
+        <Route path="/profile" element={
+          <ProtectedRoute>
+            <ProfilePage />
+          </ProtectedRoute>
+        } />
+        <Route path="/u/:handle" element={
+          <ProtectedRoute>
+            <ProfilePage />
+          </ProtectedRoute>
+        } />
+        <Route path="/p/:email" element={
+          <ProtectedRoute>
+            <ProfilePage />
+          </ProtectedRoute>
+        } />
         <Route path="/wishlist" element={
           <ProtectedRoute>
             <WishlistPage />
@@ -90,7 +118,13 @@ function App() {
             <CartPage />
           </ProtectedRoute>
         } />
+        {/* Community feed (Instagram-like) */}
         <Route path="/community" element={
+          <ProtectedRoute>
+            <CommunityPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/community-posts" element={
           <ProtectedRoute>
             <CommunityPage />
           </ProtectedRoute>

@@ -1,6 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, CreditCard, MapPin, Gift, Check, AlertCircle } from "lucide-react";
+import SessionManager from "../utils/sessionManager";
+import api from "../utils/api";
 
 const PAYMENT_METHODS = [
   { id: 'razorpay', label: 'Online Payment (Razorpay)' },
@@ -52,6 +54,64 @@ const CheckoutModal = ({
   const [selectedPayment, setSelectedPayment] = React.useState('razorpay');
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
+  const [savedAddresses, setSavedAddresses] = useState([]); // {id, label, data}
+  const [selectedSavedId, setSelectedSavedId] = useState('');
+  const [saveCurrent, setSaveCurrent] = useState(false);
+  const [saveLabel, setSaveLabel] = useState('Home');
+
+  const getAddrKey = () => {
+    const user = SessionManager.getCurrentUser();
+    return user?.email ? `fithub-addresses:${user.email}` : 'fithub-addresses:guest';
+  };
+
+  const loadSavedAddresses = async () => {
+    try {
+      const current = SessionManager.getCurrentUser();
+      let arr = [];
+      if (current?.token) {
+        // Try server first
+        const res = await api.get('/shop/api/addresses');
+        if (res.data?.success) {
+          arr = (res.data.addresses || []).map(a => ({ id: a._id, label: a.label, data: a.data, default: !!a.default }));
+        }
+      }
+      if (!arr.length) {
+        // Fallback to localStorage with legacy migration
+        const legacyKey = (() => {
+          const user = SessionManager.getCurrentUser();
+          return user?.email ? `fithub-address:${user.email}` : 'fithub-address:guest';
+        })();
+        const key = getAddrKey();
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          arr = JSON.parse(raw);
+        } else {
+          const legacy = localStorage.getItem(legacyKey);
+          if (legacy) {
+            const obj = JSON.parse(legacy);
+            arr = [{ id: Date.now().toString(), label: 'Saved', data: obj }];
+            localStorage.setItem(key, JSON.stringify(arr));
+            localStorage.removeItem(legacyKey);
+          }
+        }
+      }
+      setSavedAddresses(arr);
+      if (arr.length && !selectedSavedId) setSelectedSavedId(arr[0].id);
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const persistAddresses = (arr) => {
+    try {
+      localStorage.setItem(getAddrKey(), JSON.stringify(arr));
+    } catch (e) { /* ignore */ }
+  };
+
+  useEffect(() => {
+    if (isOpen) loadSavedAddresses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   // Real-time validation functions
   const validateField = (field, value) => {
@@ -169,8 +229,42 @@ const CheckoutModal = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (validateForm()) {
+      // Optionally save current address
+      if (saveCurrent) {
+        const current = SessionManager.getCurrentUser();
+        const payload = {
+          label: saveLabel || 'Address',
+          data: {
+            name: shippingAddress.name,
+            email: shippingAddress.email,
+            phone: shippingAddress.phone,
+            address: shippingAddress.address,
+            city: shippingAddress.city,
+            state: shippingAddress.state,
+            pincode: shippingAddress.pincode,
+          }
+        };
+        try {
+          if (current?.token) {
+            await api.post('/shop/api/addresses', payload);
+            await loadSavedAddresses();
+          } else {
+            const entry = { id: Date.now().toString(), label: payload.label, data: payload.data };
+            const next = [entry, ...savedAddresses].slice(0, 10);
+            setSavedAddresses(next);
+            persistAddresses(next);
+          }
+        } catch (err) {
+          // fallback to local save if server fails
+          const entry = { id: Date.now().toString(), label: payload.label, data: payload.data };
+          const next = [entry, ...savedAddresses].slice(0, 10);
+          setSavedAddresses(next);
+          persistAddresses(next);
+        }
+        setSaveCurrent(false);
+      }
       onCheckout(selectedPayment);
     }
   };
@@ -220,7 +314,53 @@ const CheckoutModal = ({
                   </div>
                   Shipping Information
                 </h3>
-                
+
+                {/* Saved Addresses Selector */}
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-medium text-gray-700">Saved Addresses</label>
+                    {savedAddresses.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const sel = savedAddresses.find(a => a.id === selectedSavedId);
+                          if (sel) setShippingAddress({ ...shippingAddress, ...sel.data });
+                        }}
+                        className="text-xs px-2 py-1 rounded bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200"
+                      >
+                        Use Selected
+                      </button>
+                    )}
+                  </div>
+                  {savedAddresses.length === 0 ? (
+                    <div className="text-xs text-gray-500">No saved addresses. Fill the form below and tick "Save this address" to keep it for next time.</div>
+                  ) : (
+                    <div className="flex gap-2 items-center">
+                      <select
+                        value={selectedSavedId}
+                        onChange={(e) => setSelectedSavedId(e.target.value)}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+                      >
+                        {savedAddresses.map((a) => (
+                          <option key={a.id} value={a.id}>{a.label} — {a.data.address?.slice(0,30)}{a.data.address?.length>30?'…':''}, {a.data.city}</option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = savedAddresses.filter(a => a.id !== selectedSavedId);
+                          setSavedAddresses(next);
+                          persistAddresses(next);
+                          if (next.length) setSelectedSavedId(next[0].id); else setSelectedSavedId('');
+                        }}
+                        className="text-xs px-2 py-2 rounded bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>

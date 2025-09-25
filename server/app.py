@@ -8,12 +8,15 @@ from shop import shop_bp
 from exercises import exercises_bp
 from location import location_bp
 from live import live_bp
+from community import community_bp
+from profile import profile_bp
 from dotenv import load_dotenv
 import os
 from datetime import timedelta
 from os import path as _path
 from flask import send_from_directory, Response, request
 import requests
+from socketio_instance import socketio
 
 load_dotenv(dotenv_path=_path.join(_path.dirname(__file__), '.env'), override=True)
 
@@ -33,6 +36,8 @@ app.register_blueprint(shop_bp, url_prefix='/shop')
 app.register_blueprint(exercises_bp, url_prefix='/exercises')
 app.register_blueprint(location_bp, url_prefix='/location')
 app.register_blueprint(live_bp, url_prefix='/live')
+app.register_blueprint(community_bp, url_prefix='/community')
+app.register_blueprint(profile_bp, url_prefix='/profile')
 
 # Serve uploaded files
 UPLOAD_DIR = _path.join(_path.dirname(__file__), 'uploads')
@@ -57,4 +62,6 @@ def proxy_exercise_gif(gif_id: str):
         return Response(b'', status=502)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Initialize SocketIO with the Flask app and run
+    socketio.init_app(app)
+    socketio.run(app, debug=True, allow_unsafe_werkzeug=True)

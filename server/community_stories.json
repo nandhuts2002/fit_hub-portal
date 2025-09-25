@@ -1,0 +1,24 @@
+[
+  {
+    "id": "45b39af0-a1d3-4fd5-8047-74a493899dd6",
+    "mediaUrl": "http://localhost:5000/uploads/community/1758818694569_492450ab30734b8682e43142486380ee.jpg",
+    "user": {
+      "name": "amy mariya",
+      "email": "amymaria123@gmail.com",
+      "avatar": "http://localhost:5000/uploads/users/1758818063243_2123d03aea6a44309aefe9074eb361f4.jpg"
+    },
+    "created_at": 1758818695157,
+    "expires_at": 1758905095157
+  },
+  {
+    "id": "d41750a9-d88d-4328-9ca1-fcdfd69e3a6a",
+    "mediaUrl": "http://localhost:5000/uploads/community/1758818707769_4f3c9ef515f846e481785ecf87b171a7.jpg",
+    "user": {
+      "name": "amy mariya",
+      "email": "amymaria123@gmail.com",
+      "avatar": "http://localhost:5000/uploads/users/1758818063243_2123d03aea6a44309aefe9074eb361f4.jpg"
+    },
+    "created_at": 1758818708355,
+    "expires_at": 1758905108355
+  }
+]

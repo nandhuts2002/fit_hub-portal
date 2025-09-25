@@ -77,8 +77,24 @@ export default function LiveSessionDetail() {
   const approvedCount = useMemo(() => (item?.reservations || []).filter(r=>r.status==='approved').length, [item]);
   const cap = useMemo(() => item?.capacity ? `${approvedCount}/${item.capacity}` : `${approvedCount}`, [item, approvedCount]);
 
+  // Join time window: allow joining a bit before start and a bit after end
+  const { withinWindow: joinWindowOpen, isFuture: isBeforeStart, isEnded } = useMemo(() => {
+    if (!item?.startTime) return { withinWindow: false, isFuture: false, isEnded: false };
+    const now = Date.now();
+    const start = new Date(item.startTime).getTime();
+    const durationMs = (Number(item?.duration) || 60) * 60_000;
+    const end = start + durationMs;
+    const earlyMs = 10 * 60_000; // allow 10 mins early join
+    const lateGraceMs = 15 * 60_000; // allow 15 mins after end
+    const withinWindow = now >= (start - earlyMs) && now <= (end + lateGraceMs);
+    const isFuture = now < (start - earlyMs);
+    const ended = now > (end + lateGraceMs);
+    return { withinWindow, isFuture, isEnded: ended };
+  }, [item?.startTime, item?.duration]);
+
   const canJoin = useMemo(() => {
     if (!item) return false;
+    if (!joinWindowOpen) return false;
     const freeUnlimited = (!item.price || Number(item.price) === 0) && (!item.capacity || Number(item.capacity) === 0);
     if (freeUnlimited) return true;
     // Otherwise require approval
@@ -89,7 +105,7 @@ export default function LiveSessionDetail() {
       return true;
     }
     return false;
-  }, [item, myRes]);
+  }, [item, myRes, joinWindowOpen]);
 
   const doApprove = async (email) => {
     try {
@@ -175,7 +191,13 @@ export default function LiveSessionDetail() {
                   </a>
                 ) : (
                   <div className={`${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
-                    {(!item.price && (!item.capacity || Number(item.capacity)===0)) ? 'Join will be available at start time.' : (
+                    {isBeforeStart ? (
+                      'Join will be available at start time.'
+                    ) : isEnded ? (
+                      'This session has ended.'
+                    ) : (!item.price && (!item.capacity || Number(item.capacity)===0)) ? (
+                      'Join will be available at start time.'
+                    ) : (
                       myRes?.status === 'pending' ? 'Your request is pending approval.' : (
                         myRes?.status === 'rejected' ? 'Your request was not approved.' : 'Request a seat to get approved.'
                       )

@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, Eye, ShoppingCart, Star, Package } from "lucide-react";
+import { Heart, Eye, ShoppingCart, Star, Package, RotateCcw } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const ProductCard = ({ 
   product, 
@@ -13,6 +14,7 @@ const ProductCard = ({
 }) => {
   const [isAdding, setIsAdding] = useState(false);
   const [message, setMessage] = useState(null);
+  const navigate = useNavigate();
   
   // Debug: Log product data
   console.log('🔍 ProductCard rendering:', {
@@ -27,12 +29,21 @@ const ProductCard = ({
     : 0;
   const isInStock = (product.in_stock !== undefined ? product.in_stock : (product.inStock !== undefined ? product.inStock : true));
 
-  const handleAddToCart = async () => {
+  const addBtnRef = useRef(null);
+
+  const handleAddToCart = async (e) => {
     if (isAdding) return; // Prevent multiple clicks
     
     setIsAdding(true);
     try {
-      await onAddToCart(product);
+      // Compute start coordinates (button center)
+      const btn = addBtnRef.current || e?.currentTarget;
+      let start = null;
+      if (btn) {
+        const rect = btn.getBoundingClientRect();
+        start = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+      }
+      await onAddToCart(product, null, start);
       setMessage({ type: 'success', text: 'Added to cart!' });
       setTimeout(() => setMessage(null), 3000);
     } catch (error) {
@@ -62,7 +73,7 @@ const ProductCard = ({
   return (
     <motion.div
       className={`bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden group hover:shadow-2xl transition-all duration-300 flex flex-col ${
-        viewMode === "list" ? "flex" : "h-[520px]"
+        viewMode === "list" ? "flex" : "min-h-[520px]"
       }`}
       whileHover={{ y: -8, scale: 1.02 }}
       initial={{ opacity: 0, y: 20 }}
@@ -195,6 +206,7 @@ const ProductCard = ({
 
           {/* Add to Cart Button */}
           <button
+            ref={addBtnRef}
             onClick={handleAddToCart}
             disabled={!product.in_stock || isAdding}
             className="w-full flex items-center justify-center space-x-2 px-6 py-4 bg-orange-500 text-white rounded-xl hover:bg-orange-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 disabled:transform-none"
@@ -205,25 +217,38 @@ const ProductCard = ({
             </span>
           </button>
           
-          {/* View and Save Buttons - Smaller size */}
-          <div className="flex space-x-2 h-10">
+          {/* Alt toolbar: icon-only buttons for perfect alignment across cards */}
+          <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-2 py-1">
             <button
               onClick={() => onViewProduct(product)}
-              className="flex-1 flex items-center justify-center space-x-1 px-3 py-2 bg-white text-gray-800 rounded-lg hover:bg-gray-50 transition-all duration-200 text-xs font-medium border border-gray-300"
+              className="w-9 h-9 inline-flex items-center justify-center rounded-full hover:bg-white border hover:border-gray-300 text-gray-700"
+              title="View"
+              aria-label="View"
             >
-              <Eye className="w-3 h-3" />
-              <span>View</span>
+              <Eye className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => {
+                const pid = product._id || product.id || product.slug;
+                if (pid) navigate(`/shop/products/${pid}`); else onViewProduct(product);
+              }}
+              className="w-9 h-9 inline-flex items-center justify-center rounded-full border hover:bg-white hover:border-gray-300 text-gray-700"
+              title="View 360"
+              aria-label="View 360"
+            >
+              <RotateCcw className="w-4 h-4" />
             </button>
             <button
               onClick={handleToggleWishlist}
-              className={`flex-1 flex items-center justify-center space-x-1 px-3 py-2 rounded-lg transition-all duration-200 text-xs font-medium border ${
+              className={`w-9 h-9 inline-flex items-center justify-center rounded-full border ${
                 isInWishlist
-                  ? "bg-pink-100 text-pink-700 border-pink-300 hover:bg-pink-200"
-                  : "bg-gray-100 text-gray-700 border-gray-200 hover:bg-pink-50 hover:text-pink-600 hover:border-pink-300"
+                  ? 'bg-pink-100 text-pink-700 border-pink-300 hover:bg-pink-200'
+                  : 'hover:bg-white hover:border-gray-300 text-gray-700'
               }`}
+              title={isInWishlist ? 'Saved' : 'Save'}
+              aria-label="Save"
             >
-              <Heart className={`w-3 h-3 ${isInWishlist ? 'fill-current' : ''}`} />
-              <span>{isInWishlist ? 'Saved' : 'Save'}</span>
+              <Heart className={`w-4 h-4 ${isInWishlist ? 'fill-current' : ''}`} />
             </button>
           </div>
         </div>

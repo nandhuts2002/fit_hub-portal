@@ -36,6 +36,7 @@ const AdminProductManagement = () => {
     features: [''],
     tags: ['']
   });
+  const [selectedFiles, setSelectedFiles] = useState([]); // File[] for multipart
 
   // Live validation state
   const [touched, setTouched] = useState({});
@@ -66,6 +67,62 @@ const AdminProductManagement = () => {
         return '';
       default:
         return '';
+    }
+  };
+
+  // Seed a demo product with multiple image URLs (uses fallback 360 viewer)
+  const createDemoProduct = async () => {
+    try {
+      setLoading(true);
+      const demoImages = [
+        // Public sample images (same image repeated for demo; replace with different shots for realism)
+        'https://m.media-amazon.com/images/I/81w0A8gJwsL._SX522_.jpg',
+        'https://m.media-amazon.com/images/I/81w0A8gJwsL._SX522_.jpg',
+        'https://m.media-amazon.com/images/I/81w0A8gJwsL._SX522_.jpg',
+        'https://m.media-amazon.com/images/I/81w0A8gJwsL._SX522_.jpg',
+        'https://m.media-amazon.com/images/I/81w0A8gJwsL._SX522_.jpg',
+        'https://m.media-amazon.com/images/I/81w0A8gJwsL._SX522_.jpg',
+        'https://m.media-amazon.com/images/I/81w0A8gJwsL._SX522_.jpg',
+        'https://m.media-amazon.com/images/I/81w0A8gJwsL._SX522_.jpg',
+        'https://m.media-amazon.com/images/I/81w0A8gJwsL._SX522_.jpg',
+        'https://m.media-amazon.com/images/I/81w0A8gJwsL._SX522_.jpg',
+        'https://m.media-amazon.com/images/I/81w0A8gJwsL._SX522_.jpg',
+        'https://m.media-amazon.com/images/I/81w0A8gJwsL._SX522_.jpg'
+      ];
+      const productData = {
+        name: 'Demo 360 Dumbbell',
+        description: 'Demo product to showcase 360° viewer. Replace images with real 24–36 shots for smooth rotation.',
+        price: 1999,
+        originalPrice: 2499,
+        category: 'Weights',
+        brand: 'FitDemo',
+        inStock: true,
+        stockQuantity: 50,
+        images: demoImages,
+        variants: [],
+        features: ['Demo 360 viewer', 'Multiple images sequence'],
+        tags: ['Demo', '360']
+      };
+      const currentUser = SessionManager.getCurrentUser();
+      const response = await api.request({
+        url: 'http://localhost:5000/shop/api/products',
+        method: 'POST',
+        data: productData,
+        headers: currentUser?.token ? { Authorization: `Bearer ${currentUser.token}` } : {}
+      });
+      const data = response.data || {};
+      if (data.success && data.product_id) {
+        await loadProducts();
+        // Navigate to details page to view 360
+        window.location.href = `/shop/products/${data.product_id}`;
+      } else {
+        alert('Failed to create demo: ' + (data.error || 'Unknown error'));
+      }
+    } catch (e) {
+      console.error('Demo seed failed:', e);
+      alert('Demo product creation failed');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -176,30 +233,61 @@ const AdminProductManagement = () => {
     setLoading(true);
 
     try {
-      const productData = {
-        ...formData,
-        price: parseFloat(formData.price) || 0,
-        originalPrice: formData.originalPrice && formData.originalPrice.trim() !== '' ? parseFloat(formData.originalPrice) : null,
-        stockQuantity: parseInt(formData.stockQuantity) || 0,
-        images: formData.images.filter(img => img.trim() !== ''),
-        variants: formData.variants.filter(v => v.type && v.value),
-        features: formData.features.filter(f => f.trim() !== ''),
-        tags: formData.tags.filter(t => t.trim() !== '')
-      };
-
       const url = editingProduct 
         ? `http://localhost:5000/shop/api/products/${editingProduct._id}`
         : 'http://localhost:5000/shop/api/products';
-      
       const method = editingProduct ? 'PUT' : 'POST';
-
       const currentUser = SessionManager.getCurrentUser();
-      const response = await api.request({
-        url,
-        method,
-        data: productData,
-        headers: currentUser?.token ? { Authorization: `Bearer ${currentUser.token}` } : {}
-      });
+
+      let response;
+      if (selectedFiles && selectedFiles.length > 0) {
+        // Build multipart form
+        const fd = new FormData();
+        fd.append('name', formData.name);
+        fd.append('description', formData.description);
+        fd.append('price', String(parseFloat(formData.price) || 0));
+        if (formData.originalPrice && formData.originalPrice.trim() !== '') {
+          fd.append('originalPrice', String(parseFloat(formData.originalPrice)));
+        }
+        fd.append('category', formData.category || '');
+        fd.append('brand', formData.brand || '');
+        fd.append('inStock', String(!!formData.inStock));
+        fd.append('stockQuantity', String(parseInt(formData.stockQuantity) || 0));
+        fd.append('variants', JSON.stringify(formData.variants.filter(v => v.type && v.value)));
+        fd.append('features', JSON.stringify(formData.features.filter(f => f.trim() !== '')));
+        fd.append('tags', JSON.stringify(formData.tags.filter(t => t.trim() !== '')));
+        // For update, optionally replace images entirely
+        if (editingProduct) fd.append('replaceImages', 'true');
+        selectedFiles.forEach((f) => fd.append('images', f, f.name));
+
+        response = await api.request({
+          url,
+          method,
+          data: fd,
+          headers: {
+            ...(currentUser?.token ? { Authorization: `Bearer ${currentUser.token}` } : {}),
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+      } else {
+        // JSON fallback using URLs typed in the form
+        const productData = {
+          ...formData,
+          price: parseFloat(formData.price) || 0,
+          originalPrice: formData.originalPrice && formData.originalPrice.trim() !== '' ? parseFloat(formData.originalPrice) : null,
+          stockQuantity: parseInt(formData.stockQuantity) || 0,
+          images: formData.images.filter(img => img.trim() !== ''),
+          variants: formData.variants.filter(v => v.type && v.value),
+          features: formData.features.filter(f => f.trim() !== ''),
+          tags: formData.tags.filter(t => t.trim() !== '')
+        };
+        response = await api.request({
+          url,
+          method,
+          data: productData,
+          headers: currentUser?.token ? { Authorization: `Bearer ${currentUser.token}` } : {}
+        });
+      }
 
       const data = response.data || {};
       if (data.success) {
@@ -273,6 +361,7 @@ const AdminProductManagement = () => {
       features: [''],
       tags: ['']
     });
+    setSelectedFiles([]);
   };
 
   const closeForm = () => {
@@ -291,14 +380,24 @@ const AdminProductManagement = () => {
               <h1 className="text-3xl font-bold text-gray-900 mb-2">Product Management</h1>
               <p className="text-gray-600">Manage your store inventory and product catalog</p>
             </div>
-            <button
-              onClick={() => setShowForm(true)}
-              className="flex items-center space-x-3 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 border border-blue-600"
-              style={{ backgroundColor: '#2563eb', color: '#ffffff', border: '1px solid #2563eb' }}
-            >
-              <Plus className="w-5 h-5" />
-              <span className="font-semibold">Add New Product</span>
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={createDemoProduct}
+                className="flex items-center space-x-2 px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all duration-200 shadow-lg border border-green-600"
+                title="Create a demo product with multiple images"
+              >
+                <Star className="w-4 h-4" />
+                <span className="font-semibold">Add Demo 360 Product</span>
+              </button>
+              <button
+                onClick={() => setShowForm(true)}
+                className="flex items-center space-x-3 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 border border-blue-600"
+                style={{ backgroundColor: '#2563eb', color: '#ffffff', border: '1px solid #2563eb' }}
+              >
+                <Plus className="w-5 h-5" />
+                <span className="font-semibold">Add New Product</span>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -448,6 +547,17 @@ const AdminProductManagement = () => {
                   {/* Images */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Product Images</label>
+                    <div className="mb-3">
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={(e) => setSelectedFiles(Array.from(e.target.files || []))}
+                        className="block w-full text-sm text-gray-700 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Tip: Upload 24+ images shot around the product in order for smooth 360° view.</p>
+                    </div>
+                    <div className="text-xs text-gray-500 mb-2">Or paste image URLs below (used only if no files were selected):</div>
                     {formData.images.map((image, index) => (
                       <div key={index} className="flex gap-2 mb-2">
                         <input

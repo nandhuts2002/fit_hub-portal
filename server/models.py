@@ -46,3 +46,11 @@ events_collection = db['events']      # Local fitness events
 # Booking and membership collections
 event_bookings_collection = db['event_bookings']    # Event bookings with payment details
 gym_memberships_collection = db['gym_memberships']  # Gym memberships with payment details
+
+# Community/Profile features
+# Stores community posts for profile grids (mirrors REST community posts)
+community_posts_collection = db['community_posts']
+# Stores user profile metadata for profile page (display name, handle, bio, avatar)
+user_profiles_collection = db['user_profiles']
+# Follows relation: who follows whom
+follows_collection = db['follows']  # { follower_email, following_email, created_at }

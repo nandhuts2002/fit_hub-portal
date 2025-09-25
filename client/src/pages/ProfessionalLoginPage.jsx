@@ -73,7 +73,8 @@ const ProfessionalLoginPage = () => {
         token: res.data.token,
         name: res.data.user.name,
         email: res.data.user.email,
-        role: res.data.user.role
+        role: res.data.user.role,
+        avatar: res.data.user.avatar || res.data.user.photoURL || ''
       });
 
       const fromState = location.state?.from;
@@ -112,7 +113,8 @@ const ProfessionalLoginPage = () => {
           token: response.data.token,
           name: response.data.user.name,
           email: response.data.user.email,
-          role: response.data.user.role || 'user'
+          role: response.data.user.role || 'user',
+          avatar: response.data.user.avatar || response.data.user.photoURL || user.photoURL || ''
         });
 
         const fromState = location.state?.from;
@@ -130,7 +132,8 @@ const ProfessionalLoginPage = () => {
           token: 'google-temp-token',
           name: user.displayName || 'Google User',
           email: user.email,
-          role: 'user'
+          role: 'user',
+          avatar: user.photoURL || ''
         });
         const from = location.state?.from;
         const target = from && from !== '/login' ? from : '/user-home';

@@ -9,11 +9,32 @@ import smtplib
 from email.message import EmailMessage
 
 from os import path as _path
+from werkzeug.utils import secure_filename
 load_dotenv(dotenv_path=_path.join(_path.dirname(__file__), '.env'), override=True)
 bcrypt = Bcrypt()
 
 # ✅ THIS LINE DEFINES THE BLUEPRINT
 auth_bp = Blueprint('auth', __name__)
+# Avatar upload settings
+ROOT_DIR = _path.dirname(__file__)
+USER_UPLOAD_DIR = _path.join(ROOT_DIR, 'uploads', 'users')
+os.makedirs(USER_UPLOAD_DIR, exist_ok=True)
+ALLOWED_AVATAR_EXT = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+
+def _save_avatar_and_get_url(file_storage):
+    filename = secure_filename(file_storage.filename or '')
+    if not filename or '.' not in filename:
+        raise ValueError('Invalid filename')
+    ext = filename.rsplit('.', 1)[-1].lower()
+    if ext not in ALLOWED_AVATAR_EXT:
+        raise ValueError('Unsupported file type')
+    import time, uuid
+    new_name = f"{int(time.time()*1000)}_{uuid.uuid4().hex}.{ext}"
+    save_path = _path.join(USER_UPLOAD_DIR, new_name)
+    file_storage.save(save_path)
+    # public URL via /uploads
+    return f"/uploads/users/{new_name}"
+
 
 # --- Forgot Password utilities ---
 from bson import ObjectId
@@ -734,6 +755,39 @@ def google_login():
         print(f"❌ Google login error: {str(e)}")
         return jsonify({'msg': 'Google login failed'}), 500
 
+
+# --- Avatar Upload & Update ---
+@auth_bp.route('/me/avatar', methods=['POST'])
+@jwt_required()
+def upload_avatar_for_me():
+    try:
+        identity = get_jwt_identity() or {}
+        email = (identity.get('email') or '').strip().lower()
+        if not email:
+            return jsonify({'ok': False, 'error': 'Unauthorized'}), 401
+
+        if 'image' not in request.files:
+            return jsonify({'ok': False, 'error': 'No image provided'}), 400
+        f = request.files['image']
+        if not f or not f.filename:
+            return jsonify({'ok': False, 'error': 'Invalid file'}), 400
+
+        try:
+            url = _save_avatar_and_get_url(f)
+        except ValueError as ve:
+            return jsonify({'ok': False, 'error': str(ve)}), 400
+
+        # Persist on user document
+        from bson import ObjectId
+        user = users_collection.find_one({'email': email})
+        if not user:
+            return jsonify({'ok': False, 'error': 'User not found'}), 404
+        users_collection.update_one({'_id': user['_id']}, {'$set': {'avatar': url}})
+
+        return jsonify({'ok': True, 'url': url})
+    except Exception as e:
+        print(f"❌ Avatar upload error: {str(e)}")
+        return jsonify({'ok': False, 'error': 'Failed to upload avatar'}), 500
 
 @auth_bp.route('/forgot-password', methods=['POST'])
 def forgot_password_request():

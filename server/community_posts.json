@@ -1,0 +1,205 @@
+[
+  {
+    "id": "649ca8a6-dcb8-43b4-ae40-389ce887d1d4",
+    "text": "",
+    "imageUrl": "http://localhost:5000/uploads/community/1758772098333_d1e60e9fb83e488c9aa108fb8002983b.png",
+    "user": {
+      "name": "amy mariya",
+      "email": "amymaria123@gmail.com",
+      "avatar": ""
+    },
+    "likes": [
+      "alexantony2026@mca.ajce.in",
+      "amymaria123@gmail.com"
+    ],
+    "comments": [
+      {
+        "id": "215086b5-7953-429c-b3ce-108ae00366e6",
+        "text": "nice work",
+        "user": {
+          "name": "amy mariya",
+          "email": "amymaria123@gmail.com",
+          "avatar": ""
+        },
+        "created_at": 1758772115870
+      }
+    ],
+    "created_at": 1758772102673
+  },
+  {
+    "id": "08eedc7e-a731-49ea-933d-2b51af1c3d57",
+    "text": "",
+    "imageUrl": "http://localhost:5000/uploads/community/1758772129531_0d7b9e8e67fe4b20b046177cecdfd8e5.jpg",
+    "user": {
+      "name": "amy mariya",
+      "email": "amymaria123@gmail.com",
+      "avatar": ""
+    },
+    "likes": [
+      "alexantony2026@mca.ajce.in",
+      "amymaria123@gmail.com"
+    ],
+    "comments": [
+      {
+        "id": "c47c1360-d39b-4677-9fc6-2d6872f7e9f4",
+        "text": "good pose",
+        "user": {
+          "name": "amy mariya",
+          "email": "amymaria123@gmail.com",
+          "avatar": ""
+        },
+        "created_at": 1758773448684
+      }
+    ],
+    "created_at": 1758772134365
+  },
+  {
+    "id": "bb267b5c-b87b-4593-b326-ee64b1dad6e1",
+    "text": "do yoga be healthy",
+    "imageUrl": "http://localhost:5000/uploads/community/1758776122011_620a56d6b98e4b3fa8ee3041a010e883.webp",
+    "user": {
+      "name": "amy mariya",
+      "email": "amymaria123@gmail.com",
+      "avatar": ""
+    },
+    "likes": [
+      "alexantony2026@mca.ajce.in",
+      "amymaria123@gmail.com"
+    ],
+    "comments": [
+      {
+        "id": "dcde4257-b0d6-4d2d-a13e-74b71e7a3da1",
+        "text": "njan aa ithe nalla resam ille",
+        "user": {
+          "name": "amy mariya",
+          "email": "amymaria123@gmail.com",
+          "avatar": ""
+        },
+        "created_at": 1758776174117
+      }
+    ],
+    "created_at": 1758776139024
+  },
+  {
+    "id": "825c22c6-2897-4480-ac69-067024b4ee4c",
+    "text": "a pinch of ballet with yoga",
+    "imageUrl": "http://localhost:5000/uploads/community/1758776278552_f8a01ecbfbeb42e6bc30f16d69bb27ad.webp",
+    "user": {
+      "name": "amy mariya",
+      "email": "amymaria123@gmail.com",
+      "avatar": ""
+    },
+    "likes": [
+      "alexantony2026@mca.ajce.in",
+      "amymaria123@gmail.com"
+    ],
+    "comments": [
+      {
+        "id": "f1fe7257-cf01-4f6c-a0b6-fc611ad68c87",
+        "text": "i am so talented",
+        "user": {
+          "name": "amy mariya",
+          "email": "amymaria123@gmail.com",
+          "avatar": ""
+        },
+        "created_at": 1758776368289
+      }
+    ],
+    "created_at": 1758776347671
+  },
+  {
+    "id": "8c24da8e-3003-4670-bb10-d969a8258ddb",
+    "text": "feeling good",
+    "imageUrl": "",
+    "user": {
+      "name": "nandhunandhuts",
+      "email": "nandhunandhuts@gmail.com",
+      "avatar": ""
+    },
+    "likes": [
+      "amymaria123@gmail.com"
+    ],
+    "comments": [
+      {
+        "id": "035d6e0e-54e4-4467-af5a-8cc2a1002a1f",
+        "text": "woow",
+        "user": {
+          "name": "alex antony antony",
+          "email": "alexantony2026@mca.ajce.in",
+          "avatar": ""
+        },
+        "created_at": 1758817991678
+      }
+    ],
+    "created_at": 1758788745382
+  },
+  {
+    "id": "cb8bcd20-3b5e-4d72-ae68-71d44e03a872",
+    "text": "feeling amazed by this contents",
+    "imageUrl": "http://localhost:5000/uploads/community/1758817933055_0c7ad2dac88a47818b5b299fcfda0da5.jpg",
+    "user": {
+      "name": "amy mariya",
+      "email": "amymaria123@gmail.com",
+      "avatar": "https://ui-avatars.com/api/?name=amy%20mariya&background=FF7A00&color=fff&bold=true&size=128"
+    },
+    "likes": [
+      "alexantony2026@mca.ajce.in"
+    ],
+    "comments": [
+      {
+        "id": "6787933a-eb85-4228-9a6a-d1119fcace20",
+        "text": "wooww",
+        "user": {
+          "name": "alex antony antony",
+          "email": "alexantony2026@mca.ajce.in",
+          "avatar": ""
+        },
+        "created_at": 1758817984169
+      }
+    ],
+    "created_at": 1758817944667
+  },
+  {
+    "id": "04c41157-9213-4535-834c-de89f01caf5d",
+    "text": "",
+    "imageUrl": "http://localhost:5000/uploads/community/1758822754614_8885b4aaf5a844f587c1a0d656154e42.webp",
+    "user": {
+      "name": "amy mariya",
+      "email": "amymaria123@gmail.com",
+      "avatar": "http://localhost:5000/uploads/users/1758822322657_8a89323ed976415091975ca635dc7c8f.webp"
+    },
+    "likes": [],
+    "comments": [],
+    "created_at": 1758822757571
+  },
+  {
+    "id": "3c79ff59-58b4-41e6-9313-dbf3d2758f3c",
+    "text": "do yoga be healthy",
+    "imageUrl": "http://localhost:5000/uploads/community/1758822825647_82458267205e4f22bc4d8e91f9cbaefd.jpg",
+    "user": {
+      "name": "amy mariya",
+      "email": "amymaria123@gmail.com",
+      "avatar": "http://localhost:5000/uploads/users/1758822322657_8a89323ed976415091975ca635dc7c8f.webp"
+    },
+    "likes": [
+      "alexantony2026@mca.ajce.in"
+    ],
+    "comments": [],
+    "created_at": 1758822836599
+  },
+  {
+    "id": "35436faf-69ad-4a7d-89bb-f0fe2d7a4c50",
+    "text": "great product",
+    "imageUrl": "http://localhost:5000/uploads/community/1758823630296_3e368198e4134f5d97279922c3e106be.jpeg",
+    "user": {
+      "name": "Ashwin Sabu",
+      "email": "ashwinsabu@gmail.com",
+      "avatar": "https://ui-avatars.com/api/?name=Ashwin%20Sabu&background=FF7A00&color=fff&bold=true&size=128"
+    },
+    "likes": [
+      "alexantony2026@mca.ajce.in"
+    ],
+    "comments": [],
+    "created_at": 1758823646350
+  }
+]

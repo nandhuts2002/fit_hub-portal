@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { FaArrowRight } from "react-icons/fa";
@@ -9,8 +9,21 @@ import {
   Dumbbell,
   Sun,
   Moon,
+  Home,
+  MapPin,
+  Users as UsersIcon,
+  Boxes,
+  Bell,
+  Image as ImageIcon,
+  User as UserIcon,
+  BookOpen,
+  MessageSquare,
+  Heart,
+  Settings,
+  LogOut
 } from "lucide-react";
 import SessionManager from "../utils/sessionManager";
+import { uploadAvatar } from "../utils/communityService";
 
 // Dark, high-contrast yoga/fitness images for a premium feel (dimmer)
 const HERO_IMAGES = [
@@ -36,6 +49,8 @@ const UserHomePage = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [toast, setToast] = useState(null); // {title, preview}
   const [tutorialsList, setTutorialsList] = useState([]); // real tutorials for recommendations
+  const fileInputRef = useRef(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
 
   useEffect(() => {
     const currentUser = SessionManager.getCurrentUser();
@@ -47,13 +62,14 @@ const UserHomePage = () => {
   }, [navigate]);
 
   // Auto-rotate hero background
+  // Preload hero images once to avoid layout jank
+  useEffect(() => {
+    try { HERO_IMAGES.forEach((src) => { const img = new Image(); img.src = src; }); } catch {}
+  }, []);
+
   useEffect(() => {
     const id = setInterval(() => {
-      setHeroIndex((idx) => {
-        const newIndex = (idx + 1) % HERO_IMAGES.length;
-        console.log('Rotating to hero image:', newIndex, HERO_IMAGES[newIndex]);
-        return newIndex;
-      });
+      setHeroIndex((idx) => (idx + 1) % HERO_IMAGES.length);
     }, 5000);
     return () => clearInterval(id);
   }, []);
@@ -277,19 +293,26 @@ const UserHomePage = () => {
   };
 
   // Close menus when clicking outside
+  // Avoid heavy work in mousedown/click; use refs + rAF to batch updates
+  const profileMenuRef = useRef(null);
+  const notificationsMenuRef = useRef(null);
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuOpen && !event.target.closest('.profile-menu')) {
-        setMenuOpen(false);
-      }
-      if (notificationsOpen && !event.target.closest('.notifications-menu')) {
-        setNotificationsOpen(false);
-      }
+    const handlePointer = (event) => {
+      // Schedule to next frame to prevent long handler blocking
+      requestAnimationFrame(() => {
+        if (menuOpen && profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+          setMenuOpen(false);
+        }
+        if (notificationsOpen && notificationsMenuRef.current && !notificationsMenuRef.current.contains(event.target)) {
+          setNotificationsOpen(false);
+        }
+      });
     };
-
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handlePointer, true);
+    document.addEventListener('touchstart', handlePointer, { passive: true, capture: true });
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('mousedown', handlePointer, true);
+      document.removeEventListener('touchstart', handlePointer, { passive: true, capture: true });
     };
   }, [menuOpen, notificationsOpen]);
 
@@ -319,8 +342,6 @@ const UserHomePage = () => {
               alt="Yoga Background"
               className="w-full h-full object-cover"
               style={{ filter: `brightness(${HERO_BRIGHTNESS[heroIndex] || 0.7}) contrast(1.1) saturate(1.0)` }}
-              onLoad={() => console.log('Image loaded successfully:', HERO_IMAGES[heroIndex])}
-              onError={(e) => console.error('Image failed to load:', HERO_IMAGES[heroIndex], e)}
             />
             {/* Stronger overlays for dark aesthetic */}
             <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/60" />
@@ -361,7 +382,7 @@ const UserHomePage = () => {
                 onClick={() => navigate("/user-home")}
                 className="px-4 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-md flex items-center gap-2"
               >
-                <span className="text-lg">🏠</span>
+                <Home className="w-4 h-4" />
                 <span className="text-sm font-semibold">Home</span>
               </motion.button>
               <motion.button
@@ -370,7 +391,7 @@ const UserHomePage = () => {
                 onClick={() => navigate("/location-features")}
                 className="px-4 py-2.5 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 flex items-center gap-2"
               >
-                <span className="text-lg">📍</span>
+                <MapPin className="w-4 h-4" />
                 <span className="text-sm font-semibold">Find My Gym</span>
               </motion.button>
               <motion.button
@@ -379,7 +400,7 @@ const UserHomePage = () => {
                 onClick={() => navigate("/tutorials")}
                 className="px-4 py-2.5 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 flex items-center gap-2"
               >
-                <span className="text-lg">💪</span>
+                <Dumbbell className="w-4 h-4" />
                 <span className="text-sm font-semibold">Workouts</span>
               </motion.button>
               <motion.button
@@ -388,7 +409,7 @@ const UserHomePage = () => {
                 onClick={() => navigate("/shop")}
                 className="px-4 py-2.5 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 flex items-center gap-2"
               >
-                <span className="text-lg">🛍️</span>
+                <ShoppingBag className="w-4 h-4" />
                 <span className="text-sm font-semibold">Shop</span>
               </motion.button>
               <motion.button
@@ -397,7 +418,7 @@ const UserHomePage = () => {
                 onClick={() => navigate("/community-posts")}
                 className="px-4 py-2.5 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 flex items-center gap-2"
               >
-                <span className="text-lg">👥</span>
+                <UsersIcon className="w-4 h-4" />
                 <span className="text-sm font-semibold">Community</span>
               </motion.button>
               <motion.button
@@ -406,7 +427,7 @@ const UserHomePage = () => {
                 onClick={() => navigate("/services")}
                 className="px-4 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-md flex items-center gap-2"
               >
-                <span className="text-lg">🧰</span>
+                <Boxes className="w-4 h-4" />
                 <span className="text-sm font-semibold">More Services</span>
               </motion.button>
             </nav>
@@ -439,9 +460,21 @@ const UserHomePage = () => {
               {/* User Profile */}
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
-                className="w-10 h-10 rounded-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold flex items-center justify-center shadow-lg hover:scale-105 transition"
+                className="w-10 h-10 rounded-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold flex items-center justify-center shadow-lg hover:scale-105 transition overflow-hidden"
               >
-                {user?.firstName?.[0] || user?.email?.[0] || "U"}
+                {user?.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={user?.firstName || user?.email || 'User'}
+                    className="w-full h-full object-cover rounded-full"
+                    onError={(e)=>{
+                      const display = (user?.firstName || user?.name || user?.email || 'Member');
+                      e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(display)}&background=FF7A00&color=fff&bold=true&size=128`;
+                    }}
+                  />
+                ) : (
+                  user?.firstName?.[0] || user?.email?.[0] || "U"
+                )}
               </button>
               
               {/* Mobile Menu Button */}
@@ -466,31 +499,47 @@ const UserHomePage = () => {
             className="lg:hidden bg-white border-t border-gray-200 shadow-lg z-40"
           >
             <div className="px-4 py-4 space-y-2 bg-gray-50">
-              {[
-                { label: "Home", path: "/user-home", icon: "🏠" },
-                { label: "Find My Gym", path: "/location-features", icon: "📍" },
-                { label: "Workouts", path: "/tutorials", icon: "💪" },
-                { label: "Community", path: "/community-posts", icon: "👥" },
-                { label: "Shop", path: "/shop", icon: "🛍️" },
-              ].map((item, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => {
-                    navigate(item.path);
-                    setMenuOpen(false);
-                  }}
-                  className={`w-full text-left px-4 py-3 rounded-xl transition-colors flex items-center gap-3 bg-white border border-gray-200 shadow-sm text-gray-900 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700`}
-                >
-                  <span className="text-lg">{item.icon}</span>
-                  <span className="font-medium">{item.label}</span>
-                </button>
-              ))}
+              <button
+                onClick={() => { navigate('/user-home'); setMenuOpen(false); }}
+                className={`w-full text-left px-4 py-3 rounded-xl transition-colors flex items-center gap-3 bg-white border border-gray-200 shadow-sm text-gray-900 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700`}
+              >
+                <Home className="w-5 h-5" />
+                <span className="font-medium">Home</span>
+              </button>
+              <button
+                onClick={() => { navigate('/location-features'); setMenuOpen(false); }}
+                className={`w-full text-left px-4 py-3 rounded-xl transition-colors flex items-center gap-3 bg-white border border-gray-200 shadow-sm text-gray-900 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700`}
+              >
+                <MapPin className="w-5 h-5" />
+                <span className="font-medium">Find My Gym</span>
+              </button>
+              <button
+                onClick={() => { navigate('/tutorials'); setMenuOpen(false); }}
+                className={`w-full text-left px-4 py-3 rounded-xl transition-colors flex items-center gap-3 bg-white border border-gray-200 shadow-sm text-gray-900 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700`}
+              >
+                <Dumbbell className="w-5 h-5" />
+                <span className="font-medium">Workouts</span>
+              </button>
+              <button
+                onClick={() => { navigate('/community-posts'); setMenuOpen(false); }}
+                className={`w-full text-left px-4 py-3 rounded-xl transition-colors flex items-center gap-3 bg-white border border-gray-200 shadow-sm text-gray-900 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700`}
+              >
+                <UsersIcon className="w-5 h-5" />
+                <span className="font-medium">Community</span>
+              </button>
+              <button
+                onClick={() => { navigate('/shop'); setMenuOpen(false); }}
+                className={`w-full text-left px-4 py-3 rounded-xl transition-colors flex items-center gap-3 bg-white border border-gray-200 shadow-sm text-gray-900 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700`}
+              >
+                <ShoppingBag className="w-5 h-5" />
+                <span className="font-medium">Shop</span>
+              </button>
               {/* More Services - Mobile direct link */}
               <button
                 onClick={() => { navigate('/services'); setMenuOpen(false); }}
                 className="w-full text-left px-4 py-3 rounded-xl transition-colors flex items-center gap-3 bg-blue-600 text-white shadow-md hover:bg-blue-700"
               >
-                <span className="text-lg">🧰</span>
+                <Boxes className="w-5 h-5" />
                 <span className="font-semibold">More Services</span>
               </button>
             </div>
@@ -503,12 +552,13 @@ const UserHomePage = () => {
             <AnimatePresence>
               {notificationsOpen && (
                 <motion.div
-                initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
-                className="notifications-menu absolute right-0 mt-3 w-80 bg-white shadow-2xl rounded-2xl overflow-hidden border border-gray-200 z-50"
-              >
+                  ref={notificationsMenuRef}
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  className="notifications-menu absolute right-0 mt-3 w-80 bg-white shadow-2xl rounded-2xl overflow-hidden border border-gray-200 z-50"
+                >
                 {/* Header */}
                 <div className="px-4 py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
                   <div className="flex items-center justify-between">
@@ -534,7 +584,7 @@ const UserHomePage = () => {
                 <div className="max-h-80 overflow-y-auto">
                     {notifications.length === 0 ? (
                     <div className="px-4 py-8 text-center">
-                      <div className="text-4xl mb-2">🔔</div>
+                      <Bell className="w-10 h-10 mx-auto text-gray-300 mb-2" />
                       <div className="text-sm text-gray-500">No new notifications</div>
                     </div>
                   ) : (
@@ -589,6 +639,7 @@ const UserHomePage = () => {
               )}
               {menuOpen && (
                 <motion.div
+                  ref={profileMenuRef}
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
@@ -597,10 +648,43 @@ const UserHomePage = () => {
                 >
                   {/* Profile Card */}
                 <div className="flex items-center gap-3 px-4 py-4 bg-gradient-to-r from-orange-600 to-amber-500">
-                  <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-lg">
-                    {user?.firstName?.[0] || user?.email?.[0] || "U"}
-                    </div>
-                    <div>
+                  <div className="relative w-12 h-12 rounded-full bg-white/20 overflow-hidden">
+                    <button onClick={() => fileInputRef.current?.click()} className="absolute inset-0">
+                      {user?.avatar ? (
+                        <img
+                          src={user.avatar}
+                          alt={user?.firstName || user?.email || 'User'}
+                          className="w-full h-full object-cover rounded-full"
+                          onError={(e)=>{
+                            const display = (user?.firstName || user?.name || user?.email || 'Member');
+                            e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(display)}&background=FF7A00&color=fff&bold=true&size=128`;
+                          }}
+                        />
+                      ) : (
+                        <div className="w-full h-full grid place-items-center text-white font-bold text-lg">{user?.firstName?.[0] || user?.email?.[0] || 'U'}</div>
+                      )}
+                      <div className="absolute inset-0 bg-black/0 hover:bg-black/30 transition-colors grid place-items-center text-[10px] text-white font-semibold">
+                        {avatarBusy ? 'Saving…' : 'Edit'}
+                      </div>
+                    </button>
+                    <input ref={fileInputRef} className="hidden" type="file" accept="image/*" onChange={async (e)=>{
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      try {
+                        setAvatarBusy(true);
+                        const token = SessionManager.getCurrentUser()?.token;
+                        const absUrl = await uploadAvatar(f, token);
+                        SessionManager.setAvatar(absUrl);
+                        setUser(SessionManager.getCurrentUser());
+                      } catch (err) {
+                        alert(err?.message || 'Failed to update avatar');
+                      } finally {
+                        setAvatarBusy(false);
+                        try { e.target.value = ''; } catch {}
+                      }
+                    }} />
+                  </div>
+                  <div>
                       <p className="text-sm font-semibold text-white">
                       {user?.firstName || user?.email?.split('@')[0] || "Fitness Member"}
                       </p>
@@ -611,46 +695,62 @@ const UserHomePage = () => {
                   {/* Menu Options */}
                   <div className="py-3 px-2 bg-gray-50">
                     <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex items-center gap-3 px-4 py-3 w-full text-left bg-white border border-gray-200 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2 mb-2"
+                    >
+                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1">
+                        <ImageIcon className="w-4 h-4" />
+                      </span>
+                      Change Profile Photo
+                    </button>
+                    <button
                       onClick={() => { setMenuOpen(false); navigate("/user-home"); }}
                       className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
                     >
-                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1">👤</span> My Profile
+                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1"><UserIcon className="w-4 h-4" /></span>
+                      My Profile
                     </button>
                     <button
                       onClick={() => { setMenuOpen(false); navigate("/tutorials"); }}
                       className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
                     >
-                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1">📘</span> My Tutorials
+                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1"><BookOpen className="w-4 h-4" /></span>
+                      My Tutorials
                     </button>
                     <button
                       onClick={() => { setMenuOpen(false); navigate("/community-posts"); }}
                       className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
                     >
-                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1">👥</span> Community Posts
+                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1"><UsersIcon className="w-4 h-4" /></span>
+                      Community Posts
                     </button>
                     <button
                       onClick={() => { setMenuOpen(false); navigate("/shop"); }}
                       className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
                     >
-                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1">🛍️</span> My Orders
+                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1"><ShoppingBag className="w-4 h-4" /></span>
+                      My Orders
                     </button>
                     <button
                       onClick={() => { setMenuOpen(false); navigate("/queries"); }}
                       className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
                     >
-                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1">💬</span> My Queries
+                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1"><MessageSquare className="w-4 h-4" /></span>
+                      My Queries
                     </button>
                     <button
                       onClick={() => { setMenuOpen(false); navigate("/wishlist"); }}
                       className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
                     >
-                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1">❤️</span> My Wishlist
+                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1"><Heart className="w-4 h-4" /></span>
+                      My Wishlist
                     </button>
                     <button
                       onClick={() => { setMenuOpen(false); navigate("/settings"); }}
                       className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
                     >
-                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1">⚙️</span> Settings
+                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1"><Settings className="w-4 h-4" /></span>
+                      Settings
                     </button>
                   </div>
 
@@ -660,7 +760,8 @@ const UserHomePage = () => {
                       onClick={() => { setMenuOpen(false); handleLogout(); }}
                       className="flex items-center gap-3 px-4 py-3 w-full text-left text-red-600 hover:bg-red-50 font-semibold transition-all duration-200 rounded-lg mx-2"
                     >
-                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-red-100 text-red-600 mr-1">⎋</span> Logout
+                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-red-100 text-red-600 mr-1"><LogOut className="w-4 h-4" /></span>
+                      Logout
                     </button>
                   </div>
                 </motion.div>
@@ -668,8 +769,14 @@ const UserHomePage = () => {
             </AnimatePresence>
         </div>
 
-      {/* Hero Section - FitHub Fitness & Yoga Focus */}
-      <section className={`relative min-h-[80vh] flex items-center justify-center ${theme === 'dark' ? 'bg-gradient-to-br from-gray-900 via-gray-950 to-black' : 'bg-gradient-to-br from-gray-100 via-white to-gray-50'}`}>
+      <section
+        className={
+          `relative min-h-screen flex items-center justify-center ` +
+          (theme === 'dark'
+            ? 'bg-gradient-to-br from-gray-900 via-gray-950 to-black'
+            : 'bg-gradient-to-br from-gray-100 via-white to-gray-50')
+        }
+      >
         <div className="max-w-7xl mx-auto px-6 py-20">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Left Content */}

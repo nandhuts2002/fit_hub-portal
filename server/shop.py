@@ -1,3 +1,38 @@
+import os
+try:
+    from werkzeug.utils import secure_filename
+except Exception:
+    secure_filename = lambda x: x
+
+# Helpers for image storage
+_BASE_DIR = os.path.dirname(__file__)
+_UPLOAD_PRODUCTS_DIR = os.path.join(_BASE_DIR, 'uploads', 'products')
+os.makedirs(_UPLOAD_PRODUCTS_DIR, exist_ok=True)
+
+def _save_product_images(product_object_id, files_list):
+    """Save uploaded images for a product in order as image_1.jpg, image_2.jpg, ...
+    Returns a list of public URLs like /uploads/products/<product_id>/image_1.jpg
+    """
+    product_id_str = str(product_object_id)
+    target_dir = os.path.join(_UPLOAD_PRODUCTS_DIR, product_id_str)
+    os.makedirs(target_dir, exist_ok=True)
+
+    saved_urls = []
+    index = 1
+    for f in files_list:
+        if not f or not getattr(f, 'filename', None):
+            continue
+        # Normalize extension; default to .jpg if missing
+        fname = secure_filename(f.filename)
+        ext = os.path.splitext(fname)[1].lower() or '.jpg'
+        out_name = f"image_{index}{ext}"
+        out_path = os.path.join(target_dir, out_name)
+        f.save(out_path)
+        saved_urls.append(f"/uploads/products/{product_id_str}/{out_name}")
+        index += 1
+
+    return saved_urls
+
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from bson import ObjectId
@@ -142,6 +177,149 @@ def get_products():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+# ADDRESSES API (per-user)
+@shop_bp.route('/api/addresses', methods=['GET'])
+@jwt_required()
+def list_addresses():
+    try:
+        identity = get_jwt_identity()
+        user_email = identity.get('email') if isinstance(identity, dict) else None
+        if not user_email:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+        # Ensure index for faster lookups
+        try:
+            addresses_collection.create_index('user_email')
+        except Exception:
+            pass
+
+        docs = list(addresses_collection.find({'user_email': user_email}).sort('created_at', -1))
+        for d in docs:
+            d['_id'] = str(d['_id'])
+        return jsonify({'success': True, 'addresses': docs})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@shop_bp.route('/api/addresses', methods=['POST'])
+@jwt_required()
+def create_address():
+    try:
+        identity = get_jwt_identity()
+        user_email = identity.get('email') if isinstance(identity, dict) else None
+        if not user_email:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+        data = request.get_json() or {}
+        label = (data.get('label') or 'Address').strip()
+        addr = data.get('data') or {}
+        is_default = bool(data.get('default', False))
+
+        doc = {
+            'user_email': user_email,
+            'label': label,
+            'data': {
+                'name': addr.get('name', ''),
+                'email': addr.get('email', ''),
+                'phone': addr.get('phone', ''),
+                'address': addr.get('address', ''),
+                'city': addr.get('city', ''),
+                'state': addr.get('state', ''),
+                'pincode': addr.get('pincode', ''),
+            },
+            'default': is_default,
+            'created_at': datetime.utcnow(),
+            'updated_at': datetime.utcnow(),
+        }
+
+        # If making default, unset others
+        if is_default:
+            addresses_collection.update_many({'user_email': user_email, 'default': True}, {'$set': {'default': False}})
+
+        res = addresses_collection.insert_one(doc)
+        return jsonify({'success': True, 'id': str(res.inserted_id)})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@shop_bp.route('/api/addresses/<addr_id>', methods=['PUT'])
+@jwt_required()
+def update_address(addr_id):
+    try:
+        identity = get_jwt_identity()
+        user_email = identity.get('email') if isinstance(identity, dict) else None
+        if not user_email:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+        data = request.get_json() or {}
+        label = data.get('label')
+        addr = data.get('data')
+        is_default = data.get('default')
+
+        set_fields = {'updated_at': datetime.utcnow()}
+        if label is not None:
+            set_fields['label'] = label
+        if addr is not None:
+            set_fields['data'] = {
+                'name': addr.get('name', ''),
+                'email': addr.get('email', ''),
+                'phone': addr.get('phone', ''),
+                'address': addr.get('address', ''),
+                'city': addr.get('city', ''),
+                'state': addr.get('state', ''),
+                'pincode': addr.get('pincode', ''),
+            }
+        if is_default is not None:
+            set_fields['default'] = bool(is_default)
+
+        # If setting default true, unset others first
+        if is_default is True:
+            addresses_collection.update_many({'user_email': user_email, 'default': True}, {'$set': {'default': False}})
+
+        res = addresses_collection.update_one({'_id': ObjectId(addr_id), 'user_email': user_email}, {'$set': set_fields})
+        if res.matched_count == 0:
+            return jsonify({'success': False, 'error': 'Address not found'}), 404
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@shop_bp.route('/api/addresses/<addr_id>', methods=['DELETE'])
+@jwt_required()
+def delete_address(addr_id):
+    try:
+        identity = get_jwt_identity()
+        user_email = identity.get('email') if isinstance(identity, dict) else None
+        if not user_email:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+        res = addresses_collection.delete_one({'_id': ObjectId(addr_id), 'user_email': user_email})
+        if res.deleted_count == 0:
+            return jsonify({'success': False, 'error': 'Address not found'}), 404
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@shop_bp.route('/api/addresses/<addr_id>/default', methods=['POST'])
+@jwt_required()
+def set_default_address(addr_id):
+    try:
+        identity = get_jwt_identity()
+        user_email = identity.get('email') if isinstance(identity, dict) else None
+        if not user_email:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+        # Unset others
+        addresses_collection.update_many({'user_email': user_email, 'default': True}, {'$set': {'default': False}})
+        # Set this one
+        res = addresses_collection.update_one({'_id': ObjectId(addr_id), 'user_email': user_email}, {'$set': {'default': True, 'updated_at': datetime.utcnow()}})
+        if res.matched_count == 0:
+            return jsonify({'success': False, 'error': 'Address not found'}), 404
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @shop_bp.route('/api/products/<product_id>', methods=['GET'])
 def get_product(product_id):
     try:
@@ -171,7 +349,31 @@ def create_product():
     if not _require_admin():
         return jsonify({'success': False, 'error': 'Admin access required'}), 403
     try:
-        data = request.get_json()
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            form = request.form or {}
+            import json
+            def _parse(val, default):
+                try:
+                    return json.loads(val) if isinstance(val, str) else (val or default)
+                except Exception:
+                    return default
+            data = {
+                'name': form.get('name'),
+                'description': form.get('description'),
+                'price': form.get('price'),
+                'originalPrice': form.get('originalPrice'),
+                'category': form.get('category'),
+                'brand': form.get('brand'),
+                'inStock': form.get('inStock', 'true').lower() in ('1','true','yes'),
+                'stockQuantity': form.get('stockQuantity', '0'),
+                'variants': _parse(form.get('variants'), []),
+                'features': _parse(form.get('features'), []),
+                'tags': _parse(form.get('tags'), []),
+            }
+            incoming_files = request.files.getlist('images')
+        else:
+            data = request.get_json() or {}
+            incoming_files = []
         
         # Validate required fields
         required_fields = ['name', 'description', 'price', 'category', 'brand']
@@ -191,7 +393,7 @@ def create_product():
             'reviews': 0,
             'in_stock': data.get('inStock', True),
             'stock_quantity': int(data.get('stockQuantity', 0)),
-            'images': data.get('images', []),
+            'images': [],
             'variants': data.get('variants', []),
             'features': data.get('features', []),
             'tags': data.get('tags', []),
@@ -204,6 +406,16 @@ def create_product():
         result = products_collection.insert_one(product)
         product_id = str(result.inserted_id)
         
+        # If files were uploaded, save them and update images
+        if incoming_files:
+            saved_urls = _save_product_images(result.inserted_id, incoming_files)
+            products_collection.update_one({'_id': result.inserted_id}, {'$set': {'images': saved_urls}})
+        else:
+            # Backward compatibility: accept images array from JSON
+            json_images = data.get('images', [])
+            if isinstance(json_images, list) and json_images:
+                products_collection.update_one({'_id': result.inserted_id}, {'$set': {'images': json_images}})
+
         # Create inventory record
         inventory_collection.insert_one({
             'product_id': result.inserted_id,
@@ -228,7 +440,33 @@ def update_product(product_id):
     if not _require_admin():
         return jsonify({'success': False, 'error': 'Admin access required'}), 403
     try:
-        data = request.get_json()
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            form = request.form or {}
+            import json
+            def _parse(val, default):
+                try:
+                    return json.loads(val) if isinstance(val, str) else (val or default)
+                except Exception:
+                    return default
+            data = {
+                'name': form.get('name'),
+                'description': form.get('description'),
+                'price': form.get('price'),
+                'originalPrice': form.get('originalPrice'),
+                'category': form.get('category'),
+                'brand': form.get('brand'),
+                'inStock': form.get('inStock'),
+                'stockQuantity': form.get('stockQuantity'),
+                'variants': _parse(form.get('variants'), None),
+                'features': _parse(form.get('features'), None),
+                'tags': _parse(form.get('tags'), None),
+            }
+            incoming_files = request.files.getlist('images')
+            replace_images = (form.get('replaceImages', 'false').lower() in ('1','true','yes'))
+        else:
+            data = request.get_json() or {}
+            incoming_files = []
+            replace_images = False
         
         # Update product
         update_data = {
@@ -240,10 +478,10 @@ def update_product(product_id):
             'brand': data.get('brand'),
             'in_stock': data.get('inStock', True),
             'stock_quantity': int(data.get('stockQuantity', 0)),
-            'images': data.get('images', []),
-            'variants': data.get('variants', []),
-            'features': data.get('features', []),
-            'tags': data.get('tags', []),
+            'images': data.get('images', None),
+            'variants': data.get('variants', None),
+            'features': data.get('features', None),
+            'tags': data.get('tags', None),
             'featured': data.get('featured', False),
             'updated_at': datetime.utcnow()
         }
@@ -259,6 +497,26 @@ def update_product(product_id):
         if result.matched_count == 0:
             return jsonify({'success': False, 'error': 'Product not found'}), 404
         
+        # Handle image uploads if provided
+        if incoming_files:
+            if replace_images:
+                # Optionally clear existing files from disk
+                prod_dir = os.path.join(_UPLOAD_PRODUCTS_DIR, str(product_id))
+                try:
+                    for fn in os.listdir(prod_dir):
+                        try:
+                            os.remove(os.path.join(prod_dir, fn))
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+                saved_urls = _save_product_images(ObjectId(product_id), incoming_files)
+                products_collection.update_one({'_id': ObjectId(product_id)}, {'$set': {'images': saved_urls}})
+            else:
+                saved_urls = _save_product_images(ObjectId(product_id), incoming_files)
+                # Append to existing images
+                products_collection.update_one({'_id': ObjectId(product_id)}, {'$push': {'images': {'$each': saved_urls}}})
+
         # Update inventory
         if 'stock_quantity' in update_data:
             inventory_collection.update_one(

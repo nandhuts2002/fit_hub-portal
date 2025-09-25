@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Star, Heart, ShoppingCart, Check } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const ProductModal = ({
   product,
@@ -10,15 +11,33 @@ const ProductModal = ({
   onToggleWishlist,
   isInWishlist = false
 }) => {
-  if (!product) return null;
-  
-  // Debug: Log product data to see what we're working with
-  console.log('ProductModal - Product data:', product);
-  console.log('ProductModal - Image field:', product.image);
-  console.log('ProductModal - Images field:', product.images);
+  const navigate = useNavigate();
+  // Debug: Log product data (guard when null)
+  if (product) {
+    console.log('ProductModal - Product data:', product);
+    console.log('ProductModal - Image field:', product.image);
+    console.log('ProductModal - Images field:', product.images);
+  }
   
   // Normalize stock flag from API (in_stock) or local (inStock)
   const isInStock = (product?.in_stock !== undefined) ? product.in_stock : (product?.inStock !== undefined ? product.inStock : true);
+
+  const addBtnRef = useRef(null);
+
+  const handleAddVariant = (e, variant) => {
+    const rect = e.currentTarget?.getBoundingClientRect?.();
+    const start = rect ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } : null;
+    onAddToCart(product, variant, start);
+  };
+
+  const handleAddMain = (e) => {
+    const btn = addBtnRef.current || e.currentTarget;
+    const rect = btn?.getBoundingClientRect?.();
+    const start = rect ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } : null;
+    onAddToCart(product, null, start);
+  };
+
+  if (!product) return null;
 
   return (
     <AnimatePresence>
@@ -124,7 +143,7 @@ const ProductModal = ({
                         <button
                           key={index}
                           className="p-3 border border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors text-sm"
-                          onClick={() => onAddToCart(product, variant)}
+                          onClick={(e) => handleAddVariant(e, variant)}
                         >
                           {Object.entries(variant).map(([key, value]) => 
                             `${key}: ${value}`
@@ -150,7 +169,15 @@ const ProductModal = ({
                     </span>
                   </button>
                   <button
-                    onClick={() => onAddToCart(product)}
+                    onClick={() => navigate(`/shop/products/${product._id || product.id}`)}
+                    className="flex-1 flex items-center justify-center space-x-2 px-4 py-3 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 transition-colors"
+                    title="Open 360° Viewer"
+                  >
+                    <span>View 360</span>
+                  </button>
+                  <button
+                    ref={addBtnRef}
+                    onClick={handleAddMain}
                     disabled={!isInStock}
                     className="flex-1 flex items-center justify-center space-x-2 px-4 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
                   >

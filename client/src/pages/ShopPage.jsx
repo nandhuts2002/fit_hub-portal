@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import api from "../utils/api";
 import SessionManager from "../utils/sessionManager";
 import { motion, AnimatePresence } from "framer-motion";
@@ -11,7 +11,8 @@ import {
   List,
   SlidersHorizontal,
   Package,
-  Heart
+  Heart,
+  User
 } from "lucide-react";
 import ProductCard from "../components/ProductCard";
 import FilterSidebar from "../components/FilterSidebar";
@@ -21,6 +22,7 @@ import CheckoutModal from "../components/CheckoutModal";
 import OrderSuccessModal from "../components/OrderSuccessModal";
 import OrderHistory from "../components/OrderHistory";
 import NotificationSystem from "../components/NotificationSystem";
+import FlyToCartDumbbell from "../components/FlyToCartDumbbell";
 
 // Enhanced sample products with more details
 const products = [
@@ -156,6 +158,8 @@ const categories = [
 
 const ShopPage = () => {
   const navigate = useNavigate();
+  const cartBtnRef = useRef(null);
+  const [flyAnim, setFlyAnim] = useState(null); // {start, end, key}
   const [cart, setCart] = useState(() => {
     const user = SessionManager.getCurrentUser();
     const key = user?.email ? `fithub-cart:${user.email}` : 'fithub-cart';
@@ -237,6 +241,43 @@ const ShopPage = () => {
     };
     syncWishlist();
   }, []);
+
+  // Prefill shipping address from saved address (per-user) if available
+  useEffect(() => {
+    try {
+      const currentUser = SessionManager.getCurrentUser();
+      const addrKey = currentUser?.email ? `fithub-address:${currentUser.email}` : 'fithub-address:guest';
+      const saved = localStorage.getItem(addrKey);
+      if (saved) {
+        const obj = JSON.parse(saved);
+        setShippingAddress((prev) => ({ ...prev, ...obj }));
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, []);
+
+  // Auto-save shipping address when it looks complete (to avoid retyping like Amazon/Flipkart)
+  useEffect(() => {
+    const required = ['name','email','phone','address','city','state','pincode'];
+    const hasAll = required.every((k) => String(shippingAddress[k] || '').trim().length > 0);
+    if (!hasAll) return;
+    try {
+      const currentUser = SessionManager.getCurrentUser();
+      const addrKey = currentUser?.email ? `fithub-address:${currentUser.email}` : 'fithub-address:guest';
+      localStorage.setItem(addrKey, JSON.stringify({
+        name: shippingAddress.name,
+        email: shippingAddress.email,
+        phone: shippingAddress.phone,
+        address: shippingAddress.address,
+        city: shippingAddress.city,
+        state: shippingAddress.state,
+        pincode: shippingAddress.pincode
+      }));
+    } catch (e) {
+      // ignore
+    }
+  }, [shippingAddress]);
 
   // Ensure a server-side cart document/collection exists for the logged-in user
   useEffect(() => {
@@ -368,6 +409,18 @@ const ShopPage = () => {
       }
     });
 
+  // Utility: get available stock from product (fallback to Infinity if not provided)
+  const getAvailableStock = (p) => {
+    const candidates = [p?.stock_quantity, p?.stock, p?.inventory, p?.availableStock];
+    for (const val of candidates) {
+      const n = Number(val);
+      if (Number.isFinite(n)) return Math.max(0, n);
+    }
+    // If explicit in_stock is false, treat as 0
+    if (p?.in_stock === false || p?.inStock === false) return 0;
+    return Infinity; // unknown stock -> no cap
+  };
+
   // Cart functions
   const addToCart = (product, variant = null) => {
     console.log('Adding to cart:', product, variant);
@@ -387,6 +440,16 @@ const ShopPage = () => {
       return itemProductId === productId;
     });
     
+    // Enforce stock limit
+    const available = getAvailableStock(product);
+    const currentQtyForProduct = cart
+      .filter(it => (it.id || it._id) === productId)
+      .reduce((sum, it) => sum + (Number(it.quantity) || 0), 0);
+    if (currentQtyForProduct >= available) {
+      alert('Only ' + (Number.isFinite(available) ? available : 0) + ' in stock for this item.');
+      return;
+    }
+
     console.log('Existing item found:', existingItem);
     
     let updatedCart;
@@ -395,8 +458,13 @@ const ShopPage = () => {
       updatedCart = cart.map(item => {
         const itemProductId = item.id || item._id;
         if (itemProductId === productId) {
-          console.log('Updating quantity for item:', item, 'new quantity:', item.quantity + 1);
-          return { ...item, quantity: item.quantity + 1 };
+          const desired = item.quantity + 1;
+          const capped = Math.min(desired, available);
+          if (capped !== desired) {
+            alert('Reached maximum available stock for this item.');
+          }
+          console.log('Updating quantity for item:', item, 'new quantity:', capped);
+          return { ...item, quantity: capped };
         }
         return item;
       });
@@ -405,7 +473,7 @@ const ShopPage = () => {
       const cartItem = {
         ...product,
         variant,
-        quantity: 1,
+        quantity: Math.min(1, available || 0),
         cartId: Date.now() + Math.random() // More unique ID
       };
       console.log('Adding new item to cart:', cartItem);
@@ -414,6 +482,18 @@ const ShopPage = () => {
     
     console.log('Updated cart:', updatedCart);
     setCart(updatedCart);
+  };
+
+  // Wrapper that also triggers fly-to-cart animation
+  const addToCartWithAnimation = (product, variant = null, start = null) => {
+    // Compute end coords from cart button
+    const cartEl = cartBtnRef.current;
+    if (start && cartEl) {
+      const rect = cartEl.getBoundingClientRect();
+      const end = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+      setFlyAnim({ start, end, key: Date.now() });
+    }
+    addToCart(product, variant);
   };
 
   // Buy Now: add item to cart and open checkout directly
@@ -430,11 +510,15 @@ const ShopPage = () => {
     if (newQuantity <= 0) {
       removeFromCart(cartId);
     } else {
-      const updatedCart = cart.map(item => 
-        item.cartId === cartId 
-          ? { ...item, quantity: newQuantity }
-          : item
-      );
+      const updatedCart = cart.map(item => {
+        if (item.cartId !== cartId) return item;
+        const available = getAvailableStock(item);
+        const capped = Number.isFinite(available) ? Math.min(newQuantity, available) : newQuantity;
+        if (capped !== newQuantity) {
+          alert('Only ' + available + ' in stock for this item.');
+        }
+        return { ...item, quantity: capped };
+      });
       setCart(updatedCart);
     }
   };
@@ -728,6 +812,15 @@ const ShopPage = () => {
               {/* Notifications */}
               <NotificationSystem />
               
+              {/* Profile Button */}
+              <button
+                onClick={() => navigate('/shop/profile')}
+                className="relative p-3 text-gray-700 hover:bg-gray-100 rounded-xl transition-all duration-200 group border border-gray-200"
+                title="Profile & Addresses"
+              >
+                <User className="w-6 h-6 group-hover:scale-110 transition-transform" />
+              </button>
+
               {/* Order History Button */}
               <button
                 onClick={() => setOrderHistoryOpen(true)}
@@ -753,6 +846,7 @@ const ShopPage = () => {
               
               {/* Cart Button */}
               <button
+                ref={cartBtnRef}
                 className="relative p-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 rounded-xl transition-all duration-200 group shadow-lg"
                 onClick={() => setCartOpen(true)}
                 title="Shopping Cart"
@@ -785,6 +879,20 @@ const ShopPage = () => {
             showFilters={showFilters}
             setShowFilters={setShowFilters}
           />
+
+          {/* Fly-to-Cart Animation Layer */}
+          {flyAnim && (
+            <FlyToCartDumbbell
+              key={flyAnim.key}
+              start={flyAnim.start}
+              end={flyAnim.end}
+              duration={1.05}
+              curveOffset={160}
+              size={48}
+              color="#7c3aed"
+              onComplete={() => setFlyAnim(null)}
+            />
+          )}
 
           {/* Main Content */}
           <div className="flex-1">
@@ -873,11 +981,11 @@ const ShopPage = () => {
                 {filteredProducts.map((product) => (
                   <ProductCard
                     key={product.id || product._id}
-                    product={product}
-                    onAddToCart={addToCart}
+                    onAddToCart={addToCartWithAnimation}
                     onToggleWishlist={toggleWishlist}
                     onViewProduct={openProductModal}
-                    isInWishlist={wishlist.find(item => item.id === product.id || item.id === product._id)}
+                    isInWishlist={!!wishlist.find(w => (w.id || w._id) === (product.id || product._id))}
+                    product={product}
                     viewMode={viewMode}
                     onBuyNow={buyNow}
                   />
@@ -948,9 +1056,9 @@ const ShopPage = () => {
         product={selectedProduct}
         isOpen={productModalOpen}
         onClose={() => setProductModalOpen(false)}
-        onAddToCart={addToCart}
+        onAddToCart={(product, variant, start) => addToCartWithAnimation(product, variant, start)}
         onToggleWishlist={toggleWishlist}
-        isInWishlist={wishlist.find(item => item.id === selectedProduct?.id || item.id === selectedProduct?._id)}
+        isInWishlist={!!selectedProduct && !!wishlist.find(w => (w.id || w._id) === (selectedProduct.id || selectedProduct._id))}
       />
 
       {/* Order History Modal */}

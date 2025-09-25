@@ -4,13 +4,55 @@ import { FaArrowRight } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 
 const SERVICES = [
-  { icon: "📏", title: "BMI Calculator", desc: "Check your Body Mass Index", path: "/services/bmi" },
-  { icon: "🔥", title: "Calorie Detector", desc: "Estimate daily calories", path: "/services/calories" },
-  { icon: "🍽️", title: "Meal Planner", desc: "Plan healthy meals", path: "/services/meal-planner" },
-  { icon: "🚶", title: "Step Counter", desc: "Track your steps", path: "/services/steps" },
-  { icon: "🏋️", title: "Exercise Explorer", desc: "Search 1,000+ exercises (ExerciseDB)", path: "/services/exercises" },
-  { icon: "🎥", title: "Live Sessions", desc: "Join or host Zoom/Meet classes", path: "/services/live" },
-  { icon: "🧠", title: "AI Workout Planner", desc: "Personalized weekly plans via RapidAPI", path: "/services/ai-planner" },
+  {
+    icon: "📏",
+    img: "https://th.bing.com/th/id/OIP._12f13COmKPj5OYyLYb_aAHaEJ?w=315&h=180&c=7&r=0&o=7&pid=1.7&rm=3",
+    title: "BMI Calculator",
+    desc: "Check your Body Mass Index",
+    path: "/services/bmi",
+  },
+  {
+    icon: "🔥",
+    img: "https://images.pexels.com/photos/769289/pexels-photo-769289.jpeg",
+    title: "Calorie Detector",
+    desc: "Estimate daily calories",
+    path: "/services/calories",
+  },
+  {
+    icon: "🍽️",
+    img: "https://images.pexels.com/photos/349609/pexels-photo-349609.jpeg",
+    title: "Meal Planner",
+    desc: "Plan healthy meals",
+    path: "/services/meal-planner",
+  },
+  // {
+  //   icon: "🚶",
+  //   img: "https://images.unsplash.com/photo-1544211412-2a3c0b3a0b19?q=80&w=400&auto=format&fit=crop",
+  //   title: "Step Counter",
+  //   desc: "Track your steps",
+  //   path: "/services/steps",
+  // },
+  {
+    icon: "🏋️",
+    img: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=400&auto=format&fit=crop",
+    title: "Exercise Explorer",
+    desc: "Search 1,000+ exercises (ExerciseDB)",
+    path: "/services/exercises",
+  },
+  {
+    icon: "🎥",
+    img: "https://media.istockphoto.com/id/1220117732/photo/millennial-girl-watch-yoga-training-on-laptop-online.jpg?s=1024x1024&w=is&k=20&c=r957Ya6OIyOc2iySTgFlAk1PUysMguUCZALQiYRmcPU=",
+    title: "Live Sessions",
+    desc: "Join or host Zoom/Meet classes",
+    path: "/services/live",
+  },
+  {
+    icon: "🧠",
+    img: "https://images.pexels.com/photos/2294361/pexels-photo-2294361.jpeg",
+    title: "AI Workout Planner",
+    desc: "Personalized weekly plans via RapidAPI",
+    path: "/services/ai-planner",
+  },
 ];
 
 const ACCENTS = [
@@ -62,8 +104,18 @@ const ServicesPage = () => {
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                       <div className="text-2xl md:text-3xl">
-                        <span className="inline-grid place-items-center w-11 h-11 rounded-xl bg-white/70 border border-slate-200 shadow-sm">
-                          <span className="text-lg md:text-xl">{svc.icon}</span>
+                        <span className="inline-grid place-items-center w-14 h-14 rounded-xl bg-white/70 border border-slate-200 shadow-sm overflow-hidden">
+                          {svc.img ? (
+                            <img
+                              src={svc.img}
+                              alt={svc.title}
+                              loading="lazy"
+                              className="w-full h-full object-cover"
+                              onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                            />
+                          ) : (
+                            <span className="text-lg md:text-xl">{svc.icon}</span>
+                          )}
                         </span>
                       </div>
                       <div>
