@@ -62,8 +62,13 @@ def get_profile(identifier):
         return jsonify({'ok': False, 'error': 'Profile not found'}), 404
     email = p.get('email','')
     posts_count = community_posts_collection.count_documents({'user.email': email})
-    followers = follows_collection.count_documents({'following_email': email})
-    following = follows_collection.count_documents({'follower_email': email})
+    # Use distinct to avoid duplicate relations inflating counts
+    try:
+        followers = len(follows_collection.distinct('follower_email', {'following_email': email}))
+        following = len(follows_collection.distinct('following_email', {'follower_email': email}))
+    except Exception:
+        followers = follows_collection.count_documents({'following_email': email})
+        following = follows_collection.count_documents({'follower_email': email})
     data = _profile_public(p)
     data.update({'counts': {'posts': posts_count, 'followers': followers, 'following': following}})
     return jsonify({'ok': True, 'data': data})
@@ -117,12 +122,20 @@ def follow():
     target = _normalize_key(payload.get('target') or '')
     if not follower or not target or follower == target:
         return jsonify({'ok': False, 'error': 'Invalid params'}), 400
-    follows_collection.update_one(
-        {'follower_email': follower, 'following_email': target},
-        {'$setOnInsert': {'created_at': _now_ms()}},
-        upsert=True
-    )
-    return jsonify({'ok': True})
+    # Idempotent follow: if relation already exists, return ok without creating duplicates
+    try:
+        existing = follows_collection.find_one({'follower_email': follower, 'following_email': target})
+        if existing:
+            return jsonify({'ok': True, 'data': {'already': True}})
+        follows_collection.update_one(
+            {'follower_email': follower, 'following_email': target},
+            {'$setOnInsert': {'created_at': _now_ms()}},
+            upsert=True
+        )
+        return jsonify({'ok': True})
+    except Exception:
+        # Even if DB hiccups, don't crash API
+        return jsonify({'ok': False, 'error': 'Follow failed'}), 500
 
 
 @profile_bp.post('/unfollow')

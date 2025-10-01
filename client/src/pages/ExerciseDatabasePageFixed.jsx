@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Pause, RotateCcw, Target, Dumbbell, Heart, Clock, Star, Bookmark, Share2, Search, Filter, Grid, List, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Play, Pause, RotateCcw, Target, Dumbbell, Heart, Clock, Star, Bookmark, Share2, Search, Filter, Grid, List, Loader2, AlertCircle, RefreshCw, Leaf } from 'lucide-react';
 import exerciseApi from '../utils/exerciseApi';
+import yogaApi from '../utils/yogaApi';
 import ExerciseSession from '../components/ExerciseSession';
 
 const ExerciseCard = ({ exercise, onStartExercise, onViewDetails }) => {
@@ -28,11 +29,18 @@ const ExerciseCard = ({ exercise, onStartExercise, onViewDetails }) => {
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, 250, 250);
     
-    // Add text
+    // Add text - different for yoga poses vs exercises
     ctx.fillStyle = 'white';
     ctx.font = 'bold 16px Arial';
     ctx.textAlign = 'center';
+    
+    // Check if this is a yoga pose
+    if (exercise?.imageUrl || exercise?.category) {
+      ctx.fillText('Yoga Pose', 125, 120);
+    } else {
     ctx.fillText('Exercise GIF', 125, 120);
+    }
+    
     ctx.font = '12px Arial';
     ctx.fillText('Loading...', 125, 140);
     
@@ -52,6 +60,11 @@ const ExerciseCard = ({ exercise, onStartExercise, onViewDetails }) => {
   // Build candidate URLs: local GIF -> proxied GIF -> direct GIF -> v2 preview -> local fallback
   const buildImageCandidates = () => {
     const candidates = [];
+
+    // Check if this is a yoga pose (has imageUrl property)
+    if (exercise?.imageUrl) {
+      candidates.push(exercise.imageUrl);
+    }
 
     // 1) Local asset (downloaded into public/assets/gifs/<slug>.gif)
     const slug = slugify(exercise?.name);
@@ -242,16 +255,23 @@ const ExerciseCard = ({ exercise, onStartExercise, onViewDetails }) => {
 const ExerciseDatabasePageFixed = () => {
   const [exercises, setExercises] = useState([]);
   const [filteredExercises, setFilteredExercises] = useState([]);
+  const [yogaPoses, setYogaPoses] = useState([]);
+  const [filteredYogaPoses, setFilteredYogaPoses] = useState([]);
+  const [activeTab, setActiveTab] = useState('exercises'); // 'exercises' or 'yoga'
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedBodyPart, setSelectedBodyPart] = useState('');
   const [selectedTarget, setSelectedTarget] = useState('');
   const [selectedEquipment, setSelectedEquipment] = useState('');
+  const [selectedYogaCategory, setSelectedYogaCategory] = useState('');
+  const [selectedYogaLevel, setSelectedYogaLevel] = useState('');
   const [viewMode, setViewMode] = useState('grid');
   const [bodyParts, setBodyParts] = useState([]);
   const [targets, setTargets] = useState([]);
   const [equipment, setEquipment] = useState([]);
+  const [yogaCategories, setYogaCategories] = useState([]);
+  const [yogaLevels, setYogaLevels] = useState(['beginner', 'intermediate', 'advanced']);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState(null);
   const [showExerciseSession, setShowExerciseSession] = useState(false);
@@ -260,6 +280,7 @@ const ExerciseDatabasePageFixed = () => {
   useEffect(() => {
     loadExercises();
     loadFilterOptions();
+    loadYogaPoses();
   }, []);
 
   // Filter exercises based on search and filters
@@ -292,6 +313,29 @@ const ExerciseDatabasePageFixed = () => {
 
     setFilteredExercises(filtered);
   }, [exercises, searchTerm, selectedBodyPart, selectedTarget, selectedEquipment]);
+
+  // Filter yoga poses based on search and filters
+  useEffect(() => {
+    let filtered = yogaPoses;
+
+    if (searchTerm) {
+      filtered = filtered.filter(pose =>
+        pose.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pose.sanskrit_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        pose.english_name?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (selectedYogaCategory) {
+      filtered = filtered.filter(pose => pose.category?.toLowerCase() === selectedYogaCategory.toLowerCase());
+    }
+
+    if (selectedYogaLevel) {
+      filtered = filtered.filter(pose => pose.level?.toLowerCase() === selectedYogaLevel.toLowerCase());
+    }
+
+    setFilteredYogaPoses(filtered);
+  }, [yogaPoses, searchTerm, selectedYogaCategory, selectedYogaLevel]);
 
   const loadExercises = async () => {
     try {
@@ -326,6 +370,25 @@ const ExerciseDatabasePageFixed = () => {
     }
   };
 
+  const loadYogaPoses = async () => {
+    try {
+      console.log('Loading yoga poses...');
+      const [posesData, categoriesData] = await Promise.all([
+        yogaApi.getAllPoses(),
+        yogaApi.getCategories()
+      ]);
+      
+      console.log('Loaded yoga poses:', posesData.length);
+      console.log('Loaded yoga categories:', categoriesData.length);
+      
+      setYogaPoses(posesData);
+      setYogaCategories(categoriesData);
+    } catch (err) {
+      console.error('Error loading yoga poses:', err);
+      // Don't set error state for yoga poses as it's optional
+    }
+  };
+
   const handleStartExercise = (exercise) => {
     console.log('Starting exercise:', exercise.name);
     setSelectedExercise(exercise);
@@ -355,6 +418,8 @@ const ExerciseDatabasePageFixed = () => {
     setSelectedBodyPart('');
     setSelectedTarget('');
     setSelectedEquipment('');
+    setSelectedYogaCategory('');
+    setSelectedYogaLevel('');
   };
 
   const refreshExercises = () => {
@@ -407,9 +472,9 @@ const ExerciseDatabasePageFixed = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Exercise Database</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Exercise & Yoga Database</h1>
               <p className="text-gray-600 mt-1">
-                Discover {exercises.length} exercises with detailed instructions and GIFs
+                Discover {exercises.length} exercises and {yogaPoses.length} yoga poses with detailed instructions
               </p>
             </div>
             
@@ -431,13 +496,41 @@ const ExerciseDatabasePageFixed = () => {
             </div>
           </div>
 
+          {/* Tab Navigation */}
+          <div className="mt-6">
+            <div className="flex space-x-8 border-b border-gray-200">
+              <button
+                onClick={() => setActiveTab('exercises')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'exercises'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <Dumbbell className="w-4 h-4 inline mr-2" />
+                Exercises ({exercises.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('yoga')}
+                className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'yoga'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <Leaf className="w-4 h-4 inline mr-2" />
+                Yoga Poses ({yogaPoses.length})
+              </button>
+            </div>
+          </div>
+
           {/* Search Bar */}
           <div className="mt-6">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Search exercises..."
+                placeholder={activeTab === 'exercises' ? 'Search exercises...' : 'Search yoga poses...'}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -454,6 +547,7 @@ const ExerciseDatabasePageFixed = () => {
                 exit={{ opacity: 0, height: 0 }}
                 className="mt-6 p-4 bg-gray-50 rounded-lg"
               >
+                {activeTab === 'exercises' ? (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -509,6 +603,45 @@ const ExerciseDatabasePageFixed = () => {
                     </select>
                   </div>
                 </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Category
+                      </label>
+                      <select
+                        value={selectedYogaCategory}
+                        onChange={(e) => setSelectedYogaCategory(e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">All Categories</option>
+                        {yogaCategories.map((category) => (
+                          <option key={category.id} value={category.name}>
+                            {category.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Difficulty Level
+                      </label>
+                      <select
+                        value={selectedYogaLevel}
+                        onChange={(e) => setSelectedYogaLevel(e.target.value)}
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">All Levels</option>
+                        {yogaLevels.map((level) => (
+                          <option key={level} value={level}>
+                            {level.charAt(0).toUpperCase() + level.slice(1)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
 
                 <div className="mt-4 flex justify-between">
                   <button
@@ -518,7 +651,7 @@ const ExerciseDatabasePageFixed = () => {
                     Clear Filters
                   </button>
                   <div className="text-sm text-gray-500">
-                    Showing {filteredExercises.length} of {exercises.length} exercises
+                    Showing {activeTab === 'exercises' ? filteredExercises.length : filteredYogaPoses.length} of {activeTab === 'exercises' ? exercises.length : yogaPoses.length} {activeTab === 'exercises' ? 'exercises' : 'yoga poses'}
                   </div>
                 </div>
               </motion.div>
@@ -527,9 +660,10 @@ const ExerciseDatabasePageFixed = () => {
         </div>
       </div>
 
-      {/* Exercise Grid */}
+      {/* Content Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {filteredExercises.length === 0 ? (
+        {activeTab === 'exercises' ? (
+          filteredExercises.length === 0 ? (
           <div className="text-center py-12">
             <div className="text-gray-400 text-6xl mb-4">🔍</div>
             <h3 className="text-xl font-semibold text-gray-700 mb-2">No exercises found</h3>
@@ -567,6 +701,47 @@ const ExerciseDatabasePageFixed = () => {
               ))}
             </AnimatePresence>
           </div>
+          )
+        ) : (
+          filteredYogaPoses.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-gray-400 text-6xl mb-4">🧘‍♀️</div>
+              <h3 className="text-xl font-semibold text-gray-700 mb-2">No yoga poses found</h3>
+              <p className="text-gray-500 mb-4">
+                Try adjusting your search terms or filters
+              </p>
+              <button
+                onClick={clearFilters}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              >
+                Clear All Filters
+              </button>
+            </div>
+          ) : (
+            <div className={`grid gap-6 ${
+              viewMode === 'grid' 
+                ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' 
+                : 'grid-cols-1'
+            }`}>
+              <AnimatePresence>
+                {filteredYogaPoses.map((pose, index) => (
+                  <motion.div
+                    key={pose.id || index}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
+                    <ExerciseCard
+                      exercise={pose}
+                      onStartExercise={handleStartExercise}
+                      onViewDetails={handleViewDetails}
+                    />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          )
         )}
       </div>
 

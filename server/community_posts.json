@@ -129,6 +129,36 @@
           "avatar": ""
         },
         "created_at": 1758817991678
+      },
+      {
+        "id": "1b844f6d-39b2-44ba-949c-662ea7436e1a",
+        "text": "blalal",
+        "user": {
+          "name": "amy mariya",
+          "email": "amymaria123@gmail.com",
+          "avatar": ""
+        },
+        "created_at": 1759140494352
+      },
+      {
+        "id": "97bef1fd-077c-414b-91b9-e03bf4673c66",
+        "text": "klalalala",
+        "user": {
+          "name": "amy mariya",
+          "email": "amymaria123@gmail.com",
+          "avatar": ""
+        },
+        "created_at": 1759140499171
+      },
+      {
+        "id": "55873c31-81a8-4f14-8b78-3034486bc894",
+        "text": "sadsaafaf",
+        "user": {
+          "name": "amy mariya",
+          "email": "amymaria123@gmail.com",
+          "avatar": ""
+        },
+        "created_at": 1759140502158
       }
     ],
     "created_at": 1758788745382
@@ -168,8 +198,21 @@
       "email": "amymaria123@gmail.com",
       "avatar": "http://localhost:5000/uploads/users/1758822322657_8a89323ed976415091975ca635dc7c8f.webp"
     },
-    "likes": [],
-    "comments": [],
+    "likes": [
+      "alexantony2026@mca.ajce.in"
+    ],
+    "comments": [
+      {
+        "id": "4a85f059-5b42-4065-8861-753a1f259024",
+        "text": "tremenodus",
+        "user": {
+          "name": "amy mariya",
+          "email": "amymaria123@gmail.com",
+          "avatar": ""
+        },
+        "created_at": 1758857260946
+      }
+    ],
     "created_at": 1758822757571
   },
   {
@@ -184,7 +227,18 @@
     "likes": [
       "alexantony2026@mca.ajce.in"
     ],
-    "comments": [],
+    "comments": [
+      {
+        "id": "d6ffc003-e69f-4d1d-a5bb-338f17242d52",
+        "text": "great",
+        "user": {
+          "name": "alex antony antony",
+          "email": "alexantony2026@mca.ajce.in",
+          "avatar": ""
+        },
+        "created_at": 1759059597721
+      }
+    ],
     "created_at": 1758822836599
   },
   {
@@ -197,6 +251,7 @@
       "avatar": "https://ui-avatars.com/api/?name=Ashwin%20Sabu&background=FF7A00&color=fff&bold=true&size=128"
     },
     "likes": [
+      "amymaria123@gmail.com",
       "alexantony2026@mca.ajce.in"
     ],
     "comments": [],

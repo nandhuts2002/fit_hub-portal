@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import SessionManager from '../utils/sessionManager';
-import { listPosts, createPost, likePost, unlikePost, listComments, addComment, uploadImage, deletePost, getCommunitySocket, sendTyping, listTrending, listByHashtag, listCollections, createCollection, addPostToCollection, listStories, createStory, reportPost } from '../utils/communityService';
+import { listPosts, createPost, likePost, unlikePost, listComments, addComment, uploadImage, deletePost, getCommunitySocket, sendTyping, listTrending, listByHashtag, listCollections, createCollection, addPostToCollection, listStories, createStory, reportPost, followUser, unfollowUser, getPersonalizedFeed, getFollowing } from '../utils/communityService';
 
 function useThemeToggle() {
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
@@ -32,6 +32,7 @@ function useAvatarUploader() {
       try { e.target.value = ''; } catch {}
     }
   };
+
   const Input = () => (
     <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={onChange} />
   );
@@ -368,7 +369,7 @@ function PostComposer({ onPosted }) {
   );
 }
 
-function PostCard({ post, meEmail, onLikeToggle, onCommentAdded, onDeleted, onTyping, onHashtagClick, onSaveRequested }) {
+function PostCard({ post, meEmail, onLikeToggle, onCommentAdded, onDeleted, onTyping, onHashtagClick, onSaveRequested, isFollowing, onFollowToggle, isFollowPending, onOpenPost }) {
   const navigate = useNavigate();
   const [comment, setComment] = useState('');
   const [showComments, setShowComments] = useState(false);
@@ -379,6 +380,7 @@ function PostCard({ post, meEmail, onLikeToggle, onCommentAdded, onDeleted, onTy
   const user = SessionManager.getCurrentUser() || {};
   const isOwner = String(post.user?.email||'').toLowerCase() === String(meEmail||'').toLowerCase();
   const [reporting, setReporting] = useState(false);
+  const canFollow = !!post.user?.email && !isOwner && !!meEmail;
 
   const handleLike = async () => {
     try {
@@ -464,6 +466,21 @@ function PostCard({ post, meEmail, onLikeToggle, onCommentAdded, onDeleted, onTy
               >
                 View profile
               </button>
+              {canFollow && (
+                <button
+                  onClick={async()=>{
+                    try {
+                      await onFollowToggle?.(post.user.email, isFollowing);
+                    } catch (e) {
+                      alert(e?.message || 'Failed to update follow');
+                    } finally { setMenuOpen(false); }
+                  }}
+                  disabled={isFollowPending}
+                  className={`w-full text-left px-3 py-2 text-sm ${isFollowPending ? 'text-gray-400 cursor-not-allowed' : 'text-gray-700 hover:bg-gray-50'}`}
+                >
+                  {isFollowing ? 'Unfollow' : 'Follow'}
+                </button>
+              )}
               {isOwner && (
                 <button onClick={handleDelete} className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50">Delete</button>
               )}
@@ -496,9 +513,9 @@ function PostCard({ post, meEmail, onLikeToggle, onCommentAdded, onDeleted, onTy
       {/* Content */}
       {post.imageUrl && (
         <div className="relative">
-          <div style={{ aspectRatio: '4 / 5' }} className="w-full bg-gray-50 overflow-hidden rounded-xl max-h-96">
+          <button onClick={()=>onOpenPost?.(post)} style={{ aspectRatio: '4 / 5' }} className="w-full bg-gray-50 overflow-hidden rounded-xl max-h-96">
             <img src={post.imageUrl} alt="post" className="w-full h-full object-cover"/>
-          </div>
+          </button>
         </div>
       )}
       
@@ -612,6 +629,7 @@ export default function CommunityPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [view, setView] = useState('feed'); // feed | trending | hashtag
+  const [feedMode, setFeedMode] = useState('all'); // all | following
   const [activeTag, setActiveTag] = useState('');
   const [themeOpen, setThemeOpen] = useState(false);
   const [user, setUser] = useState(() => SessionManager.getCurrentUser() || {});
@@ -639,6 +657,8 @@ export default function CommunityPage() {
     };
   }, []);
   const meEmail = (user?.email || '').trim();
+  const [following, setFollowing] = useState([]);
+  const [followPending, setFollowPending] = useState('');
   const { theme, setTheme } = useThemeToggle();
   const typingMapRef = useRef({});
   // Collections modal state
@@ -653,12 +673,24 @@ export default function CommunityPage() {
   const [storyGroupsCache, setStoryGroupsCache] = useState([]);
   const [storyGIdx, setStoryGIdx] = useState(0);
   const [storyIIdx, setStoryIIdx] = useState(0);
+  // Post viewer modal
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [activePost, setActivePost] = useState(null);
+  const [activeComments, setActiveComments] = useState([]);
+  const [commentText, setCommentText] = useState('');
+  const [likeBusy, setLikeBusy] = useState(false);
 
   const fetchPage = async (p = 1, append = false) => {
     setLoading(true);
     setError('');
     try {
-      const { data, total } = await listPosts(p, 10);
+      let resp;
+      if (feedMode === 'following' && meEmail) {
+        resp = await getPersonalizedFeed(meEmail, p, 10);
+      } else {
+        resp = await listPosts(p, 10);
+      }
+      const { data, total } = resp;
       setTotal(total || 0);
       setItems(prev => append ? [...prev, ...data] : data);
     } catch (e) {
@@ -668,7 +700,19 @@ export default function CommunityPage() {
     }
   };
 
-  useEffect(() => { fetchPage(1, false); }, []);
+  useEffect(() => { fetchPage(1, false); }, [feedMode, meEmail]);
+
+  // Load following list
+  useEffect(() => {
+    const load = async () => {
+      if (!meEmail) { setFollowing([]); return; }
+      try {
+        const emails = await getFollowing(meEmail);
+        setFollowing(emails || []);
+      } catch { setFollowing([]); }
+    };
+    load();
+  }, [meEmail]);
 
   // Socket live updates
   useEffect(() => {
@@ -734,6 +778,27 @@ export default function CommunityPage() {
   const onTyping = (postId, isTyping) => {
     const u = { name: user?.name || user?.email || 'Member', email: meEmail };
     sendTyping({ postId, user: u, isTyping });
+  };
+
+  const onFollowToggle = async (targetEmail, alreadyFollowing) => {
+    if (!meEmail || !targetEmail) throw new Error('Login required');
+    // optimistic
+    setFollowPending(targetEmail.toLowerCase());
+    setFollowing(prev => {
+      const set = new Set(prev);
+      if (alreadyFollowing) set.delete(targetEmail.toLowerCase()); else set.add(targetEmail.toLowerCase());
+      return Array.from(set);
+    });
+    try {
+      if (alreadyFollowing) await unfollowUser(meEmail, targetEmail); else await followUser(meEmail, targetEmail);
+      if (feedMode === 'following') fetchPage(1, false);
+    } catch (e) {
+      // revert on error
+      setFollowing(prev => prev);
+      throw e;
+    } finally {
+      setFollowPending('');
+    }
   };
 
   const loadTrending = async () => {
@@ -874,29 +939,48 @@ export default function CommunityPage() {
       </header>
 
       {/* Main content */}
-      <div className="max-w-4xl mx-auto px-4 py-6">
+      <div className="max-w-2xl mx-auto px-3 py-4">
+        {/* Feed mode toggle */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-lg font-semibold">Community</div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={()=>{ setFeedMode('all'); setPage(1); fetchPage(1, false); }}
+              className={`px-3 py-1 text-sm rounded-full ${feedMode==='all' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+            >All</button>
+            <button
+              onClick={()=>{ setFeedMode('following'); setPage(1); fetchPage(1, false); }}
+              className={`px-3 py-1 text-sm rounded-full ${feedMode==='following' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+              disabled={!meEmail}
+            >Following</button>
+          </div>
+        </div>
         {error && <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 mb-4">{error}</div>}
 
         {/* Stories bar */}
         <StoriesBar onOpenViewer={openStoriesViewer} />
-
-        {/* Tabs */}
-        <div className="flex items-center gap-2 mb-4">
-          <button onClick={()=>{setView('feed'); fetchPage(1, false);}} className={`px-3 py-1.5 rounded-lg text-sm border ${view==='feed'?'bg-blue-500 text-white border-blue-500':'bg-white dark:bg-gray-900 dark:text-gray-200 border-gray-200 dark:border-gray-800'}`}>Feed</button>
-          <button onClick={loadTrending} className={`px-3 py-1.5 rounded-lg text-sm border ${view==='trending'?'bg-blue-500 text-white border-blue-500':'bg-white dark:bg-gray-900 dark:text-gray-200 border-gray-200 dark:border-gray-800'}`}>Trending</button>
-          {activeTag && (
-            <div className="text-xs text-gray-600 dark:text-gray-300 ml-2">#{activeTag}</div>
-          )}
-        </div>
 
         {/* Composer */}
         <PostComposer onPosted={onPosted} />
 
         {/* Feed cards */}
         <div className="space-y-4">
-          {items.map(p => (
-            <PostCard key={p.id} post={p} meEmail={meEmail} onLikeToggle={onLikeToggle} onCommentAdded={onCommentAdded} onDeleted={(id)=>setItems(prev=>prev.filter(x=>x.id!==id))} onTyping={onTyping} onHashtagClick={filterByHashtag} onSaveRequested={openSaveModal} />
-          ))}
+          {items.map((p)=> (
+        <PostCard 
+          key={p.id} 
+          post={p} 
+          meEmail={meEmail}
+          onLikeToggle={onLikeToggle}
+          onCommentAdded={onCommentAdded}
+          onDeleted={(id)=> setItems(prev => prev.filter(x => x.id !== id))}
+          onTyping={onTyping}
+          onHashtagClick={filterByHashtag}
+          onSaveRequested={openSaveModal}
+          isFollowing={following.map(e=>String(e).toLowerCase()).includes(String(p.user?.email||'').toLowerCase())}
+          onFollowToggle={onFollowToggle}
+          isFollowPending={followPending === String(p.user?.email||'').toLowerCase()}
+        />
+      ))}
         </div>
 
         {/* Load more / Infinite scroll sentinel */}

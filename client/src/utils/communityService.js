@@ -14,6 +14,31 @@ export async function uploadAvatar(file, token) {
   return url;
 }
 
+// --- Follow system & personalized feed ---
+export async function followUser(follower, following) {
+  const { data } = await axios.post(`${API_BASE}/community/follow`, { follower, following });
+  if (!data.ok) throw new Error(data.error || 'Failed to follow');
+  return data.data;
+}
+
+export async function unfollowUser(follower, following) {
+  const { data } = await axios.post(`${API_BASE}/community/unfollow`, { follower, following });
+  if (!data.ok) throw new Error(data.error || 'Failed to unfollow');
+  return data.data;
+}
+
+export async function getPersonalizedFeed(email, page = 1, limit = 10) {
+  const { data } = await axios.get(`${API_BASE}/community/feed`, { params: { email, page, limit } });
+  if (!data.ok) throw new Error(data.error || 'Failed to load feed');
+  return data; // { data, page, limit, total }
+}
+
+export async function getFollowing(follower) {
+  const { data } = await axios.get(`${API_BASE}/community/following`, { params: { follower } });
+  if (!data.ok) throw new Error(data.error || 'Failed to load following');
+  return data.data; // [email]
+}
+
 export async function listPosts(page = 1, limit = 10) {
   const { data } = await axios.get(`${API_BASE}/community/posts`, { params: { page, limit } });
   if (!data.ok) throw new Error(data.error || 'Failed to load posts');

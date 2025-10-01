@@ -38,6 +38,7 @@ const TrainerHomePage = () => {
   const [editingResponseId, setEditingResponseId] = useState('');
   const [editingResponseText, setEditingResponseText] = useState('');
 
+
   useEffect(() => {
     // Rely on ProtectedRoute for auth/role; avoid manual redirects
     const currentUser = SessionManager.getCurrentUser();
@@ -85,6 +86,7 @@ const TrainerHomePage = () => {
       setLoading(false);
     }
   };
+
 
   const handleCreateOrUpdateTutorial = async (e) => {
     e.preventDefault();
@@ -406,6 +408,34 @@ const TrainerHomePage = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                 </svg>
                 My Tutorials
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('exercise-categories')}
+              className={`py-3 px-3 md:px-4 border-b-2 font-medium text-sm transition ${
+                activeTab === 'exercise-categories'
+                  ? 'border-orange-500 text-slate-900'
+                  : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                Exercise Categories
+              </div>
+            </button>
+            <button
+              onClick={() => navigate('/trainer/exercise-management')}
+              className={`py-3 px-3 md:px-4 border-b-2 font-medium text-sm transition ${
+                'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Manage Exercises
               </div>
             </button>
             <button
@@ -749,6 +779,186 @@ const TrainerHomePage = () => {
           </div>
         )}
 
+        {activeTab === 'exercise-categories' && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900">Exercise Categories</h2>
+              <p className="text-slate-600 mt-1">Browse exercises by body part and equipment type to find inspiration for your training programs</p>
+            </div>
+
+            {/* Equipment filtering lives in user flow (BodyPartSelectionPage). Removed from trainer dashboard for clarity. */}
+
+            {/* Body Parts Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[
+                {
+                  id: 'chest',
+                  name: 'Chest',
+                  icon: '💪',
+                  description: 'Pectoral muscles',
+                  color: 'from-red-500 to-pink-500',
+                  exercises: ['Push-ups', 'Bench Press', 'Chest Flyes'],
+                  equipment: ['body weight', 'dumbbell', 'barbell', 'cable', 'machine']
+                },
+                {
+                  id: 'back',
+                  name: 'Back',
+                  icon: '🏋️',
+                  description: 'Latissimus dorsi, rhomboids',
+                  color: 'from-blue-500 to-indigo-500',
+                  exercises: ['Pull-ups', 'Rows', 'Deadlifts'],
+                  equipment: ['body weight', 'dumbbell', 'barbell', 'cable', 'machine']
+                },
+                {
+                  id: 'upper legs',
+                  name: 'Upper Legs',
+                  icon: '🦵',
+                  description: 'Quadriceps, hamstrings',
+                  color: 'from-green-500 to-emerald-500',
+                  exercises: ['Squats', 'Lunges', 'Leg Press'],
+                  equipment: ['body weight', 'dumbbell', 'barbell', 'machine', 'kettlebell']
+                },
+                {
+                  id: 'lower legs',
+                  name: 'Lower Legs',
+                  icon: '🦶',
+                  description: 'Calves, shins',
+                  color: 'from-yellow-500 to-orange-500',
+                  exercises: ['Calf Raises', 'Jump Rope', 'Box Jumps'],
+                  equipment: ['body weight', 'dumbbell', 'machine', 'resistance band']
+                },
+                {
+                  id: 'upper arms',
+                  name: 'Upper Arms',
+                  icon: '💪',
+                  description: 'Biceps, triceps',
+                  color: 'from-purple-500 to-violet-500',
+                  exercises: ['Bicep Curls', 'Tricep Dips', 'Hammer Curls'],
+                  equipment: ['body weight', 'dumbbell', 'barbell', 'cable', 'resistance band']
+                },
+                {
+                  id: 'lower arms',
+                  name: 'Lower Arms',
+                  icon: '✋',
+                  description: 'Forearms, wrists',
+                  color: 'from-teal-500 to-cyan-500',
+                  exercises: ['Wrist Curls', 'Grip Training', 'Farmer\'s Walk'],
+                  equipment: ['dumbbell', 'barbell', 'resistance band', 'body weight']
+                },
+                {
+                  id: 'waist',
+                  name: 'Waist',
+                  icon: '🎯',
+                  description: 'Abs, obliques, core',
+                  color: 'from-pink-500 to-rose-500',
+                  exercises: ['Planks', 'Crunches', 'Russian Twists'],
+                  equipment: ['body weight', 'dumbbell', 'kettlebell', 'resistance band']
+                },
+                {
+                  id: 'neck',
+                  name: 'Neck',
+                  icon: '👤',
+                  description: 'Neck muscles',
+                  color: 'from-gray-500 to-slate-500',
+                  exercises: ['Neck Stretches', 'Isometric Holds', 'Range of Motion'],
+                  equipment: ['body weight', 'resistance band']
+                },
+                {
+                  id: 'shoulders',
+                  name: 'Shoulders',
+                  icon: '🏹',
+                  description: 'Deltoids, rotator cuff',
+                  color: 'from-indigo-500 to-blue-500',
+                  exercises: ['Shoulder Press', 'Lateral Raises', 'Face Pulls'],
+                  equipment: ['body weight', 'dumbbell', 'barbell', 'cable', 'machine', 'resistance band']
+                }
+              ].map((bodyPart, index) => (
+                <div
+                  key={bodyPart.id}
+                  onClick={() => navigate(`/services/exercise-explorer?bodyPart=${bodyPart.id}`)}
+                  className="bg-white rounded-2xl border border-slate-200 shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer overflow-hidden group"
+                >
+                  {/* Gradient Background */}
+                  <div className={`h-32 bg-gradient-to-br ${bodyPart.color} relative overflow-hidden`}>
+                    <div className="absolute inset-0 bg-black/20"></div>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-6xl group-hover:scale-110 transition-transform duration-300">
+                        {bodyPart.icon}
+                      </div>
+                    </div>
+                    
+                    {/* Floating Elements */}
+                    <div className="absolute top-4 right-4 w-8 h-8 bg-white/20 rounded-full"></div>
+                    <div className="absolute bottom-4 left-4 w-6 h-6 bg-white/20 rounded-full"></div>
+                  </div>
+
+                  {/* Content */}
+                  <div className="p-6">
+                    <h3 className="text-xl font-bold mb-2 text-slate-900 group-hover:text-blue-600 transition-colors">
+                      {bodyPart.name}
+                    </h3>
+                    <p className="text-sm mb-4 text-slate-600">
+                      {bodyPart.description}
+                    </p>
+                    
+                    {/* Sample Exercises */}
+                    <div className="space-y-1">
+                      {bodyPart.exercises.slice(0, 3).map((exercise, idx) => (
+                        <div key={idx} className="text-xs px-2 py-1 rounded-full bg-slate-100 text-slate-700 inline-block mr-1 mb-1">
+                          {exercise}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Arrow Indicator */}
+                    <div className="mt-4 flex items-center justify-between">
+                      <span className="text-sm font-medium text-slate-500">
+                        View Exercises
+                      </span>
+                      <div className="text-slate-500 group-hover:text-blue-600 transition-colors group-hover:translate-x-1 transform duration-200">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* View All Exercises Button */}
+            <div className="text-center">
+              <button
+                onClick={() => navigate('/services/exercise-explorer')}
+                className="px-8 py-4 rounded-xl font-semibold text-lg bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-3 mx-auto"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                View All Exercises
+              </button>
+            </div>
+
+            {/* Quick Stats */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-lg p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+                <div>
+                  <div className="text-3xl font-bold text-blue-600 mb-2">9</div>
+                  <div className="text-sm text-slate-600">Body Parts</div>
+                </div>
+                <div>
+                  <div className="text-3xl font-bold text-green-600 mb-2">Professional</div>
+                  <div className="text-sm text-slate-600">Exercise GIFs</div>
+                </div>
+                <div>
+                  <div className="text-3xl font-bold text-purple-600 mb-2">Custom</div>
+                  <div className="text-sm text-slate-600">Trainer Content</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'create-tutorial' && (
           <div className="space-y-6">
             <div>
@@ -1078,6 +1288,7 @@ const TrainerHomePage = () => {
         )}
         </div>
       </main>
+
     </div>
   );
 };

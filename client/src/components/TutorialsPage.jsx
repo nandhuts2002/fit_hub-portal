@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaHeart, FaRegHeart, FaSearch, FaFilter, FaPlay, FaClock, FaUser, FaStar, FaArrowLeft } from 'react-icons/fa';
 import api from '../utils/api';
@@ -7,6 +7,7 @@ import SessionManager from '../utils/sessionManager';
 
 const TutorialsPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [tutorials, setTutorials] = useState([]);
   const [selectedTutorial, setSelectedTutorial] = useState(null);
   const [selectedLoading, setSelectedLoading] = useState(false);
@@ -48,7 +49,19 @@ const TutorialsPage = () => {
 
   const currentTrack = musicTracks[currentTrackIndex];
 
+  // Medical acknowledgement removed per request
+
   useEffect(() => {
+    // Medical acknowledgement gate
+    try {
+      const ack = localStorage.getItem('medical_ack_v1');
+      if (ack !== 'accepted') {
+        const params = new URLSearchParams();
+        params.set('next', location.pathname + (location.search || ''));
+        navigate({ pathname: '/services/medical-check', search: params.toString() }, { replace: true });
+        return;
+      }
+    } catch {}
     if (audioRef.current) {
       audioRef.current.volume = volume;
     }

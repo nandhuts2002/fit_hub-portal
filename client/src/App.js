@@ -8,6 +8,7 @@ import SignupPage from './pages/SignupPage';
 import UserHomePage from './pages/UserHomePage';
 import AdminHomePage from './pages/AdminHomePage';
 import TrainerHomePage from './pages/TrainerHomePage';
+import TrainerExerciseManagement from './pages/TrainerExerciseManagement';
 import TutorialsPage from './components/TutorialsPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import MyQueriesChat from './pages/MyQueriesChat';
@@ -22,9 +23,12 @@ import OrderSummaryPage from './pages/OrderSummaryPage';
 import MyOrdersPage from './pages/MyOrdersPage';
 import LocationFeaturesPage from './pages/LocationFeaturesPage';
 import ExerciseDatabasePage from './pages/ExerciseDatabasePageFixed';
+import YogaPosesPage from './pages/YogaPosesPage';
 import ServicesPage from './pages/ServicesPage';
 import AIPlannerPage from './pages/services/AIPlannerPage';
 import ExerciseExplorerPage from './pages/services/ExerciseExplorerPage';
+import BodyPartSelectionPage from './pages/services/BodyPartSelectionPage';
+import MedicalCheckPage from './pages/services/MedicalCheckPage';
 import LiveSessionsPage from './pages/services/LiveSessionsPage';
 import LiveSessionDetail from './pages/services/LiveSessionDetail';
 import ShopProfilePage from './pages/ShopProfilePage';
@@ -61,6 +65,11 @@ function App() {
         <Route path="/trainer-home" element={
           <ProtectedRoute requiredRole="trainer">
             <TrainerHomePage />
+          </ProtectedRoute>
+        } />
+        <Route path="/trainer/exercise-management" element={
+          <ProtectedRoute requiredRole="trainer">
+            <TrainerExerciseManagement />
           </ProtectedRoute>
         } />
         <Route path="/tutorials" element={
@@ -149,6 +158,11 @@ function App() {
             <ExerciseDatabasePage />
           </ProtectedRoute>
         } />
+        <Route path="/yoga-poses" element={
+          <ProtectedRoute>
+            <YogaPosesPage />
+          </ProtectedRoute>
+        } />
         <Route path="/services" element={
           <ProtectedRoute>
             <ServicesPage />
@@ -162,6 +176,21 @@ function App() {
         <Route path="/services/live/:id" element={
           <ProtectedRoute>
             <LiveSessionDetail />
+          </ProtectedRoute>
+        } />
+        <Route path="/services/body-part-selection" element={
+          <ProtectedRoute>
+            <BodyPartSelectionPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/services/exercise-explorer" element={
+          <ProtectedRoute>
+            <ExerciseExplorerPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/services/medical-check" element={
+          <ProtectedRoute>
+            <MedicalCheckPage />
           </ProtectedRoute>
         } />
         <Route path="/services/exercises" element={

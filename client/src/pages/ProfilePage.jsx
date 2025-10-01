@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import SessionManager from '../utils/sessionManager';
-import { uploadAvatar } from '../utils/communityService';
+import { uploadAvatar, getFollowing, listComments as apiListComments, addComment as apiAddComment, likePost as apiLikePost, unlikePost as apiUnlikePost } from '../utils/communityService';
 import { getProfile, getProfilePosts, follow, unfollow, updateProfile } from '../utils/profileService';
 
 export default function ProfilePage() {
@@ -22,6 +22,14 @@ export default function ProfilePage() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const isMe = useMemo(() => String(profile?.email||'').toLowerCase() === String(me?.email||'').toLowerCase(), [profile, me]);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followPending, setFollowPending] = useState(false);
+  // Post viewer modal
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [activePost, setActivePost] = useState(null);
+  const [activeComments, setActiveComments] = useState([]);
+  const [commentText, setCommentText] = useState('');
+  const [likeBusy, setLikeBusy] = useState(false);
 
   // Avatar uploader
   const inputRef = useRef(null);
@@ -44,6 +52,18 @@ export default function ProfilePage() {
       const info = await getProfile(identifier);
       setProfile(info);
       setCounts(info?.counts || { posts: 0, followers: 0, following: 0 });
+      // fetch follow state if viewing someone else
+      try {
+        const meEmail = (me?.email || '').trim().toLowerCase();
+        const targetEmail = String(info?.email || '').trim().toLowerCase();
+        if (meEmail && targetEmail && meEmail !== targetEmail) {
+          const list = await getFollowing(meEmail);
+          const isF = (list || []).map(e=>String(e).toLowerCase()).includes(targetEmail);
+          setIsFollowing(isF);
+        } else {
+          setIsFollowing(false);
+        }
+      } catch {}
       try {
         if (info?.email && info?.avatar && String(info.email).toLowerCase() === String(me?.email||'').toLowerCase()) {
           SessionManager.setAvatar(info.avatar);
@@ -65,15 +85,75 @@ export default function ProfilePage() {
 
   useEffect(() => { loadProfile(); loadPosts(1, false); }, [identifier]);
 
-  const isFollowing = false; // For MVP, you can query follows; we’ll compute after backend follow state is exposed if needed.
+  // Open a post with comments
+  const openPost = async (post) => {
+    setActivePost(post);
+    setViewerOpen(true);
+    try {
+      const list = await apiListComments(post.id);
+      setActiveComments(list || []);
+    } catch { setActiveComments(post.comments || []); }
+  };
+
+  const closePost = () => {
+    setViewerOpen(false);
+    setActivePost(null);
+    setActiveComments([]);
+    setCommentText('');
+  };
+
+  const sharePost = async (post) => {
+    try {
+      const url = `${window.location.origin}/community-posts?id=${encodeURIComponent(post.id)}`;
+      await navigator.clipboard?.writeText(url);
+      alert('Post link copied');
+    } catch { alert('Unable to copy link'); }
+  };
+
+  const toggleLike = async () => {
+    if (!activePost || likeBusy) return;
+    const meEmail = (me?.email || '').trim();
+    if (!meEmail) { alert('Login required'); return; }
+    setLikeBusy(true);
+    const already = (activePost.likes || []).map(e=>String(e).toLowerCase()).includes(meEmail.toLowerCase());
+    // optimistic update
+    setActivePost(p => p ? { ...p, likes: already ? (p.likes||[]).filter(e=>String(e).toLowerCase()!==meEmail.toLowerCase()) : [ ...(p.likes||[]), meEmail ] } : p);
+    try {
+      if (already) await apiUnlikePost(activePost.id, meEmail); else await apiLikePost(activePost.id, meEmail);
+    } catch (e) {
+      // revert on error by refetching comments/likes minimal
+      try { const list = await apiListComments(activePost.id); setActiveComments(list||[]); } catch {}
+    } finally { setLikeBusy(false); }
+  };
+
+  const submitComment = async (e) => {
+    e?.preventDefault?.();
+    const text = commentText.trim();
+    if (!text || !activePost) return;
+    try {
+      const userPayload = { name: me?.name || me?.email || 'Member', email: me?.email || '' };
+      const c = await apiAddComment(activePost.id, { text, user: userPayload });
+      setActiveComments(prev => [ ...(prev||[]), c ]);
+      setCommentText('');
+    } catch (e) { alert(e?.message || 'Failed to comment'); }
+  };
 
   const onFollowToggle = async () => {
     if (!profile?.email) return;
     try {
-      if (isFollowing) await unfollow(profile.email, token); else await follow(profile.email, token);
+      setFollowPending(true);
+      if (isFollowing) {
+        await unfollow(profile.email, token);
+        setIsFollowing(false);
+        setCounts(c => ({ ...c, followers: Math.max(0, (c.followers||0) - 1) }));
+      } else {
+        await follow(profile.email, token);
+        setIsFollowing(true);
+        setCounts(c => ({ ...c, followers: (c.followers||0) + 1 }));
+      }
       // optimistic counters
-      setCounts(c => ({ ...c, followers: c.followers + (isFollowing ? -1 : 1) }));
     } catch (e) { alert(e?.message || 'Action failed'); }
+    finally { setFollowPending(false); }
   };
 
   const onSaveProfile = async (e) => {
@@ -121,6 +201,50 @@ export default function ProfilePage() {
                     <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={onAvatarChange} />
                   </>
                 )}
+
+      {/* Post Viewer Modal */}
+      {viewerOpen && activePost && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-black/60" onClick={closePost} />
+          <div className="absolute inset-0 grid place-items-center p-4" onClick={closePost}>
+            <div className="w-full max-w-4xl bg-white dark:bg-gray-900 rounded-2xl shadow-xl overflow-hidden" onClick={(e)=>e.stopPropagation()}>
+              <div className="grid grid-cols-1 md:grid-cols-2">
+                <div className="bg-black/5 dark:bg-black/30 p-2">
+                  {activePost.imageUrl ? (
+                    <img src={activePost.imageUrl} alt="post" className="w-full h-[60vh] object-contain" />
+                  ) : (
+                    <div className="w-full h-[60vh] grid place-items-center text-gray-600 p-4">{activePost.text}</div>
+                  )}
+                </div>
+                <div className="p-4 flex flex-col">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="font-semibold text-gray-900 dark:text-gray-100">{profile?.displayName || activePost.user?.name || 'Member'}</div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={toggleLike} className="px-3 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 text-sm">
+                        { (activePost.likes||[]).length } ♥
+                      </button>
+                      <button onClick={()=>sharePost(activePost)} className="px-3 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 text-sm">Share</button>
+                      <button onClick={closePost} className="px-3 py-1 rounded-lg bg-gray-100 dark:bg-gray-800 text-sm">Close</button>
+                    </div>
+                  </div>
+                  {activePost.text && (
+                    <div className="text-sm text-gray-800 dark:text-gray-200 mb-3">{activePost.text}</div>
+                  )}
+                  <div className="flex-1 overflow-y-auto border-t border-gray-100 dark:border-gray-800 pt-3 space-y-2">
+                    {(activeComments||[]).map(c => (
+                      <div key={c.id} className="text-sm text-gray-900 dark:text-gray-100"><span className="font-semibold mr-2">{c.user?.name || 'Member'}</span>{c.text}</div>
+                    ))}
+                  </div>
+                  <form onSubmit={submitComment} className="mt-3 flex items-center gap-2">
+                    <input value={commentText} onChange={e=>setCommentText(e.target.value)} placeholder="Add a comment..." className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-transparent text-sm" />
+                    <button className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm disabled:opacity-60" disabled={!commentText.trim()}>Post</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-3 flex-wrap">
@@ -130,7 +254,9 @@ export default function ProfilePage() {
                     {isMe ? (
                       <button onClick={()=>setEditing(true)} className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-700">Edit profile</button>
                     ) : (
-                      <button onClick={onFollowToggle} className="px-4 py-2 rounded-lg bg-blue-600 text-white">{isFollowing ? 'Following' : 'Follow'}</button>
+                      <button onClick={onFollowToggle} disabled={followPending} className={`px-4 py-2 rounded-lg text-white ${isFollowing ? 'bg-gray-700 hover:bg-gray-800' : 'bg-blue-600 hover:bg-blue-700'} disabled:opacity-60`}>
+                        {isFollowing ? 'Following' : 'Follow'}
+                      </button>
                     )}
                   </div>
                 </div>
@@ -163,13 +289,13 @@ export default function ProfilePage() {
         {/* Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-3">
           {posts.map(p => (
-            <div key={p.id} className="relative aspect-square bg-gray-100 rounded-md overflow-hidden">
+            <button key={p.id} onClick={() => openPost(p)} className="relative aspect-square bg-gray-100 rounded-md overflow-hidden">
               {p.imageUrl ? (
                 <img src={p.imageUrl} alt={p.text?.slice(0,40)} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full grid place-items-center text-gray-500 text-xs p-2 text-center">{p.text}</div>
               )}
-            </div>
+            </button>
           ))}
         </div>
 

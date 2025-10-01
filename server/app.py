@@ -6,6 +6,7 @@ from trainer import trainer_bp
 from admin import admin_bp
 from shop import shop_bp
 from exercises import exercises_bp
+from custom_exercises import custom_exercises_bp
 from location import location_bp
 from live import live_bp
 from community import community_bp
@@ -34,6 +35,7 @@ app.register_blueprint(trainer_bp, url_prefix='/trainer')
 app.register_blueprint(admin_bp, url_prefix='/admin')
 app.register_blueprint(shop_bp, url_prefix='/shop')
 app.register_blueprint(exercises_bp, url_prefix='/exercises')
+app.register_blueprint(custom_exercises_bp)
 app.register_blueprint(location_bp, url_prefix='/location')
 app.register_blueprint(live_bp, url_prefix='/live')
 app.register_blueprint(community_bp, url_prefix='/community')
@@ -43,7 +45,19 @@ app.register_blueprint(profile_bp, url_prefix='/profile')
 UPLOAD_DIR = _path.join(_path.dirname(__file__), 'uploads')
 @app.route('/uploads/<path:filename>')
 def uploaded_file(filename):
-    return send_from_directory(UPLOAD_DIR, filename, as_attachment=False)
+    try:
+        print(f"Serving file: {filename}")
+        print(f"Full path: {_path.join(UPLOAD_DIR, filename)}")
+        print(f"File exists: {_path.exists(_path.join(UPLOAD_DIR, filename))}")
+        response = send_from_directory(UPLOAD_DIR, filename, as_attachment=False)
+        # Add CORS headers for images
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        return response
+    except Exception as e:
+        print(f"Error serving file {filename}: {str(e)}")
+        return Response(b'File not found', status=404)
 
 # Proxy: ExerciseDB GIFs (to avoid CDN DNS blocks)
 @app.route('/proxy/exercise-gif/<path:gif_id>')

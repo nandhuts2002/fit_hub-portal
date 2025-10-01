@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Exercise Service Debug</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { 
+            background: #6c757d; 
+            cursor: not-allowed; 
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+            border: 1px solid #e9ecef;
+        }
+        .form-group {
+            margin: 10px 0;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Custom Exercise Service Debug Tool</h1>
+        <p>This tool helps debug the custom exercise service connectivity and functionality.</p>
+        
+        <div id="serverStatus" class="status info">
+            ⏳ Checking server status...
+        </div>
+
+        <div style="margin: 20px 0;">
+            <button onclick="checkServerStatus()" id="statusBtn">🔄 Check Server Status</button>
+            <button onclick="testGetExercises()" id="getBtn">📋 Get Exercises</button>
+            <button onclick="showAddForm()" id="addBtn">➕ Add Exercise</button>
+        </div>
+
+        <div id="addExerciseForm" style="display: none; margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+            <h3>Add Test Exercise</h3>
+            <div class="form-group">
+                <label>Exercise Name:</label>
+                <input type="text" id="exerciseName" value="Test Push-up" placeholder="Enter exercise name">
+            </div>
+            <div class="form-group">
+                <label>Body Part:</label>
+                <select id="bodyPart">
+                    <option value="chest">Chest</option>
+                    <option value="back">Back</option>
+                    <option value="upper arms">Upper Arms</option>
+                    <option value="lower arms">Lower Arms</option>
+                    <option value="upper legs">Upper Legs</option>
+                    <option value="lower legs">Lower Legs</option>
+                    <option value="waist">Waist</option>
+                    <option value="neck">Neck</option>
+                    <option value="shoulders">Shoulders</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Target:</label>
+                <input type="text" id="target" value="pectorals" placeholder="Target muscle">
+            </div>
+            <div class="form-group">
+                <label>Equipment:</label>
+                <input type="text" id="equipment" value="body weight" placeholder="Equipment needed">
+            </div>
+            <div class="form-group">
+                <label>Instructions (one per line):</label>
+                <textarea id="instructions" placeholder="Step 1: Start in plank position
+Step 2: Lower your body
+Step 3: Push back up">Step 1: Start in plank position
+Step 2: Lower your body
+Step 3: Push back up</textarea>
+            </div>
+            <div class="form-group">
+                <label>Trainer ID:</label>
+                <input type="text" id="trainerId" value="debug-trainer-123" placeholder="Trainer ID">
+            </div>
+            <button onclick="testAddExercise()" id="submitBtn">🚀 Add Exercise</button>
+            <button onclick="hideAddForm()" style="background: #6c757d;">❌ Cancel</button>
+        </div>
+
+        <div id="logs" style="margin-top: 20px;">
+            <h3>📋 Debug Logs</h3>
+            <pre id="logContent">Ready to test...</pre>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000';
+        
+        function log(message) {
+            const logContent = document.getElementById('logContent');
+            const timestamp = new Date().toLocaleTimeString();
+            logContent.textContent += `\n[${timestamp}] ${message}`;
+            logContent.scrollTop = logContent.scrollHeight;
+            console.log(message);
+        }
+
+        function setStatus(message, type) {
+            const statusDiv = document.getElementById('serverStatus');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type}`;
+        }
+
+        async function checkServerStatus() {
+            log('🔍 Checking server status...');
+            setStatus('⏳ Checking server...', 'info');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/custom-exercises`);
+                log(`📡 Server response status: ${response.status}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ Server is running! Found ${data.length} exercises.`);
+                    setStatus(`✅ Server is running! Found ${data.length} exercises.`, 'success');
+                } else {
+                    const errorText = await response.text();
+                    log(`❌ Server error: ${response.status} - ${errorText}`);
+                    setStatus(`❌ Server error: ${response.status}`, 'error');
+                }
+            } catch (error) {
+                log(`❌ Connection failed: ${error.message}`);
+                setStatus(`❌ Server offline: ${error.message}`, 'error');
+            }
+        }
+
+        async function testGetExercises() {
+            log('📋 Testing GET exercises...');
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/custom-exercises`);
+                log(`📡 GET response status: ${response.status}`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    log(`✅ GET successful! Retrieved ${data.length} exercises:`);
+                    log(JSON.stringify(data, null, 2));
+                } else {
+                    const errorText = await response.text();
+                    log(`❌ GET failed: ${response.status} - ${errorText}`);
+                }
+            } catch (error) {
+                log(`❌ GET request failed: ${error.message}`);
+            }
+        }
+
+        function showAddForm() {
+            document.getElementById('addExerciseForm').style.display = 'block';
+        }
+
+        function hideAddForm() {
+            document.getElementById('addExerciseForm').style.display = 'none';
+        }
+
+        async function testAddExercise() {
+            log('➕ Testing POST add exercise...');
+            
+            const exerciseData = {
+                name: document.getElementById('exerciseName').value,
+                bodyPart: document.getElementById('bodyPart').value,
+                target: document.getElementById('target').value,
+                equipment: document.getElementById('equipment').value,
+                instructions: document.getElementById('instructions').value.split('\n').map(s => s.trim()).filter(Boolean),
+                trainerId: document.getElementById('trainerId').value
+            };
+            
+            log('📤 Sending exercise data:');
+            log(JSON.stringify(exerciseData, null, 2));
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/custom-exercises`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(exerciseData)
+                });
+                
+                log(`📡 POST response status: ${response.status}`);
+                log(`📡 POST response ok: ${response.ok}`);
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    log('✅ POST successful! Created exercise:');
+                    log(JSON.stringify(result, null, 2));
+                    setStatus('✅ Exercise added successfully!', 'success');
+                    hideAddForm();
+                } else {
+                    const errorText = await response.text();
+                    log(`❌ POST failed: ${response.status} - ${errorText}`);
+                    
+                    // Try to parse as JSON for better error info
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        log(`❌ Server error details: ${JSON.stringify(errorJson, null, 2)}`);
+                        setStatus(`❌ Error: ${errorJson.error || 'Unknown error'}`, 'error');
+                    } catch (e) {
+                        setStatus(`❌ Server error: ${response.status}`, 'error');
+                    }
+                }
+            } catch (error) {
+                log(`❌ POST request failed: ${error.message}`);
+                setStatus(`❌ Request failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-check server status on page load
+        window.addEventListener('load', () => {
+            checkServerStatus();
+        });
+    </script>
+</body>
+</html>

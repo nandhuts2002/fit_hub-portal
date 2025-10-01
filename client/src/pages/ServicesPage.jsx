@@ -36,8 +36,15 @@ const SERVICES = [
     icon: "🏋️",
     img: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=400&auto=format&fit=crop",
     title: "Exercise Explorer",
-    desc: "Search 1,000+ exercises (ExerciseDB)",
-    path: "/services/exercises",
+    desc: "Professional exercise GIFs by body part",
+    path: "/services/body-part-selection",
+  },
+  {
+    icon: "🧘‍♀️",
+    img: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=400&auto=format&fit=crop",
+    title: "Yoga Poses",
+    desc: "Discover and practice yoga poses",
+    path: "/yoga-poses",
   },
   {
     icon: "🎥",

@@ -6,7 +6,7 @@ import time
 import uuid
 from os import path as _path
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from models import community_posts_collection
+from models import community_posts_collection, follows_collection
 from socketio_instance import socketio
 
 community_bp = Blueprint('community', __name__)
@@ -15,6 +15,7 @@ ROOT_DIR = _path.dirname(__file__)
 DATA_FILE = _path.join(ROOT_DIR, 'community_posts.json')
 STORY_FILE = _path.join(ROOT_DIR, 'community_stories.json')
 COLLECTIONS_FILE = _path.join(ROOT_DIR, 'community_collections.json')
+REPORTS_FILE = _path.join(ROOT_DIR, 'community_reports.json')
 UPLOAD_DIR = _path.join(ROOT_DIR, 'uploads', 'community')
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -75,6 +76,25 @@ def _load_collections():
 def _save_collections(payload):
     with open(COLLECTIONS_FILE, 'w', encoding='utf-8') as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
+
+
+# --- Reports storage ---
+def _load_reports():
+    try:
+        with open(REPORTS_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            if isinstance(data, list):
+                return data
+            return data.get('reports', [])
+    except FileNotFoundError:
+        return []
+    except Exception:
+        return []
+
+
+def _save_reports(reports):
+    with open(REPORTS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(reports, f, ensure_ascii=False, indent=2)
 
 
 @community_bp.route('/posts', methods=['GET'])
@@ -462,3 +482,104 @@ def posts_by_hashtag(tag):
     start = (page - 1) * limit
     end = start + limit
     return jsonify({'ok': True, 'data': filtered[start:end], 'total': len(filtered)})
+
+
+# --- Post Reports ---
+@community_bp.route('/posts/<post_id>/report', methods=['POST'])
+def report_post(post_id):
+    payload = request.get_json(silent=True) or {}
+    reason = (payload.get('reason') or '').strip() or 'Unspecified'
+    reporter = (payload.get('reporter') or '').strip().lower()
+    report = {
+        'id': str(uuid.uuid4()),
+        'postId': post_id,
+        'reason': reason,
+        'reporter': reporter,
+        'created_at': int(time.time() * 1000)
+    }
+    reports = _load_reports()
+    reports.append(report)
+    _save_reports(reports)
+    # Best-effort mirror to Mongo (optional collection not declared to keep compatibility)
+    try:
+        # store on the post document for quick admin lookup
+        community_posts_collection.update_one({'id': post_id}, { '$push': { 'reports': report } })
+    except Exception:
+        pass
+    return jsonify({'ok': True, 'data': { 'id': report['id'] }})
+
+
+# --- Follow system & personalized feed ---
+@community_bp.route('/follow', methods=['POST'])
+def follow_user():
+    payload = request.get_json(silent=True) or {}
+    follower = str(payload.get('follower') or '').strip().lower()
+    following = str(payload.get('following') or '').strip().lower()
+    if not follower or not following or follower == following:
+        return jsonify({'ok': False, 'error': 'invalid follower/following'}), 400
+    try:
+        # Idempotency: if relation already exists, return ok without creating duplicates
+        existing = follows_collection.find_one({ 'follower_email': follower, 'following_email': following })
+        if existing:
+            return jsonify({'ok': True, 'data': { 'follower': follower, 'following': following, 'already': True }})
+        follows_collection.update_one(
+            { 'follower_email': follower, 'following_email': following },
+            { '$setOnInsert': { 'created_at': int(time.time()*1000) } },
+            upsert=True
+        )
+    except Exception:
+        # Even if Mongo fails, keep API responsive
+        pass
+    return jsonify({'ok': True, 'data': { 'follower': follower, 'following': following }})
+
+
+@community_bp.route('/unfollow', methods=['POST'])
+def unfollow_user():
+    payload = request.get_json(silent=True) or {}
+    follower = str(payload.get('follower') or '').strip().lower()
+    following = str(payload.get('following') or '').strip().lower()
+    if not follower or not following or follower == following:
+        return jsonify({'ok': False, 'error': 'invalid follower/following'}), 400
+    try:
+        follows_collection.delete_one({ 'follower_email': follower, 'following_email': following })
+    except Exception:
+        pass
+    return jsonify({'ok': True, 'data': { 'follower': follower, 'following': following }})
+
+
+@community_bp.route('/feed', methods=['GET'])
+def personalized_feed():
+    email = str(request.args.get('email') or '').strip().lower()
+    try:
+        page = int(request.args.get('page', '1'))
+        limit = int(request.args.get('limit', '10'))
+    except ValueError:
+        page, limit = 1, 10
+    if not email:
+        return jsonify({'ok': False, 'error': 'email required'}), 400
+    posts = _load_posts()
+    followees = []
+    try:
+        followees = [doc.get('following_email') for doc in follows_collection.find({ 'follower_email': email })]
+    except Exception:
+        followees = []
+    # Also include own posts
+    allow = set([email] + [e for e in followees if e])
+    filtered = [p for p in posts if str((p.get('user') or {}).get('email') or '').strip().lower() in allow]
+    filtered = sorted(filtered, key=lambda p: p.get('created_at', 0), reverse=True)
+    start = (page - 1) * limit
+    end = start + limit
+    return jsonify({'ok': True, 'data': filtered[start:end], 'page': page, 'limit': limit, 'total': len(filtered)})
+
+
+@community_bp.route('/following', methods=['GET'])
+def get_following():
+    follower = str(request.args.get('follower') or '').strip().lower()
+    if not follower:
+        return jsonify({'ok': False, 'error': 'follower required'}), 400
+    try:
+        emails = [doc.get('following_email') for doc in follows_collection.find({ 'follower_email': follower })]
+        emails = [e for e in emails if e]
+    except Exception:
+        emails = []
+    return jsonify({'ok': True, 'data': emails})

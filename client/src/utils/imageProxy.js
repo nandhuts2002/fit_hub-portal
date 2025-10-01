@@ -44,21 +44,30 @@ class ImageProxy {
 
   // Get the best available image URL
   async getBestImageUrl(exercise) {
-    const { gifUrl, id, bodyPart, name } = exercise || {};
+    const { gifUrl, mediaUrl, id, bodyPart, name } = exercise || {};
 
-    // Prefer provided gifUrl, else build from ExerciseDB v2 CDN
-    const rawUrl = gifUrl || (id ? `https://v2.exercisedb.io/image/${id}` : null);
+    // Prefer mediaUrl over gifUrl for newer exercises
+    const rawUrl = mediaUrl || gifUrl || (id ? `https://v2.exercisedb.io/image/${id}` : null);
 
-    // If we have an ExerciseDB URL, route it through our proxy to avoid CORS
     if (rawUrl) {
+      // Check if this is a local uploaded file (starts with /uploads/)
+      if (rawUrl.startsWith('/uploads/')) {
+        // For local uploads, serve directly from our Flask server
+        const apiBase = process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_API_URL || 'http://localhost:5000';
+        const localUrl = `${apiBase}${rawUrl}`;
+        this.cache.set(mediaUrl || gifUrl || name || id, localUrl);
+        return localUrl;
+      }
+      
+      // For external URLs (ExerciseDB, etc.), route through proxy to avoid CORS
       const proxied = this.getProxyUrl(rawUrl, bodyPart);
-      this.cache.set(gifUrl || name || id, proxied);
+      this.cache.set(mediaUrl || gifUrl || name || id, proxied);
       return proxied;
     }
 
     // Fallback to static placeholder image
     const fallbackUrl = this.getFallbackImage(bodyPart);
-    this.cache.set(gifUrl || name || id || 'fallback', fallbackUrl);
+    this.cache.set(mediaUrl || gifUrl || name || id || 'fallback', fallbackUrl);
     return fallbackUrl;
   }
 
