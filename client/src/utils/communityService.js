@@ -1,4 +1,5 @@
 import axios from 'axios';
+import SessionManager from './sessionManager';
 import { io } from 'socket.io-client';
 
 const API_BASE = process.env.REACT_APP_API_BASE_URL || process.env.REACT_APP_API_URL || 'http://localhost:5000';
@@ -46,7 +47,9 @@ export async function listPosts(page = 1, limit = 10) {
 }
 
 export async function createPost(payload) {
-  const { data } = await axios.post(`${API_BASE}/community/posts`, payload);
+  const user = SessionManager.getCurrentUser?.() || {};
+  const headers = user?.token ? { Authorization: `Bearer ${user.token}` } : undefined;
+  const { data } = await axios.post(`${API_BASE}/community/posts`, payload, { headers });
   if (!data.ok) throw new Error(data.error || 'Failed to create post');
   return data.data;
 }

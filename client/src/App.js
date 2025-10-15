@@ -31,6 +31,8 @@ import BodyPartSelectionPage from './pages/services/BodyPartSelectionPage';
 import MedicalCheckPage from './pages/services/MedicalCheckPage';
 import LiveSessionsPage from './pages/services/LiveSessionsPage';
 import LiveSessionDetail from './pages/services/LiveSessionDetail';
+import AICoachPage from './pages/services/AICoachPage';
+import BMICalculatorPage from './pages/services/BMICalculatorPage';
 import ShopProfilePage from './pages/ShopProfilePage';
 import ProductDetailsPage from './pages/ProductDetailsPage';
 import ProfilePage from './pages/ProfilePage';
@@ -73,6 +75,12 @@ function App() {
           </ProtectedRoute>
         } />
         <Route path="/tutorials" element={
+          <ProtectedRoute>
+            <TutorialsPage />
+          </ProtectedRoute>
+        } />
+        {/* Alias used by Start Workout CTA */}
+        <Route path="/workouts" element={
           <ProtectedRoute>
             <TutorialsPage />
           </ProtectedRoute>
@@ -201,6 +209,17 @@ function App() {
         <Route path="/services/ai-planner" element={
           <ProtectedRoute>
             <AIPlannerPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/services/bmi" element={
+          <ProtectedRoute>
+            <BMICalculatorPage />
+          </ProtectedRoute>
+        } />
+        {/* AI Coach chat */}
+        <Route path="/ai-coach" element={
+          <ProtectedRoute>
+            <AICoachPage />
           </ProtectedRoute>
         } />
         

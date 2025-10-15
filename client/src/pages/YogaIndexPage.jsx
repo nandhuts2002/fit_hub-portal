@@ -179,6 +179,107 @@ const YogaIndexPage = () => {
         </div>
       </section>
 
+      {/* About */}
+      <section id="about" className="py-20 bg-gradient-to-b from-black via-zinc-950 to-black">
+        <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
+          <div>
+            <h2 className="text-4xl font-extrabold mb-4">What is <span className="text-orange-400">FitHub</span> Yoga?</h2>
+            <p className="text-gray-300 leading-relaxed">
+              FitHub is your all-in-one fitness platform. Explore guided yoga programs, live & recorded
+              sessions, progress tracking, expert trainers, and a shop for curated fitness products. Start simple,
+              grow consistently, and build a routine you’ll love.
+            </p>
+            <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+              <div className="p-4 rounded-xl bg-gray-900/70 border border-white/10">✓ Guided Plans & Levels</div>
+              <div className="p-4 rounded-xl bg-gray-900/70 border border-white/10">✓ Live Sessions & Replays</div>
+              <div className="p-4 rounded-xl bg-gray-900/70 border border-white/10">✓ Progress Tracking</div>
+              <div className="p-4 rounded-xl bg-gray-900/70 border border-white/10">✓ Trainer Community</div>
+            </div>
+          </div>
+          <div className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+            <img
+              src="https://images.unsplash.com/photo-1511405946472-a37e3b5ccd47?q=80&w=1470&auto=format&fit=crop"
+              alt="Yoga class"
+              className="w-full h-full object-cover"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Classes */}
+      <section id="classes" className="py-20 bg-black">
+        <div className="max-w-6xl mx-auto px-6">
+          <h2 className="text-4xl font-bold mb-10 text-center">Classes for <span className="text-orange-400">Everyone</span></h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[{
+              title: 'Beginner Flow',
+              desc: 'Foundations, breathwork, mobility and gentle sequences.',
+              img: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?q=80&w=1470&auto=format&fit=crop'
+            },{
+              title: 'Intermediate Power',
+              desc: 'Build strength, balance and flexibility with dynamic flows.',
+              img: 'https://images.unsplash.com/photo-1518611012118-1234abcd579a?q=80&w=1470&auto=format&fit=crop'
+            },{
+              title: 'Advanced Mastery',
+              desc: 'Challenging asanas, endurance and mindfulness at pace.',
+              img: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=1470&auto=format&fit=crop'
+            }].map((c) => (
+              <div key={c.title} className="group rounded-2xl overflow-hidden border border-white/10 bg-gray-900/60 hover:bg-gray-900/80 transition shadow-xl">
+                <div className="h-48 overflow-hidden">
+                  <img src={c.img} alt={c.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                </div>
+                <div className="p-6">
+                  <h3 className="text-xl font-semibold mb-2">{c.title}</h3>
+                  <p className="text-gray-400 text-sm">{c.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section className="py-20 bg-gradient-to-b from-black via-zinc-950 to-black">
+        <div className="max-w-6xl mx-auto px-6">
+          <h2 className="text-4xl font-bold mb-12 text-center">How It <span className="text-orange-400">Works</span></h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {[{
+              step: '1', title: 'Create your account', desc: 'Sign up and set your goals. We’ll guide your path.'
+            },{
+              step: '2', title: 'Pick a plan', desc: 'Choose a program or join a live class that fits your level.'
+            },{
+              step: '3', title: 'Practice & track', desc: 'Follow sessions, log progress, and unlock achievements.'
+            }].map((s) => (
+              <div key={s.step} className="p-8 rounded-2xl bg-gray-900/70 border border-white/10 text-center">
+                <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center font-extrabold text-xl">{s.step}</div>
+                <h3 className="text-xl font-semibold mb-2">{s.title}</h3>
+                <p className="text-gray-400 text-sm">{s.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Contact / CTA */}
+      <section id="contact" className="py-20 bg-black">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <h2 className="text-4xl font-bold mb-4">Ready to <span className="text-orange-400">Begin</span>?</h2>
+          <p className="text-gray-300 max-w-2xl mx-auto mb-8">
+            Start with a free account, explore classes, and upgrade anytime. Have questions? Reach us at
+            <span className="text-orange-400"> support@fithub.com</span>.
+          </p>
+          <div className="flex items-center justify-center gap-4 flex-wrap">
+            <button
+              onClick={() => navigate('/login', { state: { from: '/yoga' } })}
+              className="px-6 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-400 hover:from-orange-600 hover:to-amber-500 text-black font-semibold shadow-lg"
+            >
+              Login / Sign up
+            </button>
+            <a href="#classes" className="px-6 py-3 rounded-xl border border-white/10 text-white hover:bg-white/10">Explore Classes</a>
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="bg-gray-900 py-8 text-center text-gray-500">
         <p>&copy; 2024 FITHUB Yoga. All rights reserved.</p>

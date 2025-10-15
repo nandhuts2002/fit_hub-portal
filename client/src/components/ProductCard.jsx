@@ -148,10 +148,12 @@ const ProductCard = ({
                 <p className="text-xs text-gray-500 mb-2 truncate" title={product.brand}>{product.brand}</p>
               )}
             </div>
-            <div className="flex items-center space-x-1 whitespace-nowrap ml-2">
-              <Star className="w-4 h-4 text-yellow-400 fill-current" />
-              <span className="text-sm text-gray-600">{product.rating}</span>
-              <span className="text-xs text-gray-400">({product.reviews})</span>
+            <div className="flex items-center space-x-1 whitespace-nowrap ml-2" title={`${product.rating || 0} out of 5`}>
+              {[1,2,3,4,5].map((i) => (
+                <Star key={i} className={`w-4 h-4 ${i <= Math.round(product.rating || 0) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
+              ))}
+              <span className="text-sm text-gray-700 font-medium ml-1">{(product.rating || 0).toFixed ? (product.rating || 0).toFixed(1) : (product.rating || 0)}</span>
+              <span className="text-xs text-gray-400">({product.reviews || 0})</span>
             </div>
           </div>
 

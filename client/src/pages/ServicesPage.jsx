@@ -18,13 +18,6 @@ const SERVICES = [
     desc: "Estimate daily calories",
     path: "/services/calories",
   },
-  {
-    icon: "🍽️",
-    img: "https://images.pexels.com/photos/349609/pexels-photo-349609.jpeg",
-    title: "Meal Planner",
-    desc: "Plan healthy meals",
-    path: "/services/meal-planner",
-  },
   // {
   //   icon: "🚶",
   //   img: "https://images.unsplash.com/photo-1544211412-2a3c0b3a0b19?q=80&w=400&auto=format&fit=crop",
@@ -59,6 +52,13 @@ const SERVICES = [
     title: "AI Workout Planner",
     desc: "Personalized weekly plans via RapidAPI",
     path: "/services/ai-planner",
+  },
+  {
+    icon: "💬",
+    img: "https://images.unsplash.com/photo-1552642986-ccb41e7059e7?q=80&w=400&auto=format&fit=crop",
+    title: "My Queries",
+    desc: "Ask and track trainer responses",
+    path: "/queries",
   },
 ];
 

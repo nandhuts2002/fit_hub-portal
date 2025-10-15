@@ -1,4 +1,6 @@
 // Payment service for event bookings and gym memberships
+import SessionManager from './sessionManager';
+
 class PaymentService {
   constructor() {
     this.apiBaseUrl = 'http://localhost:5000';
@@ -7,7 +9,7 @@ class PaymentService {
   // Create Razorpay order for event booking
   async createEventPaymentOrder(eventData, userData) {
     try {
-      const token = localStorage.getItem('token');
+      const token = SessionManager.getCurrentUser()?.token || localStorage.getItem('token');
       if (!token) {
         throw new Error('Authentication required');
       }
@@ -21,14 +23,16 @@ class PaymentService {
         body: JSON.stringify({
           event_id: eventData._id,
           event_title: eventData.title,
-          amount: this.parseAmount(eventData.price),
+          // Razorpay expects amount in paise
+          amount: Math.round(this.parseAmount(eventData.price) * 100),
+          currency: 'INR',
           user_data: userData
         })
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to create payment order');
+        throw new Error(errorData.message || errorData.error || `Failed to create payment order (${response.status})`);
       }
 
       const data = await response.json();
@@ -42,7 +46,7 @@ class PaymentService {
   // Create Razorpay order for gym membership
   async createGymPaymentOrder(gymData, userData, membershipType = 'monthly') {
     try {
-      const token = localStorage.getItem('token');
+      const token = SessionManager.getCurrentUser()?.token || localStorage.getItem('token');
       if (!token) {
         throw new Error('Authentication required');
       }
@@ -57,14 +61,15 @@ class PaymentService {
           gym_id: gymData._id,
           gym_name: gymData.name,
           membership_type: membershipType,
-          amount: this.parseAmount(gymData.price),
+          amount: Math.round(this.parseAmount(gymData.price) * 100),
+          currency: 'INR',
           user_data: userData
         })
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to create payment order');
+        throw new Error(errorData.message || errorData.error || `Failed to create payment order (${response.status})`);
       }
 
       const data = await response.json();
@@ -78,7 +83,7 @@ class PaymentService {
   // Verify payment signature
   async verifyPayment(paymentData) {
     try {
-      const token = localStorage.getItem('token');
+      const token = SessionManager.getCurrentUser()?.token || localStorage.getItem('token');
       if (!token) {
         throw new Error('Authentication required');
       }
@@ -94,7 +99,7 @@ class PaymentService {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Payment verification failed');
+        throw new Error(errorData.message || errorData.error || 'Payment verification failed');
       }
 
       const data = await response.json();
@@ -131,6 +136,36 @@ class PaymentService {
 
       rzp.open();
     });
+  }
+
+  // Ensure Razorpay SDK loaded
+  async ensureRazorpayLoaded() {
+    if (window.Razorpay) return true;
+    await new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.onload = resolve;
+      script.onerror = () => reject(new Error('Failed to load Razorpay SDK'));
+      document.body.appendChild(script);
+    });
+    return !!window.Razorpay;
+  }
+
+  // Create booking record pending admin approval (best-effort)
+  async createPendingBooking({ kind, refId, meta }) {
+    try {
+      const token = SessionManager.getCurrentUser()?.token || localStorage.getItem('token');
+      if (!token) return; // best-effort
+      await fetch(`${this.apiBaseUrl}/location/api/bookings`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ kind, ref_id: refId, status: 'pending_admin', meta })
+      }).catch(()=>{});
+    } catch {}
   }
 
   // Parse amount from string (e.g., "₹200" -> 200)

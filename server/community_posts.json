@@ -117,7 +117,8 @@
       "avatar": ""
     },
     "likes": [
-      "amymaria123@gmail.com"
+      "amymaria123@gmail.com",
+      "alexantony2026@mca.ajce.in"
     ],
     "comments": [
       {
@@ -159,6 +160,16 @@
           "avatar": ""
         },
         "created_at": 1759140502158
+      },
+      {
+        "id": "b06a6f6f-0161-42e0-acae-4340db7a6bf1",
+        "text": "kk",
+        "user": {
+          "name": "alex antony antony",
+          "email": "alexantony2026@mca.ajce.in",
+          "avatar": ""
+        },
+        "created_at": 1759468794511
       }
     ],
     "created_at": 1758788745382
@@ -256,5 +267,20 @@
     ],
     "comments": [],
     "created_at": 1758823646350
+  },
+  {
+    "id": "3e85857a-9926-48f5-80f5-fa86b6c62751",
+    "text": "",
+    "imageUrl": "http://localhost:5000/uploads/community/1759747094273_44b36d03f130452d81c83b820bebfda9.jpg",
+    "user": {
+      "name": "alex antony antony",
+      "email": "alexantony2026@mca.ajce.in",
+      "avatar": "http://localhost:5000/uploads/users/1758824518317_e9a97caccf4d42959ee0a5b3281216de.jpg"
+    },
+    "likes": [
+      "amymaria123@gmail.com"
+    ],
+    "comments": [],
+    "created_at": 1759747097505
   }
 ]

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaArrowLeft, FaSearch, FaFilter, FaPlus, FaClock, FaCheckCircle, FaTag, FaShieldAlt, FaTimes, FaPaperPlane, FaTrash } from 'react-icons/fa';
+import { FaArrowLeft, FaSearch, FaFilter, FaPlus, FaClock, FaCheckCircle, FaTag, FaShieldAlt, FaTimes, FaPaperPlane, FaTrash, FaMicrophone, FaPaperclip } from 'react-icons/fa';
 import SessionManager from "../utils/sessionManager";
 
 // Formatters
@@ -274,6 +274,71 @@ const MyQueriesChat = () => {
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
 
+  // Chatbot state (fitness-only assistant)
+  const [chatMessages, setChatMessages] = useState(() => [
+    { id: 'm1', role: 'assistant', content: 'Hey! I’m your FitHub coach. Ask me anything about workouts, yoga, diet, recovery, sleep, or gear.' , ts: Date.now() }
+  ]);
+  const [chatInput, setChatInput] = useState("");
+  const [typing, setTyping] = useState(false);
+
+  const suggestions = [
+    'Beginner yoga routine',
+    'Full-body workout plan',
+    'High-protein vegetarian meals',
+    'Lower back pain stretches',
+    'Weight loss weekly schedule',
+  ];
+
+  // Simple domain guard for fitness/health topics
+  const isFitnessTopic = (text) => {
+    const t = (text || '').toLowerCase();
+    const allow = [
+      'workout','training','exercise','gym','yoga','pose','asana','diet','meal','protein','calorie','nutrition','sleep','recovery','stretch','mobility','injury','pain','cardio','strength','hypertrophy','supplement','water','hydration','wellness','health','steps','running','walk','cycle','squat','deadlift','pushup','plank'
+    ];
+    return allow.some(k => t.includes(k));
+  };
+
+  // Normalize category to Title Case (server often expects this). Fallback to 'General'.
+  const normalizeCategory = (cat) => {
+    const raw = String(cat || '').trim();
+    if (!raw) return 'General';
+    const title = raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+    const allowed = ['General','Posture','Breathing','Meditation'];
+    return allowed.includes(title) ? title : 'General';
+  };
+
+  const respondFitness = async (userText) => {
+    // Placeholder on-device response; can be replaced with real API later
+    const tips = [
+      'Aim for 8,000–10,000 steps daily and 2–3 strength sessions per week.',
+      'Prioritize protein (0.8–1g per lb of goal bodyweight) and whole foods.',
+      'Use RPE 7–8 for main lifts; progress weights or reps weekly.',
+      'Sleep 7–9 hours. Keep caffeine before noon and a regular sleep window.',
+      'Warm-up: 5–8 min light cardio, then dynamic mobility for target joints.'
+    ];
+    const reply = `Here are some pointers:\n• ${tips.slice(0,3).join('\n• ')}\n\nWant a plan? Tell me your goal, equipment, and days/week.`;
+    return new Promise((resolve)=> setTimeout(()=> resolve(reply), 600));
+  };
+
+  const handleSend = async () => {
+    const text = chatInput.trim();
+    if (!text || typing) return;
+    const userMsg = { id: 'u'+Date.now(), role: 'user', content: text, ts: Date.now() };
+    setChatMessages(prev => [...prev, userMsg]);
+    setChatInput("");
+    setTyping(true);
+
+    let reply;
+    if (!isFitnessTopic(text)) {
+      reply = "I can help only with fitness and health topics like workouts, yoga, diet, recovery, sleep, injuries, and equipment.";
+    } else {
+      reply = await respondFitness(text);
+    }
+    const botMsg = { id: 'a'+Date.now(), role: 'assistant', content: reply, ts: Date.now() };
+    setChatMessages(prev => [...prev, botMsg]);
+    setTyping(false);
+  };
+
   // Fetch queries
   useEffect(() => {
     const fetchQueries = async () => {
@@ -330,20 +395,38 @@ const MyQueriesChat = () => {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          // Common server expectations covered
+          title: data.title,
+          description: data.description,
+          content: data.description, // in case server expects 'content'
+          category: data.category || "general",
+          priority: data.priority || "medium",
+          status: "open",
+        }),
       });
       if (res.status === 401) {
         alert("Your session has expired. Please log in again.");
         SessionManager.clearSession();
         return;
       }
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        // Try to read server error details
+        let serverMsg = "";
+        try {
+          const errJson = await res.json();
+          serverMsg = errJson?.msg || errJson?.error || JSON.stringify(errJson);
+        } catch {
+          try { serverMsg = await res.text(); } catch {}
+        }
+        throw new Error(serverMsg || `HTTP ${res.status}`);
+      }
       const newQuery = await res.json();
       setQueries((prev) => [newQuery, ...prev]);
       setCreateOpen(false);
     } catch (err) {
       console.error("Failed to create query:", err);
-      alert("Failed to create query. Please try again.");
+      alert(`Failed to create query. ${err?.message ? `\n${err.message}` : "Please try again."}`);
     } finally {
       setCreating(false);
     }
@@ -404,8 +487,8 @@ const MyQueriesChat = () => {
               <FaArrowLeft size={20} />
             </motion.button>
             <div>
-              <h1 className="text-2xl font-bold text-white">My Queries</h1>
-              <p className="text-sm text-gray-300">Track and manage your support queries</p>
+              <h1 className="text-2xl font-bold text-white">FitHub Chat</h1>
+              <p className="text-sm text-gray-300">Your fitness & health assistant</p>
             </div>
           </div>
 
@@ -427,6 +510,30 @@ const MyQueriesChat = () => {
             transition={{ duration: 0.6 }}
             className="mb-8 space-y-6"
           >
+            {/* Hero + Suggestions */}
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-zinc-900/60 to-black/60 border border-white/10 shadow-2xl">
+              <div className="absolute -top-24 -left-24 w-64 h-64 bg-emerald-500/20 blur-3xl rounded-full" />
+              <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-cyan-400/20 blur-3xl rounded-full" />
+              <div className="relative p-6 sm:p-8 flex flex-col md:flex-row items-center md:items-start gap-6">
+                <div className="flex-1 text-left">
+                  <div className="text-3xl font-extrabold tracking-tight text-white mb-2">Hi {SessionManager.getCurrentUser()?.firstName || 'Athlete'}!</div>
+                  <div className="text-gray-300">What do you want to chat about today?</div>
+                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {suggestions.map((s) => (
+                      <button key={s} onClick={() => setChatInput(s)} className="text-left px-4 py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-gray-200">
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="w-full md:w-64">
+                  <div className="p-4 rounded-2xl bg-black/40 border border-white/10 text-gray-300">
+                    Fitness-only mode is enabled. I’ll refuse non-fitness topics.
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* Search Bar */}
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -482,42 +589,78 @@ const MyQueriesChat = () => {
             </div>
           </motion.div>
 
-          {/* Queries Grid */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-          >
-            {loading ? (
-              <div className="col-span-full flex justify-center items-center py-20">
-                <div className="text-gray-300 text-lg">Loading your queries...</div>
-              </div>
-            ) : error ? (
-              <div className="col-span-full flex justify-center items-center py-20">
-                <div className="text-red-400 text-lg">{error}</div>
-              </div>
-            ) : filtered.length === 0 ? (
-              <div className="col-span-full text-center py-20">
-                <div className="text-gray-300 text-lg mb-4">No queries found</div>
-                <div className="text-gray-400">Try adjusting your filters or create a new query</div>
-              </div>
-            ) : (
-              <AnimatePresence mode="popLayout">
-                {filtered.map((q, index) => (
-                  <QueryCard
-                    key={q.id}
-                    query={q}
-                    onOpen={openDetail}
-                    onDelete={handleDelete}
-                  />
+          {/* Chatbot + Queries */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Chatbot Panel */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="rounded-2xl bg-black/60 border border-white/10 shadow-2xl flex flex-col h-[560px]"
+            >
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {chatMessages.map(m => (
+                  <div key={m.id} className={`flex ${m.role==='user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`${m.role==='user' ? 'bg-emerald-500/20 text-emerald-200 border-emerald-500/30' : 'bg-white/5 text-gray-200 border-white/10'} max-w-[80%] rounded-2xl px-4 py-3 border shadow-md`}> 
+                      <div className="whitespace-pre-wrap leading-relaxed">{m.content}</div>
+                      <div className="mt-1 text-[10px] opacity-60">{new Date(m.ts).toLocaleTimeString()}</div>
+                    </div>
+                  </div>
                 ))}
-              </AnimatePresence>
-            )}
-          </motion.div>
+                {typing && (
+                  <div className="flex items-center gap-2 text-gray-300">
+                    <span className="inline-flex w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                    Bot is typing...
+                  </div>
+                )}
+              </div>
+              <div className="border-t border-white/10 p-3">
+                <div className="flex items-end gap-2">
+                  <button className="p-3 rounded-xl bg-white/5 border border-white/10 text-gray-300 hover:bg-white/10" title="Attach"><FaPaperclip /></button>
+                  <div className="flex-1">
+                    <textarea value={chatInput} onChange={e=>setChatInput(e.target.value)} rows={1} placeholder="What is on your mind?" className="w-full resize-none px-4 py-3 rounded-xl bg-gray-800/80 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                  </div>
+                  <button onClick={handleSend} disabled={!chatInput.trim() || typing} className="p-3 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-black font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"><FaPaperPlane /></button>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Queries Grid */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.8, delay: 0.2 }}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-6"
+            >
+              {loading ? (
+                <div className="col-span-full flex justify-center items-center py-20">
+                  <div className="text-gray-300 text-lg">Loading your queries...</div>
+                </div>
+              ) : error ? (
+                <div className="col-span-full flex justify-center items-center py-20">
+                  <div className="text-red-400 text-lg">{error}</div>
+                </div>
+              ) : filtered.length === 0 ? (
+                <div className="col-span-full text-center py-20">
+                  <div className="text-gray-300 text-lg mb-4">No queries found</div>
+                  <div className="text-gray-400">Try adjusting your filters or create a new query</div>
+                </div>
+              ) : (
+                <AnimatePresence mode="popLayout">
+                  {filtered.map((q, index) => (
+                    <QueryCard
+                      key={q.id}
+                      query={q}
+                      onOpen={openDetail}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                </AnimatePresence>
+              )}
+            </motion.div>
+          </div>
         </div>
       </main>
-
       {/* Create Query Modal */}
       <CreateQueryModal
         open={createOpen}
@@ -530,4 +673,3 @@ const MyQueriesChat = () => {
 };
 
 export default MyQueriesChat;
-

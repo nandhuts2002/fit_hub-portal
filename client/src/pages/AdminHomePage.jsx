@@ -146,6 +146,23 @@ const AdminHomePage = () => {
   // Orders management
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+  // Dashboard product and financial summaries
+  const [productsDash, setProductsDash] = useState([]);
+  const [revenueMonth, setRevenueMonth] = useState(0);
+  const [stockSummary, setStockSummary] = useState({ total: 0, low: 0 });
+  const [revenueTrend, setRevenueTrend] = useState([]); // [{label, amount}]
+  const [topSellers, setTopSellers] = useState([]); // [{id,name,qty,total}]
+
+  // Helper: normalize stock across different API field names
+  const getStockCount = (p) => {
+    const candidates = [p?.stockQuantity, p?.stock_quantity, p?.stock, p?.inventory, p?.availableStock];
+    for (const v of candidates) {
+      const n = Number(v);
+      if (Number.isFinite(n)) return Math.max(0, n);
+    }
+    if (p?.in_stock === false || p?.inStock === false) return 0;
+    return 0; // unknown -> treat as 0 for admin visibility
+  };
   
   const [trainerForm, setTrainerForm] = useState({
     firstName: '',
@@ -215,6 +232,76 @@ const AdminHomePage = () => {
           setTutorials([]);
         } finally {
           setTutorialsLoading(false);
+        }
+
+        // Fetch products and orders for dashboard summaries
+        try {
+          const [productsResp, ordersResp] = await Promise.all([
+            axios.get('http://localhost:5000/shop/api/products', authHeaders),
+            axios.get('http://localhost:5000/shop/api/orders', authHeaders)
+          ]);
+
+          const products = productsResp.data?.products || [];
+          const ordersData = ordersResp.data?.orders || [];
+          setProductsDash(products);
+          setOrders(ordersData);
+
+          // Compute stock summary using normalized fields
+          const totalStock = products.reduce((sum, p) => sum + getStockCount(p), 0);
+          const lowStock = products.filter(p => getStockCount(p) <= 5 || p.in_stock === false || p.inStock === false).length;
+          setStockSummary({ total: totalStock, low: lowStock });
+
+          // Compute current month revenue (Paid orders only)
+          const now = new Date();
+          const y = now.getFullYear();
+          const m = now.getMonth();
+          const startOfMonth = new Date(y, m, 1).getTime();
+          const endOfMonth = new Date(y, m + 1, 0, 23, 59, 59, 999).getTime();
+          const monthRevenue = ordersData
+            .filter(o => String(o.paymentStatus).toLowerCase() === 'paid')
+            .filter(o => {
+              const ts = new Date(o.updated_at || o.created_at || o.timestamps?.created).getTime();
+              return ts >= startOfMonth && ts <= endOfMonth;
+            })
+            .reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+          setRevenueMonth(monthRevenue);
+
+          // Compute revenue trend for the last 6 months
+          const months = [];
+          for (let i = 5; i >= 0; i--) {
+            const d = new Date(y, m - i, 1);
+            months.push({ key: `${d.getFullYear()}-${d.getMonth()}`, label: d.toLocaleString('en-US', { month: 'short' }) + ' ' + String(d.getFullYear()).slice(-2), amount: 0 });
+          }
+          const paidOrders = ordersData.filter(o => String(o.paymentStatus).toLowerCase() === 'paid');
+          paidOrders.forEach(o => {
+            const t = new Date(o.updated_at || o.created_at || o.timestamps?.created);
+            const key = `${t.getFullYear()}-${t.getMonth()}`;
+            const idx = months.findIndex(mo => mo.key === key);
+            if (idx !== -1) months[idx].amount += (Number(o.total) || 0);
+          });
+          setRevenueTrend(months.map(({ key, ...rest }) => rest));
+
+          // Compute top selling products by quantity (from paid orders)
+          const qtyMap = new Map(); // key product_id or name
+          paidOrders.forEach(o => {
+            (o.items || []).forEach(it => {
+              const pid = it.product_id || it.productId || it.id || it.name;
+              const prev = qtyMap.get(pid) || { id: pid, name: it.name || 'Product', qty: 0, total: 0 };
+              prev.qty += Number(it.quantity) || 1;
+              prev.total += (Number(it.price) || 0) * (Number(it.quantity) || 1);
+              // prefer product name from products list if available
+              const p = products.find(pp => (pp._id === pid) || (pp.id === pid));
+              if (p && p.name) prev.name = p.name;
+              qtyMap.set(pid, prev);
+            });
+          });
+          const sortedTop = Array.from(qtyMap.values()).sort((a,b)=> b.qty - a.qty).slice(0,5);
+          setTopSellers(sortedTop);
+        } catch (err) {
+          console.error('❌ Failed to load products/orders for dashboard:', err);
+          setProductsDash([]);
+          setStockSummary({ total: 0, low: 0 });
+          setRevenueMonth(0);
         }
 
       } catch (error) {
@@ -1236,7 +1323,7 @@ const AdminHomePage = () => {
               </svg>
             </div>
             <div className="text-right">
-              <h3 className="text-3xl font-bold text-secondary-900 mb-1">${stats.revenue?.toLocaleString() || 0}</h3>
+              <h3 className="text-3xl font-bold text-secondary-900 mb-1">₹{Number(revenueMonth || 0).toLocaleString()}</h3>
               <p className="text-secondary-600 text-sm font-medium">Monthly Revenue</p>
             </div>
           </div>
@@ -1245,6 +1332,53 @@ const AdminHomePage = () => {
               ↗ +8.3% from last month
             </span>
           </div>
+        </div>
+      </div>
+      
+      {/* Revenue Trend and Top Sellers */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+        {/* Revenue Trend (last 6 months) */}
+        <div className="bg-white rounded-xl border border-secondary-200 p-6">
+          <h3 className="text-lg font-semibold text-secondary-900 mb-4">Revenue Trend (Last 6 Months)</h3>
+          {revenueTrend.length === 0 ? (
+            <div className="text-sm text-secondary-500">No revenue data yet.</div>
+          ) : (
+            <div className="space-y-3">
+              {revenueTrend.map((m, idx) => {
+                const max = Math.max(...revenueTrend.map(x => x.amount || 0)) || 1;
+                const widthPct = Math.max(3, Math.round((m.amount / max) * 100));
+                return (
+                  <div key={idx} className="flex items-center gap-3">
+                    <div className="w-16 text-xs text-secondary-600">{m.label}</div>
+                    <div className="flex-1 bg-gray-100 rounded h-3 overflow-hidden">
+                      <div className="h-3 bg-gradient-to-r from-green-500 to-emerald-600" style={{ width: `${widthPct}%` }} />
+                    </div>
+                    <div className="w-28 text-right text-xs font-medium text-secondary-800">₹{Number(m.amount||0).toLocaleString()}</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Top Selling Products */}
+        <div className="bg-white rounded-xl border border-secondary-200 p-6">
+          <h3 className="text-lg font-semibold text-secondary-900 mb-4">Top Selling Products</h3>
+          {topSellers.length === 0 ? (
+            <div className="text-sm text-secondary-500">No sales data yet.</div>
+          ) : (
+            <div className="divide-y rounded-lg border">
+              {topSellers.map((p) => (
+                <div key={p.id} className="flex items-center justify-between px-4 py-3 text-sm">
+                  <div className="min-w-0 mr-3">
+                    <div className="font-semibold text-secondary-900 truncate max-w-[260px]">{p.name}</div>
+                    <div className="text-xs text-secondary-500">Qty: {p.qty}</div>
+                  </div>
+                  <div className="text-secondary-900 font-semibold">₹{Number(p.total||0).toLocaleString()}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -1265,17 +1399,39 @@ const AdminHomePage = () => {
         </div>
 
         <div className="bg-white rounded-xl border border-secondary-200 p-6">
-          <h3 className="text-lg font-semibold text-secondary-900 mb-4">Recent Activity</h3>
-          <div className="space-y-3">
-            {users.slice(0, 4).map((user, index) => (
-              <div key={user.id} className="flex items-center gap-3 p-3 bg-secondary-50 rounded-lg">
-                <div className="text-2xl">👤</div>
-                <div>
-                  <p className="text-secondary-900 font-medium"><strong>User registered:</strong> {user.name}</p>
-                  <span className="text-xs text-secondary-500">{user.joinDate || 'Recently'}</span>
+          <h3 className="text-lg font-semibold text-secondary-900 mb-2">Stock Overview</h3>
+          <div className="flex items-center gap-6 mb-4">
+            <div className="flex-1">
+              <div className="text-sm text-secondary-600">Total Units In Stock</div>
+              <div className="text-2xl font-bold text-secondary-900">{stockSummary.total}</div>
+            </div>
+            <div className="flex-1">
+              <div className="text-sm text-secondary-600">Low Stock Products</div>
+              <div className="text-2xl font-bold text-red-600">{stockSummary.low}</div>
+            </div>
+          </div>
+          <div className="mt-2">
+            <h4 className="text-sm font-semibold text-secondary-800 mb-2">Low Stock Items</h4>
+            <div className="divide-y border rounded-lg">
+              {(productsDash
+                .filter(p => getStockCount(p) <= 5 || p.in_stock === false || p.inStock === false)
+                .sort((a,b) => getStockCount(a) - getStockCount(b))
+                .slice(0,5)
+              ).map((p) => (
+                <div key={p._id || p.id} className="flex items-center justify-between px-3 py-2 text-sm">
+                  <div className="truncate mr-2">
+                    <div className="font-medium text-secondary-900 truncate max-w-[220px]">{p.name}</div>
+                    <div className="text-xs text-secondary-500">{p.category || 'General'}</div>
+                  </div>
+                  <div className={`px-2 py-1 rounded text-xs font-semibold ${(getStockCount(p) === 0 || p.in_stock === false || p.inStock === false) ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-800'}`}>
+                    {p.in_stock === false || p.inStock === false ? 'Out of stock' : `Qty: ${getStockCount(p)}`}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+              {productsDash.filter(p => getStockCount(p) <= 5 || p.in_stock === false || p.inStock === false).length === 0 && (
+                <div className="px-3 py-4 text-sm text-secondary-500">All products are sufficiently stocked.</div>
+              )}
+            </div>
           </div>
         </div>
       </div>

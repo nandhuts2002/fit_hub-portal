@@ -1375,11 +1375,28 @@ def create_order():
 @shop_bp.route('/api/products/<product_id>/reviews', methods=['GET'])
 def get_product_reviews(product_id):
     try:
+        # Ensure indexes for efficient lookups
+        try:
+            reviews_collection.create_index([('product_id', 1), ('created_at', -1)])
+        except Exception:
+            pass
         reviews = list(reviews_collection.find({'product_id': ObjectId(product_id)}).sort('created_at', -1))
-        
+
+        # Normalize fields for JSON
         for review in reviews:
-            review['_id'] = str(review['_id'])
-            
+            review['_id'] = str(review.get('_id'))
+            created = review.get('created_at')
+            try:
+                # Convert datetime to ISO string for JSON serialization
+                if created is not None:
+                    review['created_at'] = created.isoformat() + 'Z'
+            except Exception:
+                # If conversion fails, fallback to string
+                review['created_at'] = str(created) if created is not None else None
+            # Ensure product_id is string for client-side safety if needed elsewhere
+            if isinstance(review.get('product_id'), ObjectId):
+                review['product_id'] = str(review['product_id'])
+
         return jsonify({'success': True, 'reviews': reviews})
         
     except Exception as e:
@@ -1389,6 +1406,11 @@ def get_product_reviews(product_id):
 @jwt_required()
 def create_review(product_id):
     try:
+        # Enforce one review per user per product at DB level (best-effort)
+        try:
+            reviews_collection.create_index([('product_id', 1), ('user_email', 1)], unique=True)
+        except Exception:
+            pass
         data = request.get_json()
         identity = get_jwt_identity()
         user_email = identity.get('email') if isinstance(identity, dict) else None

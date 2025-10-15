@@ -102,6 +102,31 @@
         }
       ],
       "createdAt": "2025-09-21T16:31:51.779124+00:00"
+    },
+    {
+      "id": "ec6202d537404ec6a7075972e72d845b",
+      "title": "yoga meet",
+      "description": "yoga camp come and find the piece",
+      "trainerId": "trainer1234@gmail.com",
+      "trainerName": "TrainerA Ts",
+      "platform": "meet",
+      "meetingUrl": "https://meet.google.com/opv-urjf-wnu",
+      "startTime": "2025-10-20T04:30:00.000Z",
+      "duration": 60,
+      "capacity": 100,
+      "price": 140.0,
+      "level": "beginner",
+      "style": "yoga",
+      "reservations": [
+        {
+          "email": "amymaria123@gmail.com",
+          "name": "amy mariya",
+          "requestedAt": "2025-10-15T16:14:19.113008+00:00",
+          "status": "approved",
+          "payStatus": "paid"
+        }
+      ],
+      "createdAt": "2025-10-15T16:13:42.409958+00:00"
     }
   ]
 }

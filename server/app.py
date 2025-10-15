@@ -11,11 +11,12 @@ from location import location_bp
 from live import live_bp
 from community import community_bp
 from profile import profile_bp
+from ai import ai_bp
 from dotenv import load_dotenv
 import os
 from datetime import timedelta
 from os import path as _path
-from flask import send_from_directory, Response, request
+from flask import send_from_directory, Response, request, jsonify
 import requests
 from socketio_instance import socketio
 
@@ -40,24 +41,13 @@ app.register_blueprint(location_bp, url_prefix='/location')
 app.register_blueprint(live_bp, url_prefix='/live')
 app.register_blueprint(community_bp, url_prefix='/community')
 app.register_blueprint(profile_bp, url_prefix='/profile')
+app.register_blueprint(ai_bp)
 
 # Serve uploaded files
 UPLOAD_DIR = _path.join(_path.dirname(__file__), 'uploads')
 @app.route('/uploads/<path:filename>')
 def uploaded_file(filename):
-    try:
-        print(f"Serving file: {filename}")
-        print(f"Full path: {_path.join(UPLOAD_DIR, filename)}")
-        print(f"File exists: {_path.exists(_path.join(UPLOAD_DIR, filename))}")
-        response = send_from_directory(UPLOAD_DIR, filename, as_attachment=False)
-        # Add CORS headers for images
-        response.headers['Access-Control-Allow-Origin'] = '*'
-        response.headers['Access-Control-Allow-Methods'] = 'GET'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
-        return response
-    except Exception as e:
-        print(f"Error serving file {filename}: {str(e)}")
-        return Response(b'File not found', status=404)
+    return send_from_directory(UPLOAD_DIR, filename, as_attachment=False)
 
 # Proxy: ExerciseDB GIFs (to avoid CDN DNS blocks)
 @app.route('/proxy/exercise-gif/<path:gif_id>')
@@ -74,6 +64,30 @@ def proxy_exercise_gif(gif_id: str):
         return Response(r.iter_content(chunk_size=8192), status=r.status_code, headers=headers)
     except requests.RequestException:
         return Response(b'', status=502)
+
+# Proxy: BMI Calculator (RapidAPI)
+@app.route('/proxy/bmi', methods=['POST'])
+def proxy_bmi():
+    upstream_url = 'https://bmi-calculator.p.rapidapi.com/v1/bmi'
+    rapidapi_key = os.getenv('RAPIDAPI_KEY') or request.headers.get('x-rapidapi-key')
+    if not rapidapi_key:
+        return jsonify({'error': 'Missing RapidAPI key'}), 400
+
+    try:
+        upstream_headers = {
+            'x-rapidapi-key': rapidapi_key,
+            'x-rapidapi-host': 'bmi-calculator.p.rapidapi.com',
+            'Content-Type': 'application/json'
+        }
+        r = requests.post(upstream_url, json=request.get_json(silent=True) or {}, headers=upstream_headers, timeout=20)
+        # Forward JSON body and status
+        try:
+            data = r.json()
+        except ValueError:
+            data = {'error': 'Invalid JSON from upstream', 'text': r.text}
+        return jsonify(data), r.status_code
+    except requests.RequestException as e:
+        return jsonify({'error': 'Upstream request failed', 'details': str(e)}), 502
 
 if __name__ == '__main__':
     # Initialize SocketIO with the Flask app and run

@@ -82,12 +82,20 @@ const UserHomePage = () => {
         const resp = await fetch('http://localhost:5000/live/sessions');
         const json = await resp.json();
         const list = json?.data || [];
-        // sort by startTime ascending and take next 3
-        const sorted = list
-          .filter(s => !!s.startTime)
-          .sort((a,b)=> String(a.startTime).localeCompare(String(b.startTime)))
-          .slice(0,3);
-        setLiveItems(sorted);
+        // Filter to only upcoming sessions (exclude ended/past)
+        const now = Date.now();
+        const upcoming = list
+          .filter(s => {
+            const start = s?.startTime ? new Date(s.startTime).getTime() : null;
+            const end = s?.endTime ? new Date(s.endTime).getTime() : null;
+            const notEndedByStatus = s?.status ? String(s.status).toLowerCase() !== 'ended' : true;
+            // include if start in future OR (has end and end in future)
+            const isUpcoming = (start && start > now) || (end && end > now);
+            return isUpcoming && notEndedByStatus;
+          })
+          .sort((a, b) => String(a.startTime || a.endTime).localeCompare(String(b.startTime || b.endTime)))
+          .slice(0, 3);
+        setLiveItems(upcoming);
       } catch (e) {
         // ignore for home rendering
       }
@@ -397,7 +405,7 @@ const UserHomePage = () => {
               <motion.button
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
-                onClick={() => navigate("/tutorials")}
+                onClick={() => navigate("/workouts")}
                 className="px-4 py-2.5 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 flex items-center gap-2"
               >
                 <Dumbbell className="w-4 h-4" />
@@ -415,7 +423,7 @@ const UserHomePage = () => {
               <motion.button
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
-                onClick={() => navigate("/community-posts")}
+                onClick={() => navigate("/community")}
                 className="px-4 py-2.5 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 flex items-center gap-2"
               >
                 <UsersIcon className="w-4 h-4" />
@@ -514,14 +522,14 @@ const UserHomePage = () => {
                 <span className="font-medium">Find My Gym</span>
               </button>
               <button
-                onClick={() => { navigate('/tutorials'); setMenuOpen(false); }}
+                onClick={() => { navigate('/workouts'); setMenuOpen(false); }}
                 className={`w-full text-left px-4 py-3 rounded-xl transition-colors flex items-center gap-3 bg-white border border-gray-200 shadow-sm text-gray-900 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700`}
               >
                 <Dumbbell className="w-5 h-5" />
                 <span className="font-medium">Workouts</span>
               </button>
               <button
-                onClick={() => { navigate('/community-posts'); setMenuOpen(false); }}
+                onClick={() => { navigate('/community'); setMenuOpen(false); }}
                 className={`w-full text-left px-4 py-3 rounded-xl transition-colors flex items-center gap-3 bg-white border border-gray-200 shadow-sm text-gray-900 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700`}
               >
                 <UsersIcon className="w-5 h-5" />
@@ -711,14 +719,14 @@ const UserHomePage = () => {
                       My Profile
                     </button>
                     <button
-                      onClick={() => { setMenuOpen(false); navigate("/tutorials"); }}
+                      onClick={() => { setMenuOpen(false); navigate("/workouts"); }}
                       className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
                     >
                       <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1"><BookOpen className="w-4 h-4" /></span>
-                      My Tutorials
+                      Workouts
                     </button>
                     <button
-                      onClick={() => { setMenuOpen(false); navigate("/community-posts"); }}
+                      onClick={() => { setMenuOpen(false); navigate("/community"); }}
                       className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
                     >
                       <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1"><UsersIcon className="w-4 h-4" /></span>
@@ -814,11 +822,19 @@ const UserHomePage = () => {
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => navigate("/tutorials")}
+                  onClick={() => navigate("/workouts")}
                   className="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-4 px-8 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2 text-lg"
                 >
                   Start Workout
                   <FaArrowRight className="text-sm" />
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => navigate('/ai-coach')}
+                  className={`${theme === 'dark' ? 'bg-gray-800 text-white border border-gray-700 hover:bg-gray-700' : 'bg-white text-gray-900 border border-gray-200 hover:bg-gray-100'} font-semibold py-4 px-8 rounded-lg transition-all duration-200 flex items-center justify-center gap-2`}
+                >
+                  🤖 Ask AI Coach
                 </motion.button>
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -919,7 +935,7 @@ const UserHomePage = () => {
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className={`text-2xl font-bold ${theme==='dark'?'text-white':'text-gray-900'}`}>Recommended Workouts & Yoga</h2>
-            <button onClick={()=>navigate('/tutorials')} className={`${theme==='dark'?'text-orange-300 hover:text-white':'text-orange-600 hover:text-orange-700'} text-sm font-semibold`}>Explore all →</button>
+            <button onClick={()=>navigate('/workouts')} className={`${theme==='dark'?'text-orange-300 hover:text-white':'text-orange-600 hover:text-orange-700'} text-sm font-semibold`}>Explore all →</button>
           </div>
           {tutorialsList.length === 0 ? (
             <div className={`${theme==='dark'?'bg-gray-950 border-gray-800 text-gray-300':'bg-gray-50 border-gray-200 text-gray-700'} border rounded-2xl p-6`}>No workouts to show yet. Check back soon.</div>
@@ -940,7 +956,7 @@ const UserHomePage = () => {
                     <div className={`mt-2 font-bold ${theme==='dark'?'text-white':'text-gray-900'}`}>{t.title}</div>
                     <div className={`${theme==='dark'?'text-gray-300':'text-gray-600'} text-sm line-clamp-2 mt-1`}>{t.description}</div>
                     <div className="mt-4">
-                      <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={()=>navigate('/tutorials')} className={`px-4 py-2 rounded-lg font-semibold ${theme==='dark'?'bg-orange-600 hover:bg-orange-700 text-white':'bg-orange-600 hover:bg-orange-700 text-white'}`}>Start</motion.button>
+                      <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={()=>navigate('/workouts')} className={`px-4 py-2 rounded-lg font-semibold ${theme==='dark'?'bg-orange-600 hover:bg-orange-700 text-white':'bg-orange-600 hover:bg-orange-700 text-white'}`}>Start</motion.button>
                     </div>
                   </div>
                 </motion.div>
@@ -1037,6 +1053,14 @@ const UserHomePage = () => {
                 color: "from-green-500 to-green-600",
                 highlight: true,
                 action: () => navigate("/tutorials")
+              },
+              {
+                title: "🤖 AI Coach",
+                description: "Chat for yoga & fitness tips",
+                icon: "🤖",
+                color: "from-indigo-500 to-purple-600",
+                highlight: false,
+                action: () => navigate('/ai-coach')
               },
               {
                 title: "🛍️ Shop Now",

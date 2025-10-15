@@ -21,8 +21,23 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
     return <Navigate to="/login" state={{ from: location.pathname }} replace />;
   }
 
-  // If token expired on any API call, backend will return 401. We can optionally detect and redirect.
-  // For now, just ensure pages requiring auth always re-check via SessionManager.
+  // Medical acknowledgement gate for first-time users
+  try {
+    const RAW_KEY = 'medical_ack_v2';
+    const DAYS_VALID = 365; // re-ack yearly
+    const raw = localStorage.getItem(RAW_KEY);
+    let ack = null;
+    try { ack = raw ? JSON.parse(raw) : null; } catch {}
+    const isMedicalPage = location.pathname.startsWith('/services/medical-check');
+    // Gate only for normal users; allow admins/trainers to bypass
+    const role = currentUser?.role || 'user';
+    const ageDays = ack?.ts ? Math.floor((Date.now() - Number(ack.ts)) / (1000*60*60*24)) : Infinity;
+    const needsAck = !ack?.accepted || ageDays > DAYS_VALID;
+    if (role === 'user' && needsAck && !isMedicalPage) {
+      const next = encodeURIComponent(location.pathname + (location.search || ''));
+      return <Navigate to={`/services/medical-check?next=${next}`} replace />;
+    }
+  } catch {}
 
   // If specific role is required and user doesn't have it
   if (requiredRole && (!currentUser || currentUser.role !== requiredRole)) {

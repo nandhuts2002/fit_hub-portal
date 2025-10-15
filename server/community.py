@@ -119,11 +119,16 @@ def list_posts():
 
 
 @community_bp.route('/posts', methods=['POST'])
+@jwt_required()
 def create_post():
     payload = request.get_json(silent=True) or {}
     text = (payload.get('text') or '').strip()
     image_url = (payload.get('imageUrl') or '').strip()
-    user = payload.get('user') or {}
+    # Derive user from JWT to ensure ownership works for delete
+    ident = get_jwt_identity() or {}
+    user_email = str(ident.get('email') or '').strip().lower()
+    user_name = ident.get('name') or ident.get('firstName') or ident.get('email') or 'Member'
+    user_avatar = ident.get('avatar') or ''
     if not text and not image_url:
         return jsonify({'ok': False, 'error': 'Post must have text or image'}), 400
     post = {
@@ -131,9 +136,9 @@ def create_post():
         'text': text,
         'imageUrl': image_url,
         'user': {
-            'name': user.get('name') or 'Member',
-            'email': user.get('email') or '',
-            'avatar': user.get('avatar') or ''
+            'name': user_name,
+            'email': user_email,
+            'avatar': user_avatar
         },
         'likes': [],  # list of emails
         'comments': [],  # list of {id, user, text, created_at}

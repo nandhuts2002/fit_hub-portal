@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Clock, Tag, UserRound, CheckCircle2 } from 'lucide-react';
 import api from '../utils/api';
@@ -40,12 +41,13 @@ const QueryDetailPage = () => {
     return () => { isMounted = false; };
   }, [id, query, navigate]);
 
+  const qStatus = String((query && query.status) || 'open').toLowerCase();
   const statusColor = {
     open: 'bg-yellow-50 text-yellow-700 ring-1 ring-yellow-200',
     pending: 'bg-blue-50 text-blue-700 ring-1 ring-blue-200',
     resolved: 'bg-green-50 text-green-700 ring-1 ring-green-200',
     closed: 'bg-gray-100 text-gray-700 ring-1 ring-gray-200',
-  }[query.status] || 'bg-gray-100 text-gray-700 ring-1 ring-gray-200';
+  }[qStatus] || 'bg-gray-100 text-gray-700 ring-1 ring-gray-200';
 
   if (loading) {
     return (
@@ -76,7 +78,8 @@ const QueryDetailPage = () => {
           </div>
           <div>
             <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium ${statusColor}`}>
-              <CheckCircle2 className="w-4 h-4" /> {query.status.toUpperCase()}
+              <CheckCircle2 className="w-4 h-4" /> {String(query?.status || 'open').toUpperCase()}
+
             </span>
           </div>
         </div>

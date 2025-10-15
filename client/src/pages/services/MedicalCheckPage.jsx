@@ -2,20 +2,37 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FaExclamationTriangle, FaCheckCircle, FaArrowLeft } from 'react-icons/fa';
+import SessionManager from '../../utils/sessionManager';
 
 const MedicalCheckPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [acknowledged, setAcknowledged] = useState(false);
+  const [answers, setAnswers] = useState({
+    chronic: '', // none | heart | respiratory | metabolic | other
+    injury: '',  // none | back | knee | shoulder | other
+    pain: false,
+    doctorClearance: false,
+  });
   const nextPath = searchParams.get('next') || '/tutorials';
 
-  const handleAcknowledge = () => {
-    if (acknowledged) {
-      // Store acknowledgment in localStorage
-      localStorage.setItem('medical_ack_v1', 'accepted');
-      // Navigate to the intended destination
-      navigate(nextPath, { replace: true });
-    }
+  const handleAcknowledge = async () => {
+    if (!acknowledged) return;
+    // Store versioned ack with answers
+    const payload = { accepted: true, ts: Date.now(), answers };
+    try { localStorage.setItem('medical_ack_v2', JSON.stringify(payload)); } catch {}
+    // Optional server sync (ignore failures)
+    try {
+      const current = SessionManager.getCurrentUser();
+      if (current?.token) {
+        await fetch('http://localhost:5000/user/medical-ack', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${current.token}` },
+          body: JSON.stringify(payload),
+        }).catch(()=>{});
+      }
+    } catch {}
+    navigate(nextPath, { replace: true });
   };
 
   const handleGoBack = () => {
@@ -86,6 +103,41 @@ const MedicalCheckPage = () => {
               FitHub and its trainers are not liable for any injuries, health issues, or damages that may occur 
               from following the provided content. Always prioritize your safety and well-being.
             </p>
+          </div>
+
+          {/* Screening Questions */}
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Health Screening</h3>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Chronic conditions</label>
+                <select value={answers.chronic} onChange={(e)=>setAnswers(a=>({...a, chronic:e.target.value}))} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2">
+                  <option value="">None</option>
+                  <option value="heart">Heart/Cardio</option>
+                  <option value="respiratory">Respiratory/Asthma</option>
+                  <option value="metabolic">Metabolic/Diabetes</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Existing injuries</label>
+                <select value={answers.injury} onChange={(e)=>setAnswers(a=>({...a, injury:e.target.value}))} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2">
+                  <option value="">None</option>
+                  <option value="back">Back</option>
+                  <option value="knee">Knee</option>
+                  <option value="shoulder">Shoulder</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <label className="flex items-center gap-3 col-span-2">
+                <input type="checkbox" checked={answers.pain} onChange={(e)=>setAnswers(a=>({...a, pain:e.target.checked}))} className="w-4 h-4" />
+                <span className="text-sm text-gray-700">I currently experience pain or unusual discomfort during activity</span>
+              </label>
+              <label className="flex items-center gap-3 col-span-2">
+                <input type="checkbox" checked={answers.doctorClearance} onChange={(e)=>setAnswers(a=>({...a, doctorClearance:e.target.checked}))} className="w-4 h-4" />
+                <span className="text-sm text-gray-700">I have consulted a doctor and have clearance for physical activity</span>
+              </label>
+            </div>
           </div>
 
           {/* Acknowledgment Checkbox */}

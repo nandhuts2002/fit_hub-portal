@@ -13,7 +13,6 @@ import {
   Dumbbell,
   CheckCircle
 } from 'lucide-react';
-import paymentService from '../utils/paymentService';
 
 const GymDetailsModal = ({ gym, isOpen, onClose }) => {
   const [showContactForm, setShowContactForm] = useState(false);
@@ -23,15 +22,6 @@ const GymDetailsModal = ({ gym, isOpen, onClose }) => {
     email: '',
     message: ''
   });
-  const [showMembershipForm, setShowMembershipForm] = useState(false);
-  const [membershipForm, setMembershipForm] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    membershipType: 'monthly',
-    emergencyContact: ''
-  });
-  const [isProcessing, setIsProcessing] = useState(false);
 
   if (!isOpen || !gym) return null;
 
@@ -41,72 +31,6 @@ const GymDetailsModal = ({ gym, isOpen, onClose }) => {
     alert('Contact form submitted! The gym will get back to you soon.');
     setShowContactForm(false);
     setContactForm({ name: '', phone: '', email: '', message: '' });
-  };
-
-  const handleJoinGym = () => {
-    setShowMembershipForm(true);
-  };
-
-  const handleMembershipSubmit = async (e) => {
-    e.preventDefault();
-    setIsProcessing(true);
-
-    try {
-      const amount = paymentService.parseAmount(gym.price);
-      if (amount <= 0) {
-        alert('Invalid gym membership price. Please contact the gym directly.');
-        return;
-      }
-
-      // Create payment order
-      const userData = paymentService.getUserData();
-      const paymentOrder = await paymentService.createGymPaymentOrder(gym, {
-        ...userData,
-        ...membershipForm
-      }, membershipForm.membershipType);
-
-      // Open Razorpay checkout
-      const options = {
-        key: paymentOrder.key_id,
-        amount: paymentOrder.order.amount,
-        currency: paymentOrder.order.currency,
-        name: 'FitHub Gym Membership',
-        description: `Gym Membership: ${gym.name}`,
-        order_id: paymentOrder.order.id,
-        prefill: {
-          name: membershipForm.name,
-          email: membershipForm.email,
-          contact: membershipForm.phone
-        },
-        notes: {
-          gym_id: gym._id,
-          gym_name: gym.name,
-          membership_type: membershipForm.membershipType
-        },
-        theme: { color: '#7c3aed' }
-      };
-
-      const paymentResponse = await paymentService.openRazorpayCheckout(options);
-      
-      // Verify payment
-      await paymentService.verifyPayment({
-        razorpay_order_id: paymentResponse.razorpay_order_id,
-        razorpay_payment_id: paymentResponse.razorpay_payment_id,
-        razorpay_signature: paymentResponse.razorpay_signature,
-        gym_id: gym._id,
-        membership_type: membershipForm.membershipType,
-        user_data: membershipForm
-      });
-
-      alert('Payment successful! Your gym membership is now active. Welcome to the gym!');
-      setShowMembershipForm(false);
-      setMembershipForm({ name: '', phone: '', email: '', membershipType: 'monthly', emergencyContact: '' });
-    } catch (error) {
-      console.error('Error processing gym membership:', error);
-      alert(`Error processing membership: ${error.message}`);
-    } finally {
-      setIsProcessing(false);
-    }
   };
 
   return (
@@ -259,120 +183,18 @@ const GymDetailsModal = ({ gym, isOpen, onClose }) => {
                 </form>
               </motion.div>
             )}
-
-            {/* Membership Form */}
-            {showMembershipForm && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="border-t pt-6"
-              >
-                <h3 className="text-lg font-semibold mb-4">Join This Gym</h3>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-blue-900">Membership Fee</p>
-                      <p className="text-2xl font-bold text-blue-600">{gym.price}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm text-blue-700">per month</p>
-                      <p className="text-xs text-blue-600">All facilities included</p>
-                    </div>
-                  </div>
-                </div>
-                <form onSubmit={handleMembershipSubmit} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input
-                      type="text"
-                      placeholder="Full Name"
-                      value={membershipForm.name}
-                      onChange={(e) => setMembershipForm({...membershipForm, name: e.target.value})}
-                      className="border rounded-lg px-3 py-2"
-                      required
-                    />
-                    <input
-                      type="tel"
-                      placeholder="Phone Number"
-                      value={membershipForm.phone}
-                      onChange={(e) => setMembershipForm({...membershipForm, phone: e.target.value})}
-                      className="border rounded-lg px-3 py-2"
-                      required
-                    />
-                  </div>
-                  <input
-                    type="email"
-                    placeholder="Email Address"
-                    value={membershipForm.email}
-                    onChange={(e) => setMembershipForm({...membershipForm, email: e.target.value})}
-                    className="border rounded-lg px-3 py-2 w-full"
-                    required
-                  />
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <select
-                      value={membershipForm.membershipType}
-                      onChange={(e) => setMembershipForm({...membershipForm, membershipType: e.target.value})}
-                      className="border rounded-lg px-3 py-2"
-                    >
-                      <option value="monthly">Monthly Membership</option>
-                      <option value="quarterly">Quarterly (3 months)</option>
-                      <option value="yearly">Yearly Membership</option>
-                    </select>
-                    <input
-                      type="tel"
-                      placeholder="Emergency Contact"
-                      value={membershipForm.emergencyContact}
-                      onChange={(e) => setMembershipForm({...membershipForm, emergencyContact: e.target.value})}
-                      className="border rounded-lg px-3 py-2"
-                      required
-                    />
-                  </div>
-                  <div className="flex gap-3">
-                    <button
-                      type="submit"
-                      disabled={isProcessing}
-                      className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
-                    >
-                      {isProcessing ? 'Processing...' : `Pay ${gym.price} & Join`}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowMembershipForm(false)}
-                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              </motion.div>
-            )}
           </div>
 
           {/* Footer Actions */}
           <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 p-6 rounded-b-xl">
             <div className="flex gap-3">
-              {!showMembershipForm && !showContactForm && (
-                <>
-                  <button
-                    onClick={handleJoinGym}
-                    className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                  >
-                    Join This Gym
-                  </button>
-                  <button
-                    onClick={() => setShowContactForm(!showContactForm)}
-                    className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
-                  >
-                    <Phone className="w-4 h-4 inline mr-2" />
-                    Contact
-                  </button>
-                </>
-              )}
-              {showMembershipForm && (
+              {!showContactForm && (
                 <button
-                  onClick={() => setShowMembershipForm(false)}
-                  className="flex-1 bg-gray-500 text-white py-3 px-6 rounded-lg hover:bg-gray-600 transition-colors font-medium"
+                  onClick={() => setShowContactForm(true)}
+                  className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors font-medium"
                 >
-                  Back to Details
+                  <Phone className="w-4 h-4 inline mr-2" />
+                  Request to Join
                 </button>
               )}
               {showContactForm && (
@@ -392,3 +214,4 @@ const GymDetailsModal = ({ gym, isOpen, onClose }) => {
 };
 
 export default GymDetailsModal;
+

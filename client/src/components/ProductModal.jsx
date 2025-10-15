@@ -1,6 +1,8 @@
-import React, { useRef } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Star, Heart, ShoppingCart, Check } from "lucide-react";
+import api from "../utils/api";
+import SessionManager from "../utils/sessionManager";
 import { useNavigate } from "react-router-dom";
 
 const ProductModal = ({
@@ -12,6 +14,12 @@ const ProductModal = ({
   isInWishlist = false
 }) => {
   const navigate = useNavigate();
+  const [reviews, setReviews] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [comment, setComment] = useState("");
+  const [error, setError] = useState("");
   // Debug: Log product data (guard when null)
   if (product) {
     console.log('ProductModal - Product data:', product);
@@ -23,6 +31,24 @@ const ProductModal = ({
   const isInStock = (product?.in_stock !== undefined) ? product.in_stock : (product?.inStock !== undefined ? product.inStock : true);
 
   const addBtnRef = useRef(null);
+
+  // Load reviews when opened
+  useEffect(() => {
+    const loadReviews = async () => {
+      try {
+        if (!product?._id && !product?.id) return;
+        const pid = product._id || product.id;
+        console.log('Loading reviews for product:', pid);
+        const { data } = await api.get(`/shop/api/products/${pid}/reviews`);
+        console.log('Reviews loaded:', data);
+        if (data.success) setReviews(data.reviews || []);
+      } catch (e) {
+        console.error('Error loading reviews:', e);
+        // ignore
+      }
+    };
+    if (isOpen && product) loadReviews();
+  }, [isOpen, product]);
 
   const handleAddVariant = (e, variant) => {
     const rect = e.currentTarget?.getBoundingClientRect?.();
@@ -38,6 +64,50 @@ const ProductModal = ({
   };
 
   if (!product) return null;
+
+  // Helper to refresh reviews for current product
+  const refreshReviews = async () => {
+    try {
+      if (!product?._id && !product?.id) return;
+      const pid = product._id || product.id;
+      const { data } = await api.get(`/shop/api/products/${pid}/reviews`);
+      if (data.success) setReviews(data.reviews || []);
+    } catch (e) {
+      // swallow errors in refresh to avoid breaking UX
+    }
+  };
+
+  const submitReview = async () => {
+    setError("");
+    if (!rating) { setError("Please select a rating"); return; }
+    try {
+      setSubmitting(true);
+      const currentUser = SessionManager.getCurrentUser();
+      if (!currentUser?.token) { setError("Please login to review"); setSubmitting(false); return; }
+      const pid = product._id || product.id;
+      console.log('Submitting review for product:', pid);
+      console.log('User token:', currentUser.token);
+      const { data } = await api.post(`/shop/api/products/${pid}/reviews`, { rating, comment }, {
+        headers: { Authorization: `Bearer ${currentUser.token}` }
+      });
+      console.log('Review submission response:', data);
+      // Always refresh reviews so existing ones show up even if user already reviewed
+      await refreshReviews();
+      if (data?.success) {
+        console.log('Review submitted successfully');
+        setRating(0);
+        setHoverRating(0);
+        setComment("");
+      } else {
+        setError(data?.error || "Failed to submit review");
+      }
+    } catch (e) {
+      console.error('Review submission error:', e);
+      setError(e?.response?.data?.error || e.message || "Failed to submit review");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -92,10 +162,14 @@ const ProductModal = ({
                     </h2>
                     <p className="text-gray-600 mb-2">{product.brand}</p>
                     <div className="flex items-center space-x-2 mb-4">
+                    <div className="flex items-center space-x-2">
                       <div className="flex items-center space-x-1">
-                        <Star className="w-5 h-5 text-yellow-400 fill-current" />
-                        <span className="font-semibold">{product.rating}</span>
-                        <span className="text-gray-500">({product.reviews} reviews)</span>
+                        {[1,2,3,4,5].map((i) => (
+                          <Star key={i} className={`w-5 h-5 ${i <= Math.round(product.rating || 0) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
+                        ))}
+                      </div>
+                      <span className="font-semibold">{(product.rating || 0).toFixed ? (product.rating || 0).toFixed(1) : (product.rating || 0)}</span>
+                      <span className="text-gray-500">({product.reviews || 0} reviews)</span>
                       </div>
                     </div>
                   </div>
@@ -154,7 +228,71 @@ const ProductModal = ({
                   </div>
                 )}
 
-                <div className="flex space-x-3">
+                {/* Review form */}
+                <div className="mt-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                  <h3 className="font-semibold text-gray-900 mb-3">Rate this product</h3>
+                  <div className="flex items-center mb-3">
+                    {[1,2,3,4,5].map((i) => (
+                      <button
+                        key={i}
+                        onMouseEnter={() => setHoverRating(i)}
+                        onMouseLeave={() => setHoverRating(0)}
+                        onClick={() => setRating(i)}
+                        className="mr-1"
+                        title={`${i} star`}
+                      >
+                        <Star className={`w-6 h-6 ${i <= (hoverRating || rating) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
+                      </button>
+                    ))}
+                    {rating > 0 && (
+                      <span className="ml-2 text-sm text-gray-700">{rating} / 5</span>
+                    )}
+                  </div>
+                  <textarea
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    placeholder="Share your experience (optional)"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm"
+                    rows={3}
+                  />
+                  {error && <div className="text-red-600 text-sm mt-2">{error}</div>}
+                  <div className="mt-3 text-right">
+                    <button
+                      onClick={submitReview}
+                      disabled={submitting}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-gray-400"
+                    >
+                      {submitting ? 'Submitting...' : 'Submit Review'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Reviews list */}
+                <div className="mt-6">
+                  <h3 className="font-semibold text-gray-900 mb-3">Customer Reviews</h3>
+                  {reviews.length === 0 ? (
+                    <div className="text-sm text-gray-500">No reviews yet. Be the first to review!</div>
+                  ) : (
+                    <div className="space-y-3">
+                      {reviews.map((r, idx) => (
+                        <div key={r._id || idx} className="p-3 border border-gray-200 rounded-lg">
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center">
+                              {[1,2,3,4,5].map((i) => (
+                                <Star key={i} className={`w-4 h-4 ${i <= (r.rating || 0) ? 'text-yellow-400 fill-current' : 'text-gray-300'}`} />
+                              ))}
+                              <span className="ml-2 text-sm text-gray-700">{r.rating}/5</span>
+                            </div>
+                            <span className="text-xs text-gray-400">{r.created_at ? new Date(r.created_at).toLocaleString?.() : ''}</span>
+                          </div>
+                          {r.comment && <div className="text-sm text-gray-700">{r.comment}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex space-x-3 mt-6">
                   <button
                     onClick={() => onToggleWishlist(product)}
                     className={`flex-1 flex items-center justify-center space-x-2 px-4 py-3 rounded-lg transition-colors ${
