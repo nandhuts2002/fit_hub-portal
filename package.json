@@ -10,7 +10,7 @@
     "vercel-build": "cd client && npm install --legacy-peer-deps && npm run build"
   },
   "engines": {
-    "node": "20.x"
+    "node": "18.x"
   },
   "dependencies": {
     "react-scripts": "^5.0.1"
