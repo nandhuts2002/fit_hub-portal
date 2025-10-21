@@ -43,7 +43,7 @@ git push -u origin main
    - **Name:** `fithub-api`
    - **Runtime:** `Python 3`
    - **Build Command:** `pip install -r requirements.txt`
-   - **Start Command:** `gunicorn --chdir server app:app`
+   - **Start Command:** `cd server && gunicorn app:app --bind 0.0.0.0:$PORT`
 
 5. Click **"Advanced"** and add environment variables:
 

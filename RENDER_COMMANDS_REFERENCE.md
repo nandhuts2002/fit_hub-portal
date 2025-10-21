@@ -8,7 +8,7 @@
 |---------|-------|
 | **Runtime** | `Python 3` |
 | **Build Command** | `pip install -r requirements.txt` |
-| **Start Command** | `gunicorn --chdir server app:app` |
+| **Start Command** | `cd server && gunicorn app:app --bind 0.0.0.0:$PORT` |
 
 ### Frontend Service Configuration
 
@@ -24,13 +24,14 @@
 
 ### The Correct Command:
 ```bash
-gunicorn --chdir server app:app
+cd server && gunicorn app:app --bind 0.0.0.0:$PORT
 ```
 
 **What it does:**
+- `cd server` - Change directory to `server/` folder
 - `gunicorn` - Production WSGI server
-- `--chdir server` - Change directory to `server/` folder
 - `app:app` - Import `app` from `app.py` file
+- `--bind 0.0.0.0:$PORT` - Bind to all interfaces on Render's port
 
 ### Why This Works:
 ```

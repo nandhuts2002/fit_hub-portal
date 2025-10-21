@@ -34,7 +34,7 @@ gunicorn --chdir server app:app
 | **Name** | `fithub-api` (or your choice) |
 | **Runtime** | `Python 3` |
 | **Build Command** | `pip install -r requirements.txt` |
-| **Start Command** | `gunicorn --chdir server app:app` |
+| **Start Command** | `cd server && gunicorn app:app --bind 0.0.0.0:$PORT` |
 | **Instance Type** | `Free` |
 
 ### Environment Variables (Backend):
@@ -252,7 +252,7 @@ Everything is configured correctly:
 
 ### Backend Start Command:
 ```
-gunicorn --chdir server app:app
+cd server && gunicorn app:app --bind 0.0.0.0:$PORT
 ```
 
 ### Frontend Build Command:
