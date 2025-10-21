@@ -4,6 +4,7 @@ import json
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import uuid
+from models import exercise_gifs_collection
 
 # Blueprint for custom exercise management
 custom_exercises_bp = Blueprint('custom_exercises', __name__)
@@ -24,23 +25,40 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def load_custom_exercises():
-    """Load custom exercises from JSON file"""
-    if os.path.exists(CUSTOM_EXERCISES_FILE):
-        try:
-            with open(CUSTOM_EXERCISES_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except (json.JSONDecodeError, IOError):
-            return []
+    """Load custom exercises from MongoDB collection"""
+    try:
+        exercises = list(exercise_gifs_collection.find({}).sort('createdAt', -1))
+        # Convert ObjectId to string for JSON serialization
+        for exercise in exercises:
+            exercise['_id'] = str(exercise['_id'])
+        return exercises
+    except Exception as e:
+        current_app.logger.error(f"Error loading exercises from MongoDB: {str(e)}")
     return []
 
 def save_custom_exercises(exercises):
-    """Save custom exercises to JSON file"""
+    """Save custom exercises to MongoDB collection"""
     try:
-        with open(CUSTOM_EXERCISES_FILE, 'w', encoding='utf-8') as f:
-            json.dump(exercises, f, indent=2, ensure_ascii=False)
+        # This function is kept for backward compatibility but now uses MongoDB
+        # The actual saving is done in add_custom_exercise function
         return True
-    except IOError:
+    except Exception as e:
+        current_app.logger.error(f"Error saving exercises to MongoDB: {str(e)}")
         return False
+
+def save_exercise_to_mongo(exercise):
+    """Save a single exercise to MongoDB collection"""
+    try:
+        # Remove _id if it exists to let MongoDB generate a new one
+        if '_id' in exercise:
+            del exercise['_id']
+        
+        result = exercise_gifs_collection.insert_one(exercise)
+        exercise['_id'] = str(result.inserted_id)
+        return exercise
+    except Exception as e:
+        current_app.logger.error(f"Error saving exercise to MongoDB: {str(e)}")
+        return None
 
 def get_pinterest_gifs():
     """Return Pinterest GIFs database from rajamdavadi gym-gif board"""
@@ -54,6 +72,7 @@ def get_custom_exercises():
     try:
         # Get query parameters
         body_part = request.args.get('body_part', '').lower()
+        equipment = request.args.get('equipment', '').lower()
         
         # Load trainer-uploaded exercises
         trainer_exercises = load_custom_exercises()
@@ -69,6 +88,13 @@ def get_custom_exercises():
             all_exercises = [
                 ex for ex in all_exercises
                 if ex.get('bodyPart', '').lower() == body_part
+            ]
+        
+        # Filter by equipment if specified
+        if equipment and equipment != 'all':
+            all_exercises = [
+                ex for ex in all_exercises
+                if ex.get('equipment', '').lower() == equipment
             ]
         
         return jsonify(all_exercises), 200
@@ -119,14 +145,31 @@ def add_custom_exercise():
         if not all(isinstance(step, str) and step.strip() for step in data['instructions']):
             return jsonify({'error': 'Each instruction must be a non-empty string'}), 400
         
-        # Handle file upload (supports 'mediaFile' and legacy 'gifFile')
+        # Handle file upload or URL input
         gif_url = ''
         media_type = ''
         file = None
-        if 'mediaFile' in request.files:
+        
+        # Check for URL input first (from JSON data)
+        if 'mediaUrl' in data and data['mediaUrl']:
+            gif_url = data['mediaUrl'].strip()
+            # Determine media type from URL extension
+            if gif_url.lower().endswith(('.mp4', '.mov')):
+                media_type = 'video'
+            elif gif_url.lower().endswith('.gif'):
+                media_type = 'gif'
+            elif gif_url.lower().endswith(('.jpg', '.jpeg', '.png', '.webp')):
+                media_type = 'image'
+            else:
+                media_type = 'unknown'
+            current_app.logger.info(f"URL provided: {gif_url}")
+        
+        # If no URL, check for file upload
+        elif 'mediaFile' in request.files:
             file = request.files['mediaFile']
         elif 'gifFile' in request.files:
             file = request.files['gifFile']
+            
         if file is not None:
             current_app.logger.info(f"File received: {file.filename if file else 'None'}")
             if file and file.filename and allowed_file(file.filename):
@@ -182,20 +225,16 @@ def add_custom_exercise():
             'mediaType': media_type or ('gif' if gif_url.endswith('.gif') else ('video' if gif_url.endswith(('.mp4', '.mov')) else ('image' if gif_url else ''))),
             'source': 'trainer',
             'trainerId': data.get('trainerId', ''),
-            'createdAt': datetime.now().isoformat()
+            'createdAt': datetime.now().isoformat(),
+            'updatedAt': datetime.now().isoformat()
         }
         
-        # Load existing exercises
-        exercises = load_custom_exercises()
-        
-        # Add new exercise
-        exercises.append(exercise)
-        
-        # Save to file
-        if save_custom_exercises(exercises):
-            return jsonify(exercise), 201
+        # Save to MongoDB collection
+        saved_exercise = save_exercise_to_mongo(exercise)
+        if saved_exercise:
+            return jsonify(saved_exercise), 201
         else:
-            return jsonify({'error': 'Failed to save exercise'}), 500
+            return jsonify({'error': 'Failed to save exercise to database'}), 500
             
     except Exception as e:
         current_app.logger.error(f"Error adding custom exercise: {str(e)}", exc_info=True)
@@ -205,23 +244,35 @@ def add_custom_exercise():
 def update_custom_exercise(exercise_id):
     """Update an existing custom exercise"""
     try:
+        from bson import ObjectId
         data = request.get_json()
         
-        # Load existing exercises
-        exercises = load_custom_exercises()
+        # Try to find by MongoDB _id first, then by custom id
+        try:
+            # Try as MongoDB ObjectId
+            object_id = ObjectId(exercise_id)
+            exercise = exercise_gifs_collection.find_one({'_id': object_id})
+        except:
+            # Try as custom id
+            exercise = exercise_gifs_collection.find_one({'id': exercise_id})
         
-        # Find and update exercise
-        for i, exercise in enumerate(exercises):
-            if exercise['id'] == exercise_id:
-                exercises[i].update(data)
-                exercises[i]['updatedAt'] = datetime.now().isoformat()
-                
-                if save_custom_exercises(exercises):
-                    return jsonify(exercises[i]), 200
-                else:
-                    return jsonify({'error': 'Failed to save exercise'}), 500
+        if not exercise:
+            return jsonify({'error': 'Exercise not found'}), 404
         
-        return jsonify({'error': 'Exercise not found'}), 404
+        # Update the exercise
+        data['updatedAt'] = datetime.now().isoformat()
+        result = exercise_gifs_collection.update_one(
+            {'_id': exercise['_id']},
+            {'$set': data}
+        )
+        
+        if result.modified_count > 0:
+            # Return updated exercise
+            updated_exercise = exercise_gifs_collection.find_one({'_id': exercise['_id']})
+            updated_exercise['_id'] = str(updated_exercise['_id'])
+            return jsonify(updated_exercise), 200
+        else:
+            return jsonify({'error': 'Failed to update exercise'}), 500
         
     except Exception as e:
         current_app.logger.error(f"Error updating custom exercise: {str(e)}")
@@ -231,27 +282,34 @@ def update_custom_exercise(exercise_id):
 def delete_custom_exercise(exercise_id):
     """Delete a custom exercise"""
     try:
-        # Load existing exercises
-        exercises = load_custom_exercises()
+        from bson import ObjectId
         
-        # Find and remove exercise
-        for i, exercise in enumerate(exercises):
-            if exercise['id'] == exercise_id:
-                # Delete associated GIF file if it exists
-                if exercise.get('gifUrl') and 'uploads/exercise_gifs' in exercise['gifUrl']:
-                    gif_path = os.path.join(os.path.dirname(__file__), 'uploads', 'exercise_gifs', 
-                                          os.path.basename(exercise['gifUrl']))
-                    if os.path.exists(gif_path):
-                        os.remove(gif_path)
-                
-                exercises.pop(i)
-                
-                if save_custom_exercises(exercises):
-                    return jsonify({'message': 'Exercise deleted successfully'}), 200
-                else:
-                    return jsonify({'error': 'Failed to save changes'}), 500
+        # Try to find by MongoDB _id first, then by custom id
+        try:
+            # Try as MongoDB ObjectId
+            object_id = ObjectId(exercise_id)
+            exercise = exercise_gifs_collection.find_one({'_id': object_id})
+        except:
+            # Try as custom id
+            exercise = exercise_gifs_collection.find_one({'id': exercise_id})
         
-        return jsonify({'error': 'Exercise not found'}), 404
+        if not exercise:
+            return jsonify({'error': 'Exercise not found'}), 404
+        
+        # Delete associated GIF file if it exists (only for uploaded files)
+        if exercise.get('gifUrl') and 'uploads/exercise_gifs' in exercise['gifUrl']:
+            gif_path = os.path.join(os.path.dirname(__file__), 'uploads', 'exercise_gifs', 
+                                  os.path.basename(exercise['gifUrl']))
+            if os.path.exists(gif_path):
+                os.remove(gif_path)
+        
+        # Delete from MongoDB
+        result = exercise_gifs_collection.delete_one({'_id': exercise['_id']})
+        
+        if result.deleted_count > 0:
+            return jsonify({'message': 'Exercise deleted successfully'}), 200
+        else:
+            return jsonify({'error': 'Failed to delete exercise'}), 500
         
     except Exception as e:
         current_app.logger.error(f"Error deleting custom exercise: {str(e)}")
@@ -286,22 +344,38 @@ def upload_exercise_gif():
             # Generate URL
             gif_url = f"/uploads/exercise_gifs/{unique_filename}"
             
-            # Update exercise with GIF URL
-            exercises = load_custom_exercises()
-            for exercise in exercises:
-                if exercise['id'] == exercise_id:
-                    exercise['gifUrl'] = gif_url
-                    exercise['updatedAt'] = datetime.now().isoformat()
-                    break
+            # Update exercise with GIF URL in MongoDB
+            from bson import ObjectId
             
-            if save_custom_exercises(exercises):
-                return jsonify({
-                    'message': 'GIF uploaded successfully',
-                    'gifUrl': gif_url,
-                    'exerciseId': exercise_id
-                }), 200
+            # Try to find by MongoDB _id first, then by custom id
+            try:
+                # Try as MongoDB ObjectId
+                object_id = ObjectId(exercise_id)
+                exercise = exercise_gifs_collection.find_one({'_id': object_id})
+            except:
+                # Try as custom id
+                exercise = exercise_gifs_collection.find_one({'id': exercise_id})
+            
+            if exercise:
+                result = exercise_gifs_collection.update_one(
+                    {'_id': exercise['_id']},
+                    {'$set': {
+                        'gifUrl': gif_url,
+                        'mediaUrl': gif_url,
+                        'updatedAt': datetime.now().isoformat()
+                    }}
+                )
+                
+                if result.modified_count > 0:
+                    return jsonify({
+                        'message': 'GIF uploaded successfully',
+                        'gifUrl': gif_url,
+                        'exerciseId': exercise_id
+                    }), 200
+                else:
+                    return jsonify({'error': 'Failed to update exercise'}), 500
             else:
-                return jsonify({'error': 'Failed to update exercise'}), 500
+                return jsonify({'error': 'Exercise not found'}), 404
         else:
             return jsonify({'error': 'Invalid file type'}), 400
             
@@ -315,6 +389,7 @@ def search_custom_exercises():
     try:
         query = request.args.get('q', '').lower()
         body_part = request.args.get('bodyPart', '').lower()
+        equipment = request.args.get('equipment', '').lower()
         
         # Load exercises
         trainer_exercises = load_custom_exercises()
@@ -337,6 +412,12 @@ def search_custom_exercises():
             filtered_exercises = [
                 ex for ex in filtered_exercises
                 if ex['bodyPart'].lower() == body_part
+            ]
+        
+        if equipment and equipment != 'all':
+            filtered_exercises = [
+                ex for ex in filtered_exercises
+                if ex['equipment'].lower() == equipment
             ]
         
         return jsonify(filtered_exercises), 200

@@ -1,1 +1,13 @@
-[]
+[
+  {
+    "id": "1a93a5ff-00af-41fa-b9ab-97357c8c2687",
+    "mediaUrl": "http://localhost:5000/uploads/community/1761024859060_8958d5d5cb7c49458f4f39c5e041fe1f.jpg",
+    "user": {
+      "name": "nandhunandhuts",
+      "email": "nandhunandhuts@gmail.com",
+      "avatar": "https://lh3.googleusercontent.com/a/ACg8ocJXiiTaWmeUpouWlJiiFvpnpTChd1Cg64swsEHEitPp0v280ZAf=s96-c"
+    },
+    "created_at": 1761024859374,
+    "expires_at": 1761111259374
+  }
+]

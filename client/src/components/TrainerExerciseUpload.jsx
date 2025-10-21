@@ -13,8 +13,11 @@ export default function TrainerExerciseUpload({ onExerciseAdded, onClose }) {
     equipment: '',
     instructions: [],
     gifFile: null,
-    mediaFile: null
+    mediaFile: null,
+    mediaUrl: ''
   });
+  
+  const [mediaInputType, setMediaInputType] = useState('file'); // 'file' or 'url'
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -40,12 +43,30 @@ export default function TrainerExerciseUpload({ onExerciseAdded, onClose }) {
       setFormData(prev => ({
         ...prev,
         gifFile: file,
-        mediaFile: file
+        mediaFile: file,
+        mediaUrl: '' // Clear URL when file is selected
       }));
       
       // Create preview URL
       const url = URL.createObjectURL(file);
       setPreviewUrl(url);
+    }
+  };
+
+  const handleUrlChange = (e) => {
+    const url = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      mediaUrl: url,
+      gifFile: null, // Clear file when URL is entered
+      mediaFile: null
+    }));
+    
+    // Set preview URL if it's a valid URL
+    if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+      setPreviewUrl(url);
+    } else {
+      setPreviewUrl('');
     }
   };
 
@@ -80,9 +101,10 @@ export default function TrainerExerciseUpload({ onExerciseAdded, onClose }) {
         target: formData.target,
         equipment: formData.equipment,
         instructions: formData.instructions,
-        // Use mediaFile (image/video/gif)
+        // Include both file and URL options
         gifFile: formData.gifFile,
         mediaFile: formData.mediaFile,
+        mediaUrl: formData.mediaUrl,
         trainerId: localStorage.getItem('userId') || 'anonymous'
       };
 
@@ -99,7 +121,8 @@ export default function TrainerExerciseUpload({ onExerciseAdded, onClose }) {
         equipment: '',
         instructions: [],
         gifFile: null,
-        mediaFile: null
+        mediaFile: null,
+        mediaUrl: ''
       });
       setPreviewUrl('');
       
@@ -242,18 +265,60 @@ export default function TrainerExerciseUpload({ onExerciseAdded, onClose }) {
             </div>
 
             <div>
-                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+              <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                 Exercise Media (Optional)
               </label>
-              <input
-                type="file"
-                accept=".gif,.webp,.mp4,.mov,.jpg,.jpeg,.png"
-                onChange={handleFileChange}
-                className={`w-full px-3 py-2 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
-              />
-              <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                Supported formats: GIF, WebP, JPG, PNG, MP4, MOV (max 10MB)
-              </p>
+              
+              {/* Toggle between File and URL */}
+              <div className="flex mb-3">
+                <button
+                  type="button"
+                  onClick={() => setMediaInputType('file')}
+                  className={`px-4 py-2 rounded-l-lg border ${mediaInputType === 'file' 
+                    ? (isDark ? 'bg-blue-600 text-white border-blue-600' : 'bg-blue-600 text-white border-blue-600')
+                    : (isDark ? 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200')
+                  }`}
+                >
+                  Upload File
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMediaInputType('url')}
+                  className={`px-4 py-2 rounded-r-lg border ${mediaInputType === 'url' 
+                    ? (isDark ? 'bg-blue-600 text-white border-blue-600' : 'bg-blue-600 text-white border-blue-600')
+                    : (isDark ? 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 border-gray-300 hover:bg-gray-200')
+                  }`}
+                >
+                  Add URL
+                </button>
+              </div>
+
+              {mediaInputType === 'file' ? (
+                <>
+                  <input
+                    type="file"
+                    accept=".gif,.webp,.mp4,.mov,.jpg,.jpeg,.png"
+                    onChange={handleFileChange}
+                    className={`w-full px-3 py-2 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                  />
+                  <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Supported formats: GIF, WebP, JPG, PNG, MP4, MOV (max 10MB)
+                  </p>
+                </>
+              ) : (
+                <>
+                  <input
+                    type="url"
+                    value={formData.mediaUrl}
+                    onChange={handleUrlChange}
+                    placeholder="https://example.com/exercise.gif"
+                    className={`w-full px-3 py-2 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'}`}
+                  />
+                  <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Enter a direct URL to a GIF, image, or video file
+                  </p>
+                </>
+              )}
             </div>
 
             {previewUrl && (

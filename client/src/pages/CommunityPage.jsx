@@ -4,6 +4,9 @@ import { motion } from 'framer-motion';
 import SessionManager from '../utils/sessionManager';
 import { listPosts, createPost, likePost, unlikePost, listComments, addComment, uploadImage, deletePost, getCommunitySocket, sendTyping, listTrending, listByHashtag, listCollections, createCollection, addPostToCollection, listStories, createStory, reportPost, followUser, unfollowUser, getPersonalizedFeed, getFollowing } from '../utils/communityService';
 
+// Import new community features - Only Spotlights
+import SpotlightsSection from '../components/community/SpotlightsSection';
+
 function useThemeToggle() {
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
   useEffect(() => {
@@ -628,10 +631,11 @@ export default function CommunityPage() {
   const [items, setItems] = useState([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const [view, setView] = useState('feed'); // feed | trending | hashtag
+  const [view, setView] = useState('feed'); // feed | trending | hashtag | challenges | badges | qa | spotlights
   const [feedMode, setFeedMode] = useState('all'); // all | following
   const [activeTag, setActiveTag] = useState('');
   const [themeOpen, setThemeOpen] = useState(false);
+  const [progressRefreshTrigger, setProgressRefreshTrigger] = useState(0);
   const [user, setUser] = useState(() => SessionManager.getCurrentUser() || {});
   useEffect(() => {
     const refresh = () => {
@@ -940,68 +944,100 @@ export default function CommunityPage() {
 
       {/* Main content */}
       <div className="max-w-2xl mx-auto px-3 py-4">
-        {/* Feed mode toggle */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-lg font-semibold">Community</div>
-          <div className="flex items-center gap-2">
+        {/* Community Navigation Tabs */}
+        <div className="mb-4">
+          <div className="text-lg font-semibold mb-3">Community Hub</div>
+          
+          {/* Main Navigation Tabs - Only Feed and Spotlights */}
+          <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-2">
             <button
-              onClick={()=>{ setFeedMode('all'); setPage(1); fetchPage(1, false); }}
-              className={`px-3 py-1 text-sm rounded-full ${feedMode==='all' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
-            >All</button>
+              onClick={() => setView('feed')}
+              className={`px-4 py-2 text-sm rounded-full whitespace-nowrap ${view === 'feed' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            >
+              📱 Feed
+            </button>
             <button
-              onClick={()=>{ setFeedMode('following'); setPage(1); fetchPage(1, false); }}
-              className={`px-3 py-1 text-sm rounded-full ${feedMode==='following' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
-              disabled={!meEmail}
-            >Following</button>
+              onClick={() => setView('spotlights')}
+              className={`px-4 py-2 text-sm rounded-full whitespace-nowrap ${view === 'spotlights' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            >
+              ⭐ Spotlights
+            </button>
           </div>
+
+          {/* Feed mode toggle - only show when on feed tab */}
+          {view === 'feed' && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={()=>{ setFeedMode('all'); setPage(1); fetchPage(1, false); }}
+                className={`px-3 py-1 text-sm rounded-full ${feedMode==='all' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+              >All</button>
+              <button
+                onClick={()=>{ setFeedMode('following'); setPage(1); fetchPage(1, false); }}
+                className={`px-3 py-1 text-sm rounded-full ${feedMode==='following' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                disabled={!meEmail}
+              >Following</button>
+            </div>
+          )}
         </div>
         {error && <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 mb-4">{error}</div>}
 
-        {/* Stories bar */}
-        <StoriesBar onOpenViewer={openStoriesViewer} />
+        {/* Render different views based on selected tab */}
+        {view === 'feed' && (
+          <>
+            {/* Stories bar */}
+            <StoriesBar onOpenViewer={openStoriesViewer} />
 
-        {/* Composer */}
-        <PostComposer onPosted={onPosted} />
+            {/* Composer */}
+            <PostComposer onPosted={onPosted} />
 
-        {/* Feed cards */}
-        <div className="space-y-4">
-          {items.map((p)=> (
-        <PostCard 
-          key={p.id} 
-          post={p} 
-          meEmail={meEmail}
-          onLikeToggle={onLikeToggle}
-          onCommentAdded={onCommentAdded}
-          onDeleted={(id)=> setItems(prev => prev.filter(x => x.id !== id))}
-          onTyping={onTyping}
-          onHashtagClick={filterByHashtag}
-          onSaveRequested={openSaveModal}
-          isFollowing={following.map(e=>String(e).toLowerCase()).includes(String(p.user?.email||'').toLowerCase())}
-          onFollowToggle={onFollowToggle}
-          isFollowPending={followPending === String(p.user?.email||'').toLowerCase()}
-        />
-      ))}
-        </div>
-
-        {/* Load more / Infinite scroll sentinel */}
-        <div className="py-8 flex items-center justify-center">
-          {loading ? (
-            <div className="flex items-center gap-2 text-gray-600">
-              <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
-              <span className="text-sm">Loading…</span>
+            {/* Feed cards */}
+            <div className="space-y-4">
+              {items.map((p)=> (
+            <PostCard 
+              key={p.id} 
+              post={p} 
+              meEmail={meEmail}
+              onLikeToggle={onLikeToggle}
+              onCommentAdded={onCommentAdded}
+              onDeleted={(id)=> setItems(prev => prev.filter(x => x.id !== id))}
+              onTyping={onTyping}
+              onHashtagClick={filterByHashtag}
+              onSaveRequested={openSaveModal}
+              isFollowing={following.map(e=>String(e).toLowerCase()).includes(String(p.user?.email||'').toLowerCase())}
+              onFollowToggle={onFollowToggle}
+              isFollowPending={followPending === String(p.user?.email||'').toLowerCase()}
+            />
+          ))}
             </div>
-          ) : canLoadMore ? (
-            <button
-              id="feed-load-more"
-              onClick={() => { const next = page + 1; setPage(next); fetchPage(next, true); }}
-              className="px-6 py-3 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 text-sm font-medium shadow-sm"
-            >
-              Load more posts
-            </button>
-          ) : (
-            <div className="text-sm text-gray-500">You're all caught up! 🎉</div>
-          )}
-        </div>
+
+            {/* Load more / Infinite scroll sentinel */}
+            <div className="py-8 flex items-center justify-center">
+              {loading ? (
+                <div className="flex items-center gap-2 text-gray-600">
+                  <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                  <span className="text-sm">Loading…</span>
+                </div>
+              ) : canLoadMore ? (
+                <button
+                  id="feed-load-more"
+                  onClick={() => { const next = page + 1; setPage(next); fetchPage(next, true); }}
+                  className="px-6 py-3 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 text-sm font-medium shadow-sm"
+                >
+                  Load more posts
+                </button>
+              ) : (
+                <div className="text-sm text-gray-500">You're all caught up! 🎉</div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Spotlights Section Only */}
+        {view === 'spotlights' && (
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-4">
+            <SpotlightsSection />
+          </div>
+        )}
       </div>
       {/* Story Viewer Overlay (page-level) */}
       {storyViewerOpen && (

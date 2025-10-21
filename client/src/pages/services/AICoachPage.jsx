@@ -95,17 +95,17 @@ function AICoachPage() {
                 <div className={`${m.role==='user' ? 'bg-emerald-500/20 text-emerald-200 border-emerald-500/30' : 'bg-white/5 text-gray-200 border-white/10'} max-w-[80%] rounded-2xl px-4 py-3 border shadow-md`}> 
                   <div className="whitespace-pre-wrap leading-relaxed">{m.content}</div>
                   <div className="mt-1 text-[10px] opacity-60">{new Date(m.ts).toLocaleTimeString()}</div>
-                </div>
               </div>
-            ))}
-            {loading && (
+            </div>
+          ))}
+          {loading && (
               <div className="flex items-center gap-2 text-gray-300">
                 <span className="inline-flex w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
                 Bot is typing...
-              </div>
-            )}
-            <div ref={endRef} />
-          </div>
+            </div>
+          )}
+          <div ref={endRef} />
+        </div>
           {/* Composer */}
           <form onSubmit={handleSend} className="border-t border-white/10 p-3">
             <div className="flex items-end gap-2">
@@ -115,7 +115,7 @@ function AICoachPage() {
               </div>
               <button type="submit" disabled={!input.trim() || loading} className="p-3 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-black font-semibold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"><FaPaperPlane /></button>
             </div>
-          </form>
+        </form>
         </div>
 
         <p className="mt-3 text-xs text-gray-400">General guidance only. For medical concerns, consult a professional.</p>

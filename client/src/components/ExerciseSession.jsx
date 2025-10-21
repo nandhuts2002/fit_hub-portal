@@ -13,7 +13,8 @@ import {
   BookOpen,
   Target,
   Lightbulb,
-  Users
+  Users,
+  Star
 } from 'lucide-react';
 import { getPoseInstructions } from '../data/yogaInstructions';
 
@@ -33,6 +34,13 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
   const [poseInstructions, setPoseInstructions] = useState(null);
   const [showInstructions, setShowInstructions] = useState(false);
   const [currentInstructionStep, setCurrentInstructionStep] = useState(0);
+  const [showCompletionCelebration, setShowCompletionCelebration] = useState(false);
+  const [workoutStats, setWorkoutStats] = useState({
+    totalTime: 0,
+    totalSets: 0,
+    totalReps: 0,
+    caloriesBurned: 0
+  });
   const intervalRef = useRef(null);
   const restIntervalRef = useRef(null);
   const synthRef = useRef(typeof window !== 'undefined' ? window.speechSynthesis : null);
@@ -145,6 +153,12 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
 
   const handleStartPause = () => {
     if (isResting) return;
+    
+    // If starting and we have pose instructions, speak all instructions
+    if (!isPlaying && poseInstructions && soundEnabled) {
+      speakAllInstructions();
+    }
+    
     setIsPlaying(!isPlaying);
   };
 
@@ -167,14 +181,62 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
     
     setCompletedSets(prev => [...prev, newCompletedSet]);
     
+    // Update workout stats
+    setWorkoutStats(prev => ({
+      totalTime: timeElapsed,
+      totalSets: currentSet,
+      totalReps: prev.totalReps + reps,
+      caloriesBurned: 0 // Only show if we have real data
+    }));
+    
+    // Praise the user
+    if (soundEnabled) {
+      const praiseMessages = [
+        "Great job!",
+        "Well done!",
+        "Excellent!",
+        "Nice work!",
+        "Keep it up!",
+        "Good job!",
+        "Awesome!",
+        "Perfect!"
+      ];
+      const randomPraise = praiseMessages[Math.floor(Math.random() * praiseMessages.length)];
+      speak(randomPraise);
+    }
+    
     if (currentSet < sets) {
       setCurrentSet(prev => prev + 1);
       setIsResting(true);
       setRestTimeLeft(restTime);
       setIsPlaying(false);
     } else {
-      // All sets completed
-      onComplete?.(completedSets);
+      // All sets completed - show celebration
+      setShowCompletionCelebration(true);
+      if (soundEnabled) {
+        speak("Congratulations! Workout complete!");
+      }
+      
+      // Store workout data in localStorage
+      const workoutData = {
+        exerciseName: exercise.name || exercise.english_name,
+        completedSets: [...completedSets, newCompletedSet],
+        totalTime: timeElapsed,
+        totalSets: sets,
+        totalReps: (completedSets.length + 1) * reps,
+        timestamp: new Date().toISOString(),
+        exerciseType: exercise.imageUrl ? 'yoga' : 'exercise'
+      };
+      
+      // Get existing workouts or create new array
+      const existingWorkouts = JSON.parse(localStorage.getItem('workoutHistory') || '[]');
+      existingWorkouts.push(workoutData);
+      localStorage.setItem('workoutHistory', JSON.stringify(existingWorkouts));
+      
+      // Call onComplete after a delay to show celebration
+      setTimeout(() => {
+        onComplete?.(completedSets);
+      }, 3000);
     }
   };
 
@@ -224,7 +286,7 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
     if (!canSpeak() || !soundEnabled || !text) return;
     stopSpeaking();
     const u = new SpeechSynthesisUtterance(text);
-    u.rate = 1;
+    u.rate = 0.7; // Slower speech rate
     u.pitch = 1;
     u.lang = 'en-US';
     if (voices && voices.length) {
@@ -269,6 +331,19 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
     }
     return () => stopSpeaking();
   }, [poseInstructions, showInstructions, currentInstructionStep, soundEnabled]);
+
+  // Speak all instructions when start is clicked
+  const speakAllInstructions = () => {
+    if (!poseInstructions || !soundEnabled) return;
+    
+    stopSpeaking();
+    
+    // Create a single text with all instructions
+    const allInstructions = poseInstructions.instructions.join('. Next step: ');
+    const fullText = `Let's practice ${poseInstructions.name}. ${allInstructions}. Take your time and breathe deeply.`;
+    
+    speak(fullText);
+  };
 
   // Cleanup on unmount
   useEffect(() => () => stopSpeaking(), []);
@@ -400,7 +475,14 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
                     className="px-3 py-1 text-xs bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
                     title="Speak this step"
                   >
-                    Speak
+                    Speak Step
+                  </button>
+                  <button
+                    onClick={speakAllInstructions}
+                    className="px-3 py-1 text-xs bg-purple-600 text-white rounded-full hover:bg-purple-700 transition-colors"
+                    title="Speak all instructions"
+                  >
+                    Speak All
                   </button>
                   <button
                     onClick={stopSpeaking}
@@ -650,16 +732,47 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
                 )}
               </AnimatePresence>
 
+              {/* Workout Stats */}
+              {workoutStats.totalSets > 0 && (
+                <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6 shadow-lg">
+                  <h4 className="font-bold text-green-800 mb-4 flex items-center gap-2">
+                    <Star className="w-5 h-5" />
+                    Your Progress
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">{workoutStats.totalSets}</div>
+                      <div className="text-sm text-green-700">Sets Completed</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">{workoutStats.totalReps}</div>
+                      <div className="text-sm text-green-700">Total Reps</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">{formatTime(workoutStats.totalTime)}</div>
+                      <div className="text-sm text-green-700">Total Time</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">{Math.round(workoutStats.totalTime / 60)}</div>
+                      <div className="text-sm text-green-700">Minutes</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Completed Sets */}
               {completedSets.length > 0 && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-green-800 mb-3">Completed Sets</h4>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5" />
+                    Completed Sets
+                  </h4>
                   <div className="space-y-2">
                     {completedSets.map((set, index) => (
-                      <div key={index} className="flex items-center justify-between text-sm">
-                        <span className="text-green-700">Set {set.set}</span>
-                        <span className="text-green-600">{set.reps} reps</span>
-                        <span className="text-green-600">{formatTime(set.time)}</span>
+                      <div key={index} className="flex items-center justify-between text-sm bg-white rounded-lg p-2">
+                        <span className="text-blue-700 font-medium">Set {set.set}</span>
+                        <span className="text-blue-600">{set.reps} reps</span>
+                        <span className="text-blue-600">{formatTime(set.time)}</span>
                       </div>
                     ))}
                   </div>
@@ -718,6 +831,95 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
           </div>
         </div>
       </motion.div>
+
+      {/* Completion Celebration Modal */}
+      <AnimatePresence>
+        {showCompletionCelebration && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-60"
+            onClick={() => setShowCompletionCelebration(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.5, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="bg-white rounded-3xl p-8 max-w-md mx-4 text-center shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <motion.div
+                animate={{ 
+                  scale: [1, 1.2, 1],
+                  rotate: [0, 10, -10, 0]
+                }}
+                transition={{ 
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+                className="text-6xl mb-4"
+              >
+                🎉
+              </motion.div>
+              
+              <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                Congratulations!
+              </h2>
+              
+              <p className="text-lg text-gray-600 mb-6">
+                You've completed all {sets} sets of {exercise?.name || exercise?.english_name}!
+              </p>
+              
+              <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-2xl p-6 mb-6">
+                <div className="grid grid-cols-2 gap-4 text-center">
+                  <div>
+                    <div className="text-2xl font-bold text-green-600">{workoutStats.totalSets}</div>
+                    <div className="text-sm text-gray-600">Sets</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-blue-600">{workoutStats.totalReps}</div>
+                    <div className="text-sm text-gray-600">Total Reps</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-purple-600">{formatTime(workoutStats.totalTime)}</div>
+                    <div className="text-sm text-gray-600">Time</div>
+                  </div>
+                  <div>
+                    <div className="text-2xl font-bold text-orange-600">{Math.round(workoutStats.totalTime / 60)}</div>
+                    <div className="text-sm text-gray-600">Minutes</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="space-y-3">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setShowCompletionCelebration(false)}
+                  className="w-full bg-gradient-to-r from-green-500 to-blue-500 text-white font-semibold py-3 px-6 rounded-xl hover:from-green-600 hover:to-blue-600 transition-all duration-200"
+                >
+                  Awesome! Let's Continue
+                </motion.button>
+                
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => {
+                    setShowCompletionCelebration(false);
+                    onClose();
+                  }}
+                  className="w-full bg-gray-100 text-gray-700 font-semibold py-3 px-6 rounded-xl hover:bg-gray-200 transition-all duration-200"
+                >
+                  Finish Workout
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 };

@@ -170,6 +170,16 @@
           "avatar": ""
         },
         "created_at": 1759468794511
+      },
+      {
+        "id": "0e78f257-b46d-44ea-a99f-6aa1ed2dcbb4",
+        "text": "athine nee feeling good annekill",
+        "user": {
+          "name": "amy mariya",
+          "email": "amymaria123@gmail.com",
+          "avatar": ""
+        },
+        "created_at": 1760603453327
       }
     ],
     "created_at": 1758788745382
@@ -184,6 +194,7 @@
       "avatar": "https://ui-avatars.com/api/?name=amy%20mariya&background=FF7A00&color=fff&bold=true&size=128"
     },
     "likes": [
+      "nandhunandhuts@gmail.com",
       "alexantony2026@mca.ajce.in"
     ],
     "comments": [
@@ -210,6 +221,7 @@
       "avatar": "http://localhost:5000/uploads/users/1758822322657_8a89323ed976415091975ca635dc7c8f.webp"
     },
     "likes": [
+      "nandhunandhuts@gmail.com",
       "alexantony2026@mca.ajce.in"
     ],
     "comments": [
@@ -236,6 +248,7 @@
       "avatar": "http://localhost:5000/uploads/users/1758822322657_8a89323ed976415091975ca635dc7c8f.webp"
     },
     "likes": [
+      "nandhunandhuts@gmail.com",
       "alexantony2026@mca.ajce.in"
     ],
     "comments": [
@@ -265,7 +278,18 @@
       "amymaria123@gmail.com",
       "alexantony2026@mca.ajce.in"
     ],
-    "comments": [],
+    "comments": [
+      {
+        "id": "dfbaca7d-e846-41cd-9cdd-cb0e8900118e",
+        "text": "athe nee parana pora",
+        "user": {
+          "name": "amy mariya",
+          "email": "amymaria123@gmail.com",
+          "avatar": ""
+        },
+        "created_at": 1760603432553
+      }
+    ],
     "created_at": 1758823646350
   },
   {

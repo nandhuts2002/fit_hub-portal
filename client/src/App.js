@@ -1,5 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { ToastProvider } from './contexts/ToastContext';
 
 // ✅ Import all actual components
 import YogaIndexPage from './pages/YogaIndexPage';
@@ -33,6 +34,7 @@ import LiveSessionsPage from './pages/services/LiveSessionsPage';
 import LiveSessionDetail from './pages/services/LiveSessionDetail';
 import AICoachPage from './pages/services/AICoachPage';
 import BMICalculatorPage from './pages/services/BMICalculatorPage';
+import CalorieDetectorPage from './pages/services/CalorieDetectorPage';
 import ShopProfilePage from './pages/ShopProfilePage';
 import ProductDetailsPage from './pages/ProductDetailsPage';
 import ProfilePage from './pages/ProfilePage';
@@ -42,8 +44,9 @@ function App() {
   console.log('App component rendering...');
 
   return (
-    <Router>
-      <Routes>
+    <ToastProvider>
+      <Router>
+        <Routes>
         {/* Main homepage - Premium Yoga Design */}
         <Route path="/" element={<YogaIndexPage />} />
         
@@ -216,6 +219,11 @@ function App() {
             <BMICalculatorPage />
           </ProtectedRoute>
         } />
+        <Route path="/services/calorie-detector" element={
+          <ProtectedRoute>
+            <CalorieDetectorPage />
+          </ProtectedRoute>
+        } />
         {/* AI Coach chat */}
         <Route path="/ai-coach" element={
           <ProtectedRoute>
@@ -231,6 +239,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
+    </ToastProvider>
   );
 }
 

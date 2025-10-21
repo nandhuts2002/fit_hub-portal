@@ -15,8 +15,8 @@ const SERVICES = [
     icon: "🔥",
     img: "https://images.pexels.com/photos/769289/pexels-photo-769289.jpeg",
     title: "Calorie Detector",
-    desc: "Estimate daily calories",
-    path: "/services/calories",
+    desc: "Calculate calories burned, food calories & BMR",
+    path: "/services/calorie-detector",
   },
   // {
   //   icon: "🚶",

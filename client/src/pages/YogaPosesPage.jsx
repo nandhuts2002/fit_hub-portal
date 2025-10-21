@@ -6,7 +6,6 @@ import {
   Filter, 
   X, 
   Play, 
-  Clock, 
   Star, 
   RefreshCw,
   ChevronDown,
@@ -15,7 +14,20 @@ import {
   Heart,
   Zap,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Sparkles,
+  Flame,
+  Wind,
+  Waves,
+  Mountain,
+  Sun,
+  Moon,
+  Target,
+  Users,
+  Volume2,
+  VolumeX,
+  BookOpen,
+  Lightbulb
 } from 'lucide-react';
 import yogaApi from '../utils/yogaApi';
 import ExerciseSession from '../components/ExerciseSession';
@@ -32,12 +44,35 @@ const YogaPosesPage = () => {
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [selectedLevel, setSelectedLevel] = useState('');
+  const [selectedBenefit, setSelectedBenefit] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   
   // Exercise session states
   const [selectedPose, setSelectedPose] = useState(null);
   const [showPoseSession, setShowPoseSession] = useState(false);
+
+  // Yoga pose categories with icons and colors
+  const poseCategories = [
+    { id: 'standing', name: 'Standing Poses', icon: Mountain, color: 'from-blue-500 to-cyan-500', count: 0 },
+    { id: 'seated', name: 'Seated Poses', icon: Sun, color: 'from-orange-500 to-yellow-500', count: 0 },
+    { id: 'backbends', name: 'Backbends', icon: Wind, color: 'from-purple-500 to-pink-500', count: 0 },
+    { id: 'forward-bends', name: 'Forward Bends', icon: Waves, color: 'from-green-500 to-emerald-500', count: 0 },
+    { id: 'inversions', name: 'Inversions', icon: Moon, color: 'from-indigo-500 to-purple-500', count: 0 },
+    { id: 'twists', name: 'Twists', icon: Target, color: 'from-red-500 to-orange-500', count: 0 },
+    { id: 'restorative', name: 'Restorative', icon: Heart, color: 'from-pink-500 to-rose-500', count: 0 },
+    { id: 'balance', name: 'Balance Poses', icon: Sparkles, color: 'from-yellow-500 to-orange-500', count: 0 }
+  ];
+
+  const benefitCategories = [
+    { id: 'flexibility', name: 'Flexibility', icon: Wind, color: 'text-blue-600 bg-blue-100', description: 'Improve range of motion' },
+    { id: 'strength', name: 'Strength', icon: Zap, color: 'text-red-600 bg-red-100', description: 'Build muscle power' },
+    { id: 'balance', name: 'Balance', icon: Sparkles, color: 'text-purple-600 bg-purple-100', description: 'Enhance stability' },
+    { id: 'relaxation', name: 'Relaxation', icon: Heart, color: 'text-pink-600 bg-pink-100', description: 'Reduce stress' },
+    { id: 'posture', name: 'Posture', icon: Mountain, color: 'text-green-600 bg-green-100', description: 'Improve alignment' },
+    { id: 'core', name: 'Core', icon: Target, color: 'text-orange-600 bg-orange-100', description: 'Strengthen core muscles' }
+  ];
+
+  // Duration filter removed since API doesn't provide duration data
 
   // Load initial data
   useEffect(() => {
@@ -81,16 +116,26 @@ const YogaPosesPage = () => {
     const matchesSearch = !searchTerm || 
       pose.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       pose.sanskrit_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      pose.english_name?.toLowerCase().includes(searchTerm.toLowerCase());
+      pose.english_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      pose.pose_benefits?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesCategory = !selectedCategory || 
       pose.category?.toLowerCase() === selectedCategory.toLowerCase();
     
-    const matchesLevel = !selectedLevel || 
-      pose.level?.toLowerCase() === selectedLevel.toLowerCase();
+    const matchesBenefit = !selectedBenefit || 
+      pose.pose_benefits?.toLowerCase().includes(selectedBenefit.toLowerCase());
     
-    return matchesSearch && matchesCategory && matchesLevel;
+    return matchesSearch && matchesCategory && matchesBenefit;
   });
+
+  // Update category counts
+  useEffect(() => {
+    const updatedCategories = poseCategories.map(category => ({
+      ...category,
+      count: poses.filter(pose => pose.category?.toLowerCase() === category.id).length
+    }));
+    setCategories(updatedCategories);
+  }, [poses]);
 
   const handleStartPose = (pose) => {
     console.log('Starting yoga pose:', pose.name);
@@ -112,7 +157,15 @@ const YogaPosesPage = () => {
   const clearFilters = () => {
     setSearchTerm('');
     setSelectedCategory('');
-    setSelectedLevel('');
+    setSelectedBenefit('');
+  };
+
+  const getBenefitInfo = (benefit) => {
+    return benefitCategories.find(b => b.id === benefit?.toLowerCase()) || benefitCategories[0];
+  };
+
+  const getCategoryInfo = (category) => {
+    return poseCategories.find(c => c.id === category?.toLowerCase()) || poseCategories[0];
   };
 
   const refreshPoses = () => {
@@ -121,11 +174,17 @@ const YogaPosesPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-blue-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-700">Loading Yoga Poses...</h2>
-          <p className="text-gray-500 mt-2">Discovering ancient wisdom...</p>
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+            className="w-16 h-16 mx-auto mb-6"
+          >
+            <Sparkles className="w-16 h-16 text-purple-600" />
+          </motion.div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Loading Yoga Poses</h2>
+          <p className="text-gray-600">Preparing your zen experience...</p>
         </div>
       </div>
     );
@@ -133,17 +192,24 @@ const YogaPosesPage = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto p-6">
-          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-700 mb-2">Error Loading Yoga Poses</h2>
-          <p className="text-gray-500 mb-4">{error}</p>
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-8">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="w-20 h-20 mx-auto mb-6 bg-red-100 rounded-full flex items-center justify-center"
+          >
+            <AlertCircle className="w-10 h-10 text-red-500" />
+          </motion.div>
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">Oops! Something went wrong</h2>
+          <p className="text-gray-600 mb-8">{error}</p>
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={refreshPoses}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-200 flex items-center gap-3 mx-auto shadow-lg"
           >
+            <RefreshCw className="w-5 h-5" />
             Try Again
           </motion.button>
         </div>
@@ -152,282 +218,309 @@ const YogaPosesPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 text-gray-900 relative overflow-x-hidden">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-200/20 to-purple-200/20 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-cyan-200/20 to-blue-200/20 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-gradient-to-br from-indigo-200/10 to-purple-200/10 rounded-full blur-3xl animate-pulse delay-500"></div>
-        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-gradient-to-br from-sky-200/15 to-cyan-200/15 rounded-full blur-3xl animate-pulse delay-2000"></div>
-      </div>
-
-      {/* Header */}
-      <div className="relative z-10 bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between mb-8">
-            <motion.div 
-              initial={{ opacity: 0, x: -30 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6 }}
-              className="flex items-center gap-4"
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Hero Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-12"
+        >
+          <div className="inline-flex items-center gap-3 mb-6">
+            <motion.div
+              animate={{ rotate: [0, 10, -10, 0] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="text-6xl"
             >
-              <div className="p-3 bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl">
-                <Leaf className="w-8 h-8 text-purple-600" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">Yoga Poses</h1>
-                <p className="text-gray-600 mt-1">Discover and practice ancient wisdom</p>
-              </div>
+              🧘‍♀️
             </motion.div>
-            <motion.button
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={refreshPoses}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-            >
-              <RefreshCw className="w-4 h-4" />
-              <span>Refresh</span>
-            </motion.button>
+            <h1 className="text-5xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 bg-clip-text text-transparent">
+              Yoga Poses
+            </h1>
           </div>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+            Discover and practice beautiful yoga poses with guided voice instructions, 
+            step-by-step guidance, and personalized recommendations
+          </p>
+        </motion.div>
 
-          {/* Search and Filters */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            className="space-y-6"
-          >
+        {/* Category Quick Filters */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="mb-8"
+        >
+          <h3 className="text-2xl font-bold text-gray-800 mb-6 text-center">Choose Your Practice</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+            {poseCategories.map((category) => {
+              const Icon = category.icon;
+              const isSelected = selectedCategory === category.id;
+              return (
+                <motion.button
+                  key={category.id}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setSelectedCategory(isSelected ? '' : category.id)}
+                  className={`relative p-4 rounded-2xl transition-all duration-200 ${
+                    isSelected
+                      ? `bg-gradient-to-br ${category.color} text-white shadow-lg`
+                      : 'bg-white text-gray-700 hover:shadow-md border border-gray-200'
+                  }`}
+                >
+                  <Icon className="w-8 h-8 mx-auto mb-2" />
+                  <div className="text-sm font-medium">{category.name}</div>
+                  <div className="text-xs opacity-75 mt-1">{category.count} poses</div>
+                  {isSelected && (
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="absolute -top-2 -right-2 w-6 h-6 bg-white rounded-full flex items-center justify-center"
+                    >
+                      <X className="w-4 h-4 text-purple-600" />
+                    </motion.div>
+                  )}
+                </motion.button>
+              );
+            })}
+          </div>
+        </motion.div>
+
+        {/* Search and Advanced Filters */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-xl p-8 mb-8 border border-white/20"
+        >
+          <div className="flex flex-col lg:flex-row gap-6">
             {/* Search Bar */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Search yoga poses..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  type="text"
+                  placeholder="Search poses by name, Sanskrit name, or benefits..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-12 pr-4 py-4 border-2 border-gray-200 rounded-2xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-lg transition-all duration-200"
+                />
+              </div>
             </div>
 
             {/* Filter Toggle */}
-            <div className="flex items-center gap-4">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-              >
-                <Filter className="w-4 h-4" />
-                <span>Filters</span>
-                <motion.div
-                  animate={{ rotate: showFilters ? 180 : 0 }}
-                  transition={{ duration: 0.3 }}
-                >
-                  <ChevronDown className="w-4 h-4" />
-                </motion.div>
-              </motion.button>
-              
-              {(searchTerm || selectedCategory || selectedLevel) && (
-                <motion.button
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={clearFilters}
-                  className="flex items-center gap-2 px-4 py-3 bg-gradient-to-r from-red-500/20 to-pink-500/20 hover:from-red-500/30 hover:to-pink-500/30 rounded-xl backdrop-blur-sm border border-red-400/20 transition-all duration-300"
-                >
-                  <X className="w-4 h-4 text-red-300" />
-                  <span className="font-medium">Clear Filters</span>
-                </motion.button>
-              )}
-            </div>
-
-            {/* Filter Options */}
-            <AnimatePresence>
-              {showFilters && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200"
-                >
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Category Filter */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Category
-                      </label>
-                      <select
-                        value={selectedCategory}
-                        onChange={(e) => setSelectedCategory(e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">All Categories</option>
-                        {categories.map((category) => (
-                          <option key={category.id} value={category.name}>
-                            {category.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Level Filter */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Difficulty Level
-                      </label>
-                      <select
-                        value={selectedLevel}
-                        onChange={(e) => setSelectedLevel(e.target.value)}
-                        className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">All Levels</option>
-                        {levels.map((level) => (
-                          <option key={level} value={level}>
-                            {level.charAt(0).toUpperCase() + level.slice(1)}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-        </div>
-      </div>
-
-        {/* Results */}
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold text-gray-700">
-              {filteredPoses.length} Yoga Pose{filteredPoses.length !== 1 ? 's' : ''} Found
-            </h2>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowFilters(!showFilters)}
+              className={`px-8 py-4 rounded-2xl font-semibold transition-all duration-200 flex items-center gap-3 ${
+                showFilters
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <Filter className="w-5 h-5" />
+              Advanced Filters
+              {showFilters ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </motion.button>
           </div>
 
-        {/* Poses Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8">
+          {/* Advanced Filters Panel */}
           <AnimatePresence>
-            {filteredPoses.map((pose, index) => (
+            {showFilters && (
               <motion.div
-                key={pose.id || index}
-                initial={{ opacity: 0, y: 30, scale: 0.9 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -30, scale: 0.9 }}
-                transition={{ 
-                  delay: index * 0.1,
-                  type: "spring",
-                  stiffness: 100,
-                  damping: 15
-                }}
-                whileHover={{ y: -8, scale: 1.02 }}
-                className="group relative"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mt-8 pt-8 border-t border-gray-200"
               >
-                <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group">
-                  {/* Pose Image */}
-                  <div className="relative h-[250px] bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center">
-                    {pose.imageUrl ? (
-                      <img
-                        src={pose.imageUrl}
-                        alt={pose.name || pose.english_name}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                          e.target.nextSibling.style.display = 'flex';
-                        }}
-                      />
-                    ) : null}
-                    <div 
-                      className="absolute inset-0 bg-gradient-to-br from-slate-700 to-slate-800 flex items-center justify-center"
-                      style={{ display: pose.imageUrl ? 'none' : 'flex' }}
-                    >
-                      <Leaf className="w-16 h-16 text-gray-400" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Benefit Categories Filter */}
+                  <div>
+                    <label className="block text-lg font-semibold text-gray-700 mb-4">Benefits</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {benefitCategories.map((benefit) => {
+                        const Icon = benefit.icon;
+                        const isSelected = selectedBenefit === benefit.id;
+                        return (
+                          <motion.button
+                            key={benefit.id}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => setSelectedBenefit(isSelected ? '' : benefit.id)}
+                            className={`p-4 rounded-xl transition-all duration-200 flex flex-col items-center gap-2 ${
+                              isSelected
+                                ? `${benefit.color} text-white shadow-lg`
+                                : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
+                            }`}
+                          >
+                            <Icon className="w-6 h-6" />
+                            <div className="text-center">
+                              <div className="font-medium text-sm">{benefit.name}</div>
+                              <div className="text-xs opacity-75">{benefit.description}</div>
+                            </div>
+                          </motion.button>
+                        );
+                      })}
                     </div>
-                    
-                    {/* Gradient Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                    
-                    {/* Play Button Overlay */}
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300">
-                      <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        onClick={() => handleStartPose(pose)}
-                        className="p-4 bg-gradient-to-r from-orange-500 to-pink-500 hover:from-orange-600 hover:to-pink-600 rounded-full shadow-2xl backdrop-blur-sm border border-white/20 transition-all duration-300"
-                      >
-                        <Play className="w-8 h-8 text-white ml-1" />
-                      </motion.button>
-                    </div>
-
-                    {/* Difficulty Badge */}
-                    {pose.level && (
-                      <div className="absolute bottom-4 right-4">
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          pose.level === 'beginner' ? 'bg-green-100 text-green-800' :
-                          pose.level === 'intermediate' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {pose.level.charAt(0).toUpperCase() + pose.level.slice(1)}
-                        </span>
-                      </div>
-                    )}
                   </div>
 
-                  {/* Pose Info */}
-                  <div className="p-4">
-                    <h3 className="font-bold text-lg text-gray-900 mb-2 line-clamp-2">
-                      {pose.name || pose.english_name || 'Unnamed Pose'}
-                    </h3>
-                    
-                    {pose.sanskrit_name && (
-                      <p className="text-gray-600 text-sm mb-3 italic">
-                        {pose.sanskrit_name}
-                      </p>
-                    )}
-
-                    {pose.category && (
-                      <div className="flex items-center gap-2 text-sm text-gray-600 mb-3">
-                        <Heart className="w-4 h-4" />
-                        <span>{pose.category}</span>
-                      </div>
-                    )}
-
+                  {/* Clear Filters */}
+                  <div className="flex items-end">
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => handleStartPose(pose)}
-                      className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-lg transition-colors"
+                      onClick={clearFilters}
+                      className="w-full px-6 py-4 bg-gradient-to-r from-gray-500 to-gray-600 text-white rounded-xl hover:from-gray-600 hover:to-gray-700 transition-all duration-200 font-semibold shadow-lg"
                     >
-                      <Play className="w-4 h-4" />
-                      <span>Start Practice</span>
+                      Clear All Filters
                     </motion.button>
                   </div>
                 </div>
               </motion.div>
-            ))}
+            )}
           </AnimatePresence>
-        </div>
+        </motion.div>
+
+        {/* Results Count */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          className="mb-6"
+        >
+          <p className="text-lg text-gray-600 text-center">
+            {filteredPoses.length} {filteredPoses.length === 1 ? 'pose' : 'poses'} found
+            {selectedCategory && ` in ${getCategoryInfo(selectedCategory).name}`}
+            {selectedBenefit && ` for ${getBenefitInfo(selectedBenefit).name}`}
+          </p>
+        </motion.div>
+
+        {/* Poses Grid */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+        >
+          <AnimatePresence>
+            {filteredPoses.map((pose, index) => {
+              const categoryInfo = getCategoryInfo(pose.category);
+              const CategoryIcon = categoryInfo.icon;
+              
+              return (
+                <motion.div
+                  key={pose.id || index}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="group"
+                >
+                  <div className="bg-white rounded-3xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-purple-200">
+                    {/* Pose Image */}
+                    <div className="relative h-48 overflow-hidden">
+                      <img
+                        src={pose.imageUrl || '/images/fallback.gif'}
+                        alt={pose.name || pose.english_name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        onError={(e) => {
+                          e.target.src = '/images/fallback.gif';
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      
+                      {/* Level Badge (if available) */}
+                      {pose.level && (
+                        <div className="absolute top-3 left-3">
+                          <span className="px-3 py-1 rounded-full text-xs font-semibold bg-white/90 text-gray-700 capitalize">
+                            {pose.level}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Category Badge */}
+                      <div className="absolute top-3 right-3">
+                        <span className="px-3 py-1 rounded-full text-xs font-semibold bg-white/90 text-gray-700 flex items-center gap-1">
+                          <CategoryIcon className="w-3 h-3" />
+                          {categoryInfo.name}
+                        </span>
+                      </div>
+
+                      {/* Play Button Overlay */}
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => handleStartPose(pose)}
+                          className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-colors"
+                        >
+                          <Play className="w-6 h-6 text-purple-600 ml-1" />
+                        </motion.button>
+                      </div>
+                    </div>
+
+                    {/* Pose Info */}
+                    <div className="p-6">
+                      <h3 className="font-bold text-xl text-gray-900 mb-2 line-clamp-2 group-hover:text-purple-600 transition-colors">
+                        {pose.name || pose.english_name || 'Unnamed Pose'}
+                      </h3>
+                      
+                      {pose.sanskrit_name && (
+                        <p className="text-gray-600 text-sm mb-4 italic font-medium">
+                          {pose.sanskrit_name}
+                        </p>
+                      )}
+
+                      {/* Pose Details */}
+                      <div className="space-y-2 mb-4">
+                        {pose.pose_benefits && (
+                          <div className="flex items-start gap-2 text-sm text-gray-600">
+                            <Lightbulb className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                            <span className="line-clamp-2">{pose.pose_benefits}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action Button */}
+                      <motion.button
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => handleStartPose(pose)}
+                        className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                      >
+                        <Play className="w-5 h-5" />
+                        <span>Start Practice</span>
+                      </motion.button>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </motion.div>
 
         {/* No Results */}
         {filteredPoses.length === 0 && !loading && (
-          <div className="text-center py-12">
-            <div className="text-gray-400 text-6xl mb-4">🧘‍♀️</div>
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">No yoga poses found</h3>
-            <p className="text-gray-500 mb-4">
-              Try adjusting your search terms or filters
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center py-16"
+          >
+            <div className="text-gray-400 text-8xl mb-6">🧘‍♀️</div>
+            <h3 className="text-2xl font-bold text-gray-700 mb-4">No yoga poses found</h3>
+            <p className="text-gray-500 mb-8 max-w-md mx-auto">
+              Try adjusting your search terms or filters to discover more poses
             </p>
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={clearFilters}
-              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-200 font-semibold shadow-lg"
             >
               Clear All Filters
             </motion.button>
-          </div>
+          </motion.div>
         )}
       </div>
 

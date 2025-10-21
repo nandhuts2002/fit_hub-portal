@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SessionManager from '../utils/sessionManager';
+import ExerciseGifManager from './services/ExerciseGifManager';
+import QAManagement from '../components/admin/QAManagement';
+import TrainerChallengeManagement from '../components/TrainerChallengeManagement';
+import BadgesSection from '../components/community/BadgesSection';
 
 const TrainerHomePage = () => {
   const navigate = useNavigate();
@@ -439,6 +443,21 @@ const TrainerHomePage = () => {
               </div>
             </button>
             <button
+              onClick={() => setActiveTab('exercise-gifs')}
+              className={`py-3 px-3 md:px-4 border-b-2 font-medium text-sm transition ${
+                activeTab === 'exercise-gifs'
+                  ? 'border-orange-500 text-slate-900'
+                  : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                Exercise GIFs
+              </div>
+            </button>
+            <button
               onClick={() => setActiveTab('create-tutorial')}
               className={`py-3 px-3 md:px-4 border-b-2 font-medium text-sm transition ${
                 activeTab === 'create-tutorial'
@@ -466,6 +485,51 @@ const TrainerHomePage = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 User Queries
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('qa-management')}
+              className={`py-3 px-3 md:px-4 border-b-2 font-medium text-sm transition ${
+                activeTab === 'qa-management'
+                  ? 'border-orange-500 text-slate-900'
+                  : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
+                </svg>
+                Q&A Sessions
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('challenges')}
+              className={`py-3 px-3 md:px-4 border-b-2 font-medium text-sm transition ${
+                activeTab === 'challenges'
+                  ? 'border-orange-500 text-slate-900'
+                  : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
+                </svg>
+                Challenges
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('badges')}
+              className={`py-3 px-3 md:px-4 border-b-2 font-medium text-sm transition ${
+                activeTab === 'badges'
+                  ? 'border-orange-500 text-slate-900'
+                  : 'border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                </svg>
+                Badges
               </div>
             </button>
           </nav>
@@ -1124,6 +1188,16 @@ const TrainerHomePage = () => {
           </div>
         )}
 
+        {activeTab === 'exercise-gifs' && (
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900">Exercise GIF Manager</h2>
+              <p className="text-slate-600 mt-1">Add and manage exercise GIFs with URLs for your tutorials</p>
+            </div>
+            <ExerciseGifManager />
+          </div>
+        )}
+
         {activeTab === 'queries' && (
           <div className="space-y-6">
             <div>
@@ -1283,6 +1357,26 @@ const TrainerHomePage = () => {
                   </div>
                 ))
               )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'qa-management' && (
+          <div className="space-y-6">
+            <QAManagement userRole="trainer" />
+          </div>
+        )}
+
+        {activeTab === 'challenges' && (
+          <div className="space-y-6">
+            <TrainerChallengeManagement />
+          </div>
+        )}
+
+        {activeTab === 'badges' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+              <BadgesSection userEmail={user?.email} />
             </div>
           </div>
         )}

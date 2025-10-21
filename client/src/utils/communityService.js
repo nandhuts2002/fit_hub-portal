@@ -100,13 +100,72 @@ export async function deletePost(postId, token) {
 
 // --- Socket.IO client ---
 let socket;
+let socketConnected = false;
+
 export function getCommunitySocket() {
   if (!socket) {
     const WS_URL = process.env.REACT_APP_WS_URL || API_BASE;
-    // Connect to community namespace to receive events emitted there
-    socket = io(`${WS_URL}/community`, { path: '/socket.io', transports: ['websocket'], withCredentials: true, forceNew: false, autoConnect: true, reconnection: true, reconnectionDelayMax: 5000, query: {}, });
+    try {
+      // Connect to community namespace to receive events emitted there
+      socket = io(`${WS_URL}/community`, {
+        path: '/socket.io',
+        transports: ['websocket', 'polling'], // Try polling as fallback
+        withCredentials: true,
+        forceNew: false,
+        autoConnect: false, // Don't auto-connect, connect only when needed
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        timeout: 20000,
+        query: {},
+      });
+
+      // Handle connection events
+      socket.on('connect', () => {
+        console.log('Socket.IO connected to community namespace');
+        socketConnected = true;
+      });
+
+      socket.on('disconnect', () => {
+        console.log('Socket.IO disconnected from community namespace');
+        socketConnected = false;
+      });
+
+      socket.on('connect_error', (error) => {
+        console.warn('Socket.IO connection error:', error.message);
+        socketConnected = false;
+      });
+
+    } catch (error) {
+      console.warn('Failed to initialize Socket.IO:', error);
+      socket = null;
+    }
   }
   return socket;
+}
+
+// Function to manually connect socket when needed
+export function connectSocket() {
+  const socket = getCommunitySocket();
+  if (socket && !socketConnected) {
+    try {
+      socket.connect();
+    } catch (error) {
+      console.warn('Failed to connect Socket.IO:', error);
+    }
+  }
+}
+
+// Function to disconnect socket when not needed
+export function disconnectSocket() {
+  if (socket) {
+    try {
+      socket.disconnect();
+      socketConnected = false;
+    } catch (error) {
+      console.warn('Failed to disconnect Socket.IO:', error);
+    }
+  }
 }
 
 export async function sendTyping({ postId, user, isTyping }) {

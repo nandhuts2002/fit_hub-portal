@@ -23,6 +23,8 @@ async function searchCustomExercises(query, opts = {}) {
 async function addTrainerExercise(exerciseData) {
   // Supports both JSON and FormData; send multipart when a file exists
   const hasFile = !!(exerciseData?.mediaFile || exerciseData?.gifFile);
+  const hasUrl = !!(exerciseData?.mediaUrl);
+  
   if (hasFile) {
     const form = new FormData();
     form.append('name', exerciseData.name || '');
@@ -50,6 +52,12 @@ async function addTrainerExercise(exerciseData) {
       instructions: exerciseData.instructions,
       trainerId: exerciseData.trainerId || '',
     };
+    
+    // Include URL if provided
+    if (hasUrl) {
+      payload.mediaUrl = exerciseData.mediaUrl;
+    }
+    
     const { data } = await axios.post(`${API_BASE}/api/custom-exercises`, payload);
     return data;
   }

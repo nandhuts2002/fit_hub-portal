@@ -142,7 +142,11 @@ def create_post():
         },
         'likes': [],  # list of emails
         'comments': [],  # list of {id, user, text, created_at}
-        'created_at': int(time.time() * 1000)
+        'created_at': int(time.time() * 1000),
+        # Extended features (optional)
+        'reactions': [],  # list of {userEmail, emoji, timestamp}
+        'tags': [],  # list of tagged user emails
+        'poll': None  # {question, options[], votes[]}
     }
     posts = _load_posts()
     posts.append(post)
@@ -156,6 +160,14 @@ def create_post():
         socketio.emit('post:created', post, namespace='/community')
     except Exception:
         pass
+    
+    # Check for new badges (integrate with extended features)
+    try:
+        from community_extended import check_and_award_badges
+        check_and_award_badges(user_email)
+    except Exception as e:
+        print(f"Badge check error: {e}")
+    
     return jsonify({'ok': True, 'data': post})
 
 

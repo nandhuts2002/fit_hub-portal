@@ -349,16 +349,42 @@
     "source": "trainer",
     "trainerId": "",
     "createdAt": "2025-10-01T20:55:28.819267"
+  },
+  {
+    "id": "trainer-e876de2b",
+    "name": "plank",
+    "bodyPart": "waist",
+    "target": "waist",
+    "equipment": "body weight",
+    "instructions": [
+      "Target Muscles:",
+      "Core (abs and obliques)",
+      "Shoulders",
+      "Lower back",
+      "Glutes",
+      "🔹 How to Do a Plank (Forearm Version):",
+      "Start Position:",
+      "Get down on the floor on your forearms and toes.",
+      "Your elbows should be directly under your shoulders.",
+      "Forearms flat on the floor, hands can be flat or clasped together.",
+      "Body Alignment:",
+      "Keep your body in a straight line from your head to your heels.",
+      "Engage your core (pull your belly button toward your spine).",
+      "Avoid letting your hips sag or raise too high.",
+      "Head Position:",
+      "Keep your head in a neutral position, eyes looking at the floor.",
+      "Hold:",
+      "Hold the position for 20–60 seconds, or as long as you can maintain good form.",
+      "Breathe slowly and steadily — don’t hold your breath.",
+      "Finish:",
+      "Lower your knees to the floor to rest.",
+      "Repeat 2–3 times."
+    ],
+    "gifUrl": "https://i.pinimg.com/originals/3b/98/3f/3b983f4252d1de54df45cb9b0c249890.gif",
+    "mediaUrl": "https://i.pinimg.com/originals/3b/98/3f/3b983f4252d1de54df45cb9b0c249890.gif",
+    "mediaType": "gif",
+    "source": "trainer",
+    "trainerId": "anonymous",
+    "createdAt": "2025-10-16T09:48:48.684266"
   }
 ]
-
-
-
-
-
-
-
-
-
-
-

@@ -10,8 +10,11 @@ from custom_exercises import custom_exercises_bp
 from location import location_bp
 from live import live_bp
 from community import community_bp
+from community_extended import community_extended_bp
 from profile import profile_bp
 from ai import ai_bp
+from exercise_gifs import exercise_gifs_bp
+from upload import upload_bp
 from dotenv import load_dotenv
 import os
 from datetime import timedelta
@@ -40,8 +43,11 @@ app.register_blueprint(custom_exercises_bp)
 app.register_blueprint(location_bp, url_prefix='/location')
 app.register_blueprint(live_bp, url_prefix='/live')
 app.register_blueprint(community_bp, url_prefix='/community')
+app.register_blueprint(community_extended_bp, url_prefix='/community')
 app.register_blueprint(profile_bp, url_prefix='/profile')
 app.register_blueprint(ai_bp)
+app.register_blueprint(exercise_gifs_bp)
+app.register_blueprint(upload_bp)
 
 # Serve uploaded files
 UPLOAD_DIR = _path.join(_path.dirname(__file__), 'uploads')
@@ -90,6 +96,13 @@ def proxy_bmi():
         return jsonify({'error': 'Upstream request failed', 'details': str(e)}), 502
 
 if __name__ == '__main__':
-    # Initialize SocketIO with the Flask app and run
-    socketio.init_app(app)
-    socketio.run(app, debug=True, allow_unsafe_werkzeug=True)
+    try:
+        # Initialize SocketIO with the Flask app and run
+        socketio.init_app(app)
+        print("Socket.IO initialized successfully")
+        socketio.run(app, debug=True, allow_unsafe_werkzeug=True)
+    except Exception as e:
+        print(f"Error initializing Socket.IO: {e}")
+        print("Running without Socket.IO support...")
+        # Run without Socket.IO if it fails
+        app.run(debug=True, port=5000)

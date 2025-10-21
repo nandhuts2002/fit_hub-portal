@@ -23,8 +23,8 @@ class PaymentService {
         body: JSON.stringify({
           event_id: eventData._id,
           event_title: eventData.title,
-          // Razorpay expects amount in paise
-          amount: Math.round(this.parseAmount(eventData.price) * 100),
+          // Server converts amount to paise before creating the Razorpay order
+          amount: this.parseAmount(eventData.price),
           currency: 'INR',
           user_data: userData
         })
@@ -61,7 +61,7 @@ class PaymentService {
           gym_id: gymData._id,
           gym_name: gymData.name,
           membership_type: membershipType,
-          amount: Math.round(this.parseAmount(gymData.price) * 100),
+          amount: this.parseAmount(gymData.price),
           currency: 'INR',
           user_data: userData
         })
