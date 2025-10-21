@@ -52,18 +52,74 @@ app.register_blueprint(upload_bp)
 # Serve React frontend
 @app.route('/')
 def serve_frontend():
-    return send_from_directory('client/build', 'index.html')
+    try:
+        return send_from_directory('client/build', 'index.html')
+    except Exception as e:
+        print(f"Error serving frontend: {e}")
+        # Fallback HTML if React build is not available
+        return '''
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>FitHub Portal</title>
+            <style>
+                body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+                .container { max-width: 600px; margin: 0 auto; }
+                .error { color: #e74c3c; }
+                .info { color: #3498db; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>🏋️ FitHub Portal</h1>
+                <p class="error">React frontend is not available</p>
+                <p class="info">API is running successfully!</p>
+                <p>API Status: <a href="/api/status">/api/status</a></p>
+                <p>Health Check: <a href="/health">/health</a></p>
+                <p><em>Please ensure the React app is built and deployed correctly.</em></p>
+            </div>
+        </body>
+        </html>
+        ''', 200
 
 # Serve static files from React build
 @app.route('/static/<path:filename>')
 def serve_static(filename):
-    return send_from_directory('client/build/static', filename)
+    try:
+        return send_from_directory('client/build/static', filename)
+    except Exception as e:
+        print(f"Error serving static file {filename}: {e}")
+        return jsonify({'error': 'Static file not found'}), 404
+
+# Serve other static assets (favicon, manifest, etc.)
+@app.route('/favicon.ico')
+def serve_favicon():
+    try:
+        return send_from_directory('client/build', 'favicon.ico')
+    except:
+        return jsonify({'error': 'Favicon not found'}), 404
+
+@app.route('/manifest.json')
+def serve_manifest():
+    try:
+        return send_from_directory('client/build', 'manifest.json')
+    except:
+        return jsonify({'error': 'Manifest not found'}), 404
+
+@app.route('/robots.txt')
+def serve_robots():
+    try:
+        return send_from_directory('client/build', 'robots.txt')
+    except:
+        return jsonify({'error': 'Robots.txt not found'}), 404
 
 # Serve other static assets
 @app.route('/<path:path>')
 def serve_react_app(path):
     # Check if it's an API route
-    if path.startswith(('auth', 'trainer', 'admin', 'shop', 'exercises', 'location', 'live', 'community', 'profile', 'ai', 'uploads', 'proxy', 'health')):
+    if path.startswith(('auth', 'trainer', 'admin', 'shop', 'exercises', 'location', 'live', 'community', 'profile', 'ai', 'uploads', 'proxy', 'health', 'api')):
         # Let Flask handle API routes
         return None
     
@@ -72,7 +128,11 @@ def serve_react_app(path):
         return send_from_directory('client/build', path)
     except:
         # Fallback to index.html for client-side routing
-        return send_from_directory('client/build', 'index.html')
+        try:
+            return send_from_directory('client/build', 'index.html')
+        except Exception as e:
+            print(f"Error serving React app: {e}")
+            return jsonify({'error': 'React app not found', 'message': 'Please ensure the React app is built'}), 404
 
 # API status endpoint
 @app.route('/api/status')
@@ -99,6 +159,21 @@ def api_status():
 @app.route('/health')
 def health():
     return jsonify({'status': 'healthy', 'message': 'FitHub Portal API is running'})
+
+# Debug endpoint to check build status
+@app.route('/debug')
+def debug():
+    import os
+    build_exists = os.path.exists('client/build')
+    index_exists = os.path.exists('client/build/index.html') if build_exists else False
+    
+    return jsonify({
+        'current_directory': os.getcwd(),
+        'build_directory_exists': build_exists,
+        'index_html_exists': index_exists,
+        'build_contents': os.listdir('client/build') if build_exists else 'Build directory not found',
+        'client_contents': os.listdir('client') if os.path.exists('client') else 'Client directory not found'
+    })
 
 # Serve uploaded files
 UPLOAD_DIR = _path.join(_path.dirname(__file__), 'server', 'uploads')

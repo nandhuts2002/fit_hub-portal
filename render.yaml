@@ -8,7 +8,9 @@ services:
       python test_mongo.py && 
       cd client && 
       npm install --legacy-peer-deps && 
-      npm run build
+      npm run build && 
+      cd .. && 
+      ls -la client/build
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
     envVars:
       - key: PYTHON_VERSION
