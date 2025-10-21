@@ -6,9 +6,13 @@
     "build": "cd client && npm install --legacy-peer-deps && npm run build",
     "start": "cd client && npm start",
     "dev": "cd client && npm start",
-    "install": "cd client && npm install --legacy-peer-deps"
+    "install": "cd client && npm install --legacy-peer-deps",
+    "vercel-build": "cd client && npm install --legacy-peer-deps && npm run build"
   },
   "engines": {
     "node": "18.x"
+  },
+  "dependencies": {
+    "react-scripts": "^5.0.1"
   }
 }
