@@ -149,7 +149,7 @@ GitHub → Render detects changes → Build starts
          ↓
     pip install -r requirements.txt
          ↓
-    cd server && gunicorn app:app
+    gunicorn --chdir server app:app
          ↓
     Service Live! (https://fithub-api.onrender.com)
 ```

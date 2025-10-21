@@ -56,7 +56,7 @@ git push -u origin main
 - **Root Directory:** Leave blank
 - **Runtime:** `Python 3`
 - **Build Command:** `pip install -r requirements.txt`
-- **Start Command:** `cd server && gunicorn app:app`
+- **Start Command:** `gunicorn --chdir server app:app`
 
 **Instance Type:**
 - Select **Free** tier (or upgrade if needed)
