@@ -49,9 +49,34 @@ app.register_blueprint(ai_bp)
 app.register_blueprint(exercise_gifs_bp)
 app.register_blueprint(upload_bp)
 
-# Root route
+# Serve React frontend
 @app.route('/')
-def home():
+def serve_frontend():
+    return send_from_directory('client/build', 'index.html')
+
+# Serve static files from React build
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    return send_from_directory('client/build/static', filename)
+
+# Serve other static assets
+@app.route('/<path:path>')
+def serve_react_app(path):
+    # Check if it's an API route
+    if path.startswith(('auth', 'trainer', 'admin', 'shop', 'exercises', 'location', 'live', 'community', 'profile', 'ai', 'uploads', 'proxy', 'health')):
+        # Let Flask handle API routes
+        return None
+    
+    # Serve React app for all other routes
+    try:
+        return send_from_directory('client/build', path)
+    except:
+        # Fallback to index.html for client-side routing
+        return send_from_directory('client/build', 'index.html')
+
+# API status endpoint
+@app.route('/api/status')
+def api_status():
     return jsonify({
         'message': 'FitHub Portal API is running!',
         'status': 'success',
