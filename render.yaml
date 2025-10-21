@@ -3,13 +3,13 @@ services:
   - type: web
     name: fithub-api
     runtime: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && python test_mongo.py
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
       - key: MONGO_URI
-        sync: false
+        value: mongodb+srv://nandhuts:Allmight%40123@fithub.dytvvnq.mongodb.net/fithub?retryWrites=true&w=majority&appName=fithub
       - key: JWT_SECRET
         generateValue: true
       - key: SECRET_KEY
