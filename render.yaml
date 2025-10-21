@@ -1,16 +1,24 @@
 services:
-  # Combined Flask Backend + React Frontend
+  # Flask Backend + React Frontend
   - type: web
     name: fithub-portal
     runtime: python
     buildCommand: |
+      echo "Starting build process..." &&
       pip install -r requirements.txt && 
+      echo "Python dependencies installed" &&
       python test_mongo.py && 
+      echo "MongoDB test passed" &&
       cd client && 
+      echo "Installing Node dependencies..." &&
       npm install --legacy-peer-deps && 
+      echo "Building React app..." &&
       npm run build && 
+      echo "React build completed" &&
       cd .. && 
-      ls -la client/build
+      echo "Checking build output..." &&
+      ls -la client/build &&
+      echo "Build process completed successfully"
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
     envVars:
       - key: PYTHON_VERSION

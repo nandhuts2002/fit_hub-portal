@@ -65,20 +65,61 @@ def serve_frontend():
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>FitHub Portal</title>
             <style>
-                body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
-                .container { max-width: 600px; margin: 0 auto; }
-                .error { color: #e74c3c; }
-                .info { color: #3498db; }
+                body { 
+                    font-family: Arial, sans-serif; 
+                    text-align: center; 
+                    padding: 50px; 
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    min-height: 100vh;
+                    margin: 0;
+                }
+                .container { 
+                    max-width: 600px; 
+                    margin: 0 auto; 
+                    background: rgba(255,255,255,0.1);
+                    padding: 40px;
+                    border-radius: 20px;
+                    backdrop-filter: blur(10px);
+                }
+                .error { color: #ff6b6b; }
+                .info { color: #4ecdc4; }
+                .success { color: #45b7d1; }
+                a { color: #4ecdc4; text-decoration: none; }
+                a:hover { text-decoration: underline; }
+                .btn {
+                    display: inline-block;
+                    padding: 10px 20px;
+                    margin: 10px;
+                    background: rgba(255,255,255,0.2);
+                    border-radius: 25px;
+                    transition: all 0.3s ease;
+                }
+                .btn:hover {
+                    background: rgba(255,255,255,0.3);
+                    transform: translateY(-2px);
+                }
             </style>
         </head>
         <body>
             <div class="container">
                 <h1>🏋️ FitHub Portal</h1>
-                <p class="error">React frontend is not available</p>
-                <p class="info">API is running successfully!</p>
-                <p>API Status: <a href="/api/status">/api/status</a></p>
-                <p>Health Check: <a href="/health">/health</a></p>
-                <p><em>Please ensure the React app is built and deployed correctly.</em></p>
+                <p class="error">⚠️ React frontend is not available</p>
+                <p class="success">✅ API is running successfully!</p>
+                <p class="info">🔧 Debug Information:</p>
+                <p>• Current Directory: <code>''' + os.getcwd() + '''</code></p>
+                <p>• Build Directory Exists: <code>''' + str(os.path.exists('client/build')) + '''</code></p>
+                <p>• Client Directory Exists: <code>''' + str(os.path.exists('client')) + '''</code></p>
+                
+                <div style="margin-top: 30px;">
+                    <a href="/api/status" class="btn">📊 API Status</a>
+                    <a href="/health" class="btn">❤️ Health Check</a>
+                    <a href="/debug" class="btn">🔍 Debug Info</a>
+                </div>
+                
+                <p style="margin-top: 30px; font-size: 14px; opacity: 0.8;">
+                    <em>Please ensure the React app is built and deployed correctly.</em>
+                </p>
             </div>
         </body>
         </html>
