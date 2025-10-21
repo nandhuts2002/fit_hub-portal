@@ -22,13 +22,18 @@ const ChallengesSection = ({ onSwitchToProgress }) => {
     
     // Get current user info
     const token = localStorage.getItem('token');
+    console.log('Token found:', !!token);
     if (token) {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
+        console.log('Parsed user payload:', payload);
+        console.log('User email from token:', payload.email);
         setCurrentUser(payload);
       } catch (error) {
         console.error('Error parsing token:', error);
       }
+    } else {
+      console.log('No token found in localStorage');
     }
   }, []);
 
