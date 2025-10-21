@@ -49,6 +49,32 @@ app.register_blueprint(ai_bp)
 app.register_blueprint(exercise_gifs_bp)
 app.register_blueprint(upload_bp)
 
+# Root route
+@app.route('/')
+def home():
+    return jsonify({
+        'message': 'FitHub Portal API is running!',
+        'status': 'success',
+        'version': '1.0.0',
+        'endpoints': {
+            'auth': '/auth',
+            'trainer': '/trainer',
+            'admin': '/admin',
+            'shop': '/shop',
+            'exercises': '/exercises',
+            'location': '/location',
+            'live': '/live',
+            'community': '/community',
+            'profile': '/profile',
+            'ai': '/ai'
+        }
+    })
+
+# Health check endpoint
+@app.route('/health')
+def health():
+    return jsonify({'status': 'healthy', 'message': 'FitHub Portal API is running'})
+
 # Serve uploaded files
 UPLOAD_DIR = _path.join(_path.dirname(__file__), 'server', 'uploads')
 @app.route('/uploads/<path:filename>')
