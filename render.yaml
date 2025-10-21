@@ -3,8 +3,8 @@ services:
   - type: web
     name: fithub-api
     runtime: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: cd server && python -m gunicorn app:app --bind 0.0.0.0:$PORT
+    buildCommand: pip install -r requirements.txt && python test_import.py
+    startCommand: chmod +x start.sh && ./start.sh
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
