@@ -24,7 +24,6 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "vercel-build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "tw:build": "tailwindcss -i ./src/index.css -o ./src/generated.css",
@@ -48,32 +47,11 @@
       "last 1 safari version"
     ]
   },
-  "engines": {
-    "node": "22.x"
-  },
   "devDependencies": {
+    "@playwright/test": "^1.56.0",
     "autoprefixer": "^10.4.21",
+    "cross-env": "^10.1.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.0"
-  },
-  "overrides": {
-    "ajv": "^8.17.1",
-    "ajv-keywords": "^5.1.0",
-    "ajv-formats": "^2.1.1",
-    "fork-ts-checker-webpack-plugin": "^7.2.0",
-    "schema-utils": "^4.2.0",
-    "es-abstract": "^1.22.5",
-    "eslint-plugin-import": "^2.29.1",
-    "array-includes": "^3.1.7"
-  },
-  "resolutions": {
-    "ajv": "^8.17.1",
-    "ajv-keywords": "^5.1.0",
-    "ajv-formats": "^2.1.1",
-    "fork-ts-checker-webpack-plugin": "^7.2.0",
-    "schema-utils": "^4.2.0",
-    "es-abstract": "^1.22.5",
-    "eslint-plugin-import": "^2.29.1",
-    "array-includes": "^3.1.7"
   }
 }
