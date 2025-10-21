@@ -9,9 +9,13 @@ I've configured your Fit Hub Portal for Vercel deployment. Here's what was creat
 2. ✅ **`server/requirements.txt`** - Python dependencies
 3. ✅ **`.vercelignore`** - Files to exclude from deployment
 4. ✅ **`VERCEL_DEPLOYMENT_GUIDE.md`** - Comprehensive deployment guide
+5. ✅ **`client/.npmrc`** - NPM configuration to handle React 19 peer dependency conflicts
 
 ### Files Modified:
 1. ✅ **`client/package.json`** - Added `vercel-build` script
+
+### Issues Fixed:
+- ✅ **React 19 Peer Dependency Conflict**: Added `.npmrc` with `legacy-peer-deps=true` to handle `react-360-product-viewer` requiring React 18 while project uses React 19
 
 ## Next Steps to Deploy
 
@@ -107,6 +111,7 @@ FIREBASE_CLIENT_EMAIL=your_firebase_client_email
 | Issue | Solution |
 |-------|----------|
 | "No Flask entrypoint found" | Ensure `vercel.json` points to `server/app.py` |
+| "ERESOLVE unable to resolve dependency tree" | Created `client/.npmrc` with `legacy-peer-deps=true` to handle React 19 conflicts |
 | React app shows blank page | Check browser console for errors, verify API endpoints |
 | API returns 404 | Verify routes in `vercel.json` match Flask blueprints |
 | Environment variables not working | Redeploy after adding variables |
