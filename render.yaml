@@ -9,15 +9,19 @@ services:
       echo "Python dependencies installed" &&
       python test_mongo.py && 
       echo "MongoDB test passed" &&
+      echo "Current directory:" && pwd &&
+      echo "Directory contents:" && ls -la &&
       cd client && 
       echo "Installing Node dependencies..." &&
       npm install --legacy-peer-deps && 
       echo "Building React app..." &&
       npm run build && 
       echo "React build completed" &&
+      echo "Build directory contents:" && ls -la build &&
       cd .. && 
       echo "Checking build output..." &&
       ls -la client/build &&
+      echo "Final directory structure:" && find . -name "index.html" -type f &&
       echo "Build process completed successfully"
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
     envVars:

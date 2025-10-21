@@ -52,78 +52,103 @@ app.register_blueprint(upload_bp)
 # Serve React frontend
 @app.route('/')
 def serve_frontend():
-    try:
-        return send_from_directory('client/build', 'index.html')
-    except Exception as e:
-        print(f"Error serving frontend: {e}")
-        # Fallback HTML if React build is not available
-        return '''
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>FitHub Portal</title>
-            <style>
-                body { 
-                    font-family: Arial, sans-serif; 
-                    text-align: center; 
-                    padding: 50px; 
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    color: white;
-                    min-height: 100vh;
-                    margin: 0;
-                }
-                .container { 
-                    max-width: 600px; 
-                    margin: 0 auto; 
-                    background: rgba(255,255,255,0.1);
-                    padding: 40px;
-                    border-radius: 20px;
-                    backdrop-filter: blur(10px);
-                }
-                .error { color: #ff6b6b; }
-                .info { color: #4ecdc4; }
-                .success { color: #45b7d1; }
-                a { color: #4ecdc4; text-decoration: none; }
-                a:hover { text-decoration: underline; }
-                .btn {
-                    display: inline-block;
-                    padding: 10px 20px;
-                    margin: 10px;
-                    background: rgba(255,255,255,0.2);
-                    border-radius: 25px;
-                    transition: all 0.3s ease;
-                }
-                .btn:hover {
-                    background: rgba(255,255,255,0.3);
-                    transform: translateY(-2px);
-                }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>🏋️ FitHub Portal</h1>
-                <p class="error">⚠️ React frontend is not available</p>
-                <p class="success">✅ API is running successfully!</p>
-                <p class="info">🔧 Debug Information:</p>
-                <p>• Current Directory: <code>''' + os.getcwd() + '''</code></p>
-                <p>• Build Directory Exists: <code>''' + str(os.path.exists('client/build')) + '''</code></p>
-                <p>• Client Directory Exists: <code>''' + str(os.path.exists('client')) + '''</code></p>
-                
-                <div style="margin-top: 30px;">
-                    <a href="/api/status" class="btn">📊 API Status</a>
-                    <a href="/health" class="btn">❤️ Health Check</a>
-                    <a href="/debug" class="btn">🔍 Debug Info</a>
-                </div>
-                
-                <p style="margin-top: 30px; font-size: 14px; opacity: 0.8;">
-                    <em>Please ensure the React app is built and deployed correctly.</em>
-                </p>
+    import os
+    
+    # Check multiple possible locations for the build
+    possible_paths = [
+        'client/build',
+        './client/build', 
+        '../client/build',
+        'client/build/index.html',
+        './client/build/index.html'
+    ]
+    
+    for path in possible_paths:
+        try:
+            if os.path.exists(path):
+                if path.endswith('index.html'):
+                    return send_from_directory(os.path.dirname(path), 'index.html')
+                else:
+                    return send_from_directory(path, 'index.html')
+        except Exception as e:
+            print(f"Error with path {path}: {e}")
+            continue
+    
+    # If no build found, show fallback with debug info
+    print("No React build found in any expected location")
+    current_dir = os.getcwd()
+    build_exists = os.path.exists('client/build')
+    client_exists = os.path.exists('client')
+    
+    return f'''
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>FitHub Portal</title>
+        <style>
+            body {{ 
+                font-family: Arial, sans-serif; 
+                text-align: center; 
+                padding: 50px; 
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                min-height: 100vh;
+                margin: 0;
+            }}
+            .container {{ 
+                max-width: 600px; 
+                margin: 0 auto; 
+                background: rgba(255,255,255,0.1);
+                padding: 40px;
+                border-radius: 20px;
+                backdrop-filter: blur(10px);
+            }}
+            .error {{ color: #ff6b6b; }}
+            .info {{ color: #4ecdc4; }}
+            .success {{ color: #45b7d1; }}
+            a {{ color: #4ecdc4; text-decoration: none; }}
+            a:hover {{ text-decoration: underline; }}
+            .btn {{
+                display: inline-block;
+                padding: 10px 20px;
+                margin: 10px;
+                background: rgba(255,255,255,0.2);
+                border-radius: 25px;
+                transition: all 0.3s ease;
+            }}
+            .btn:hover {{
+                background: rgba(255,255,255,0.3);
+                transform: translateY(-2px);
+            }}
+            code {{ background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h1>🏋️ FitHub Portal</h1>
+            <p class="error">⚠️ React frontend is not available</p>
+            <p class="success">✅ API is running successfully!</p>
+            <p class="info">🔧 Debug Information:</p>
+            <p>• Current Directory: <code>{current_dir}</code></p>
+            <p>• Build Directory Exists: <code>{build_exists}</code></p>
+            <p>• Client Directory Exists: <code>{client_exists}</code></p>
+            <p>• Directory Contents: <code>{os.listdir('.') if os.path.exists('.') else 'Cannot list directory'}</code></p>
+            
+            <div style="margin-top: 30px;">
+                <a href="/api/status" class="btn">📊 API Status</a>
+                <a href="/health" class="btn">❤️ Health Check</a>
+                <a href="/debug" class="btn">🔍 Debug Info</a>
             </div>
-        </body>
-        </html>
-        ''', 200
+            
+            <p style="margin-top: 30px; font-size: 14px; opacity: 0.8;">
+                <em>Please ensure the React app is built and deployed correctly.</em>
+            </p>
+        </div>
+    </body>
+    </html>
+    ''', 200
 
 # Serve static files from React build
 @app.route('/static/<path:filename>')
