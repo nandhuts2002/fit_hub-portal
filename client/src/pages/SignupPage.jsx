@@ -315,12 +315,16 @@ const SignupPage = () => {
         alert('Trainer application submitted! Please wait for admin approval.');
         navigate('/login');
       } else {
+        console.log('📤 Sending signup-init request to:', `${API_BASE_URL}/signup-init`);
         const response = await axios.post(`${API_BASE_URL}/signup-init`, signupData);
+        console.log('✅ Signup response:', response.data);
         
         // Capture debug OTP if provided by backend (when email fails or dev mode)
         if (response.data.debugOtp) {
           setDebugOtp(response.data.debugOtp);
           console.log('🔑 Debug OTP received:', response.data.debugOtp);
+        } else {
+          console.log('ℹ️ No debug OTP in response - email may have been sent successfully');
         }
         
         setIsOtpStep(true);
