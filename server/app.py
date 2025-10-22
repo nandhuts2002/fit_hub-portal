@@ -26,7 +26,12 @@ from socketio_instance import socketio
 load_dotenv(dotenv_path=_path.join(_path.dirname(__file__), '.env'), override=True)
 
 app = Flask(__name__)
-CORS(app)
+# Configure CORS for production and development
+CORS(app, origins=[
+    "https://*.onrender.com",  # Allow any Render subdomain (your frontend)
+    "http://localhost:3000",    # Local development
+    "http://localhost:5000"     # Local backend testing
+], supports_credentials=True)
 
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET')
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')
