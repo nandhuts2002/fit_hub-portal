@@ -4,6 +4,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FaExclamationTriangle, FaCheckCircle, FaArrowLeft } from 'react-icons/fa';
 import SessionManager from '../../utils/sessionManager';
 
+const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+
 const MedicalCheckPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -25,7 +27,7 @@ const MedicalCheckPage = () => {
     try {
       const current = SessionManager.getCurrentUser();
       if (current?.token) {
-        await fetch('http://localhost:5000/user/medical-ack', {
+        await fetch(`${API_BASE}/user/medical-ack`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${current.token}` },
           body: JSON.stringify(payload),

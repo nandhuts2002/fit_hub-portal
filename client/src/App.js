@@ -199,11 +199,7 @@ function App() {
             <ExerciseExplorerPage />
           </ProtectedRoute>
         } />
-        <Route path="/services/medical-check" element={
-          <ProtectedRoute>
-            <MedicalCheckPage />
-          </ProtectedRoute>
-        } />
+        <Route path="/services/medical-check" element={<MedicalCheckPage />} />
         <Route path="/services/exercises" element={
           <ProtectedRoute>
             <ExerciseExplorerPage />
