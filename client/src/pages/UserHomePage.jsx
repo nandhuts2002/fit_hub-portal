@@ -79,7 +79,8 @@ const UserHomePage = () => {
   useEffect(() => {
     const loadLive = async () => {
       try {
-        const resp = await fetch('http://localhost:5000/live/sessions');
+        const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+        const resp = await fetch(`${API_BASE}/live/sessions`);
         const json = await resp.json();
         const list = json?.data || [];
         // Filter to only upcoming sessions (exclude ended/past)
@@ -118,20 +119,21 @@ const UserHomePage = () => {
         const headers = { Authorization: `Bearer ${currentUser.token}` };
 
         // Orders count and last order from shop API
+        const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
         const ordersResp = await fetch(
-          `http://localhost:5000/shop/api/orders/${encodeURIComponent(currentUser.email)}`,
+          `${API_BASE}/shop/api/orders/${encodeURIComponent(currentUser.email)}`,
           { headers }
         );
         const ordersJson = ordersResp.ok ? await ordersResp.json() : { success: false, orders: [] };
         const orders = ordersJson.success ? ordersJson.orders : [];
 
         // Queries created by user
-        const queriesResp = await fetch("http://localhost:5000/trainer/public/queries", { headers });
+        const queriesResp = await fetch(`${API_BASE}/trainer/public/queries`, { headers });
         const queriesJson = queriesResp.ok ? await queriesResp.json() : { queries: [] };
         const queries = queriesJson.queries || [];
 
         // Tutorials viewed/available (public tutorials)
-        const tResp = await fetch("http://localhost:5000/trainer/public/tutorials", { headers });
+        const tResp = await fetch(`${API_BASE}/trainer/public/tutorials`, { headers });
         const tJson = tResp.ok ? await tResp.json() : { tutorials: [] };
         const tutorials = tJson.tutorials || [];
         setTutorialsList(tutorials);
@@ -177,7 +179,8 @@ const UserHomePage = () => {
 
     const checkOrderUpdates = async () => {
       try {
-        const resp = await fetch(`http://localhost:5000/shop/api/orders/${encodeURIComponent(currentUser.email)}`, { headers });
+        const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+        const resp = await fetch(`${API_BASE}/shop/api/orders/${encodeURIComponent(currentUser.email)}`, { headers });
         if (!resp.ok) return;
         const { orders = [] } = await resp.json();
         if (isCancelled) return;
@@ -233,7 +236,8 @@ const UserHomePage = () => {
 
     const checkResponses = async () => {
       try {
-        const resp = await fetch("http://localhost:5000/trainer/public/queries", { headers });
+        const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+        const resp = await fetch(`${API_BASE}/trainer/public/queries`, { headers });
         if (!resp.ok) return;
         const { queries = [] } = await resp.json();
         if (isCancelled) return;

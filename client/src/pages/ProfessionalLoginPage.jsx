@@ -6,6 +6,8 @@ import { signInWithPopup } from 'firebase/auth';
 import { auth, provider } from '../firebase';
 import { FaSpa } from 'react-icons/fa';
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+
 // Match YogaIndexPage hero background
 const heroBg = 'https://images6.alphacoders.com/126/thumb-1920-1263719.jpg';
 
@@ -64,7 +66,7 @@ const ProfessionalLoginPage = () => {
 
     setIsLoading(true);
     try {
-      const res = await axios.post('http://localhost:5000/login', {
+      const res = await axios.post(`${API_BASE_URL}/login`, {
         email: formData.email,
         password: formData.password
       });
@@ -102,7 +104,7 @@ const ProfessionalLoginPage = () => {
       const idToken = await user.getIdToken();
 
       try {
-        const response = await axios.post('http://localhost:5000/google-login', {
+        const response = await axios.post(`${API_BASE_URL}/google-login`, {
           idToken,
           email: user.email,
           name: user.displayName,

@@ -30,7 +30,6 @@ tests/
 
 # Build artifacts (keep these out if not needed)
 *.json.lock
-package-lock.json
 
 # Git
 .git/
