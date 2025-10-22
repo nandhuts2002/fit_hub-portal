@@ -17,6 +17,8 @@ import {
   RefreshCw
 } from 'lucide-react';
 
+const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://fit-hub-portal-1.onrender.com';
+
 const BookingManagement = () => {
   const [activeTab, setActiveTab] = useState('events');
   const [eventBookings, setEventBookings] = useState([]);
@@ -42,10 +44,10 @@ const BookingManagement = () => {
 
       // Load both event bookings and gym memberships
       const [eventResponse, gymResponse] = await Promise.all([
-        fetch('http://localhost:5000/location/admin/event-bookings', {
+        fetch(`${API_BASE}/location/admin/event-bookings`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch('http://localhost:5000/location/admin/gym-memberships', {
+        fetch(`${API_BASE}/location/admin/gym-memberships`, {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ]);
@@ -71,8 +73,8 @@ const BookingManagement = () => {
     try {
       const token = localStorage.getItem('token');
       const endpoint = type === 'event' 
-        ? `http://localhost:5000/location/admin/event-bookings/${bookingId}/status`
-        : `http://localhost:5000/location/admin/gym-memberships/${bookingId}/status`;
+        ? `${API_BASE}/location/admin/event-bookings/${bookingId}/status`
+        : `${API_BASE}/location/admin/gym-memberships/${bookingId}/status`;
 
       const response = await fetch(endpoint, {
         method: 'PUT',

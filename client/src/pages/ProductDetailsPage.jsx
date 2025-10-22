@@ -23,7 +23,7 @@ export default function ProductDetailsPage() {
       setLoading(true);
       setError('');
       try {
-        const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+        const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://fit-hub-portal-1.onrender.com';
         const res = await fetch(`${API_BASE}/shop/api/products/${id}`);
         const data = await res.json();
         if (mounted) {

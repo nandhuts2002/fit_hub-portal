@@ -6,7 +6,7 @@ import { signInWithPopup } from 'firebase/auth';
 import { auth, provider } from '../firebase';
 import { FaSpa } from 'react-icons/fa';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://fit-hub-portal-1.onrender.com';
 
 // Match YogaIndexPage hero background
 const heroBg = 'https://images6.alphacoders.com/126/thumb-1920-1263719.jpg';

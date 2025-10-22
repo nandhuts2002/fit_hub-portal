@@ -14,6 +14,8 @@ import {
 import SessionManager from '../utils/sessionManager';
 import api from '../utils/api';
 
+const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://fit-hub-portal-1.onrender.com';
+
 const LocationAdminPanel = () => {
   const [activeTab, setActiveTab] = useState('gyms');
   const [gyms, setGyms] = useState([]);
@@ -78,7 +80,7 @@ const LocationAdminPanel = () => {
     try {
       setIsValidatingLocation(true);
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/location/geocode', {
+      const response = await fetch(`${API_BASE}/location/geocode`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -138,7 +140,7 @@ const LocationAdminPanel = () => {
   const validateLocation = async (latitude, longitude, city, state) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/location/validate-location', {
+      const response = await fetch(`${API_BASE}/location/validate-location`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -301,7 +301,7 @@ const ShopPage = () => {
     const loadShopData = async () => {
       setLoading(true);
       try {
-        const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+        const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://fit-hub-portal-1.onrender.com';
         // Load products first
         const productsResponse = await fetch(`${API_BASE}/shop/api/products`);
         const productsData = await productsResponse.json();
@@ -370,7 +370,7 @@ const ShopPage = () => {
   // Refresh products when component mounts or when needed
   const refreshProducts = async () => {
     try {
-      const productsResponse = await fetch('http://localhost:5000/shop/api/products');
+      const productsResponse = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://fit-hub-portal-1.onrender.com'}/shop/api/products`);
       const productsData = await productsResponse.json();
       if (productsData.success) {
         setApiProducts(productsData.products);
