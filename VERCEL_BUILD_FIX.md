@@ -13,16 +13,23 @@ Error: Cannot find module 'ajv/dist/compile/codegen'
 
 ## Solution Applied
 
-### 1. Added ajv Dependency
-Added `ajv@^8.12.0` to dependencies in `client/package.json`
+### 1. Added ajv Dependencies
+Added compatible versions to dependencies in `client/package.json`:
+- `ajv@^8.12.0` - Main validation library
+- `ajv-formats@^2.1.1` - Format validators for ajv v8
+- `ajv-keywords@^5.1.0` - Additional keywords for ajv v8
 
 ### 2. Added npm Overrides
-Added `overrides` section to force all packages to use ajv v8:
+Added `overrides` section to force ALL nested packages to use compatible versions:
 ```json
 "overrides": {
-  "ajv": "^8.12.0"
+  "ajv": "^8.12.0",
+  "ajv-formats": "^2.1.1",
+  "ajv-keywords": "^5.1.0"
 }
 ```
+
+This fixes issues in nested dependencies like `fork-ts-checker-webpack-plugin`.
 
 ## Changes Made
 
@@ -31,10 +38,14 @@ Added `overrides` section to force all packages to use ajv v8:
 {
   "dependencies": {
     "ajv": "^8.12.0",
+    "ajv-formats": "^2.1.1",
+    "ajv-keywords": "^5.1.0",
     // ... other dependencies
   },
   "overrides": {
-    "ajv": "^8.12.0"
+    "ajv": "^8.12.0",
+    "ajv-formats": "^2.1.1",
+    "ajv-keywords": "^5.1.0"
   }
 }
 ```
