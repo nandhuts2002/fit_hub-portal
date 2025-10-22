@@ -16,6 +16,8 @@ import {
   Star
 } from "lucide-react";
 
+const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://fit-hub-portal-1.onrender.com';
+
 const AdminProductManagement = () => {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -105,7 +107,7 @@ const AdminProductManagement = () => {
       };
       const currentUser = SessionManager.getCurrentUser();
       const response = await api.request({
-        url: 'http://localhost:5000/shop/api/products',
+        url: `${API_BASE}/shop/api/products`,
         method: 'POST',
         data: productData,
         headers: currentUser?.token ? { Authorization: `Bearer ${currentUser.token}` } : {}
@@ -157,7 +159,7 @@ const AdminProductManagement = () => {
   const loadProducts = async () => {
     try {
       console.log('Loading products...');
-      const response = await fetch('http://localhost:5000/shop/api/products');
+      const response = await fetch(`${API_BASE}/shop/api/products`);
       const data = await response.json();
       console.log('Products response:', data);
       if (data.success) {
@@ -173,7 +175,7 @@ const AdminProductManagement = () => {
 
   const loadCategories = async () => {
     try {
-      const response = await fetch('http://localhost:5000/shop/api/categories');
+      const response = await fetch(`${API_BASE}/shop/api/categories`);
       const data = await response.json();
       if (data.success) {
         setCategories(data.categories);
@@ -234,8 +236,8 @@ const AdminProductManagement = () => {
 
     try {
       const url = editingProduct 
-        ? `http://localhost:5000/shop/api/products/${editingProduct._id}`
-        : 'http://localhost:5000/shop/api/products';
+        ? `${API_BASE}/shop/api/products/${editingProduct._id}`
+        : `${API_BASE}/shop/api/products`;
       const method = editingProduct ? 'PUT' : 'POST';
       const currentUser = SessionManager.getCurrentUser();
 
@@ -331,7 +333,7 @@ const AdminProductManagement = () => {
 
     try {
       const currentUser = SessionManager.getCurrentUser();
-      const response = await api.delete(`http://localhost:5000/shop/api/products/${productId}`, {
+      const response = await api.delete(`${API_BASE}/shop/api/products/${productId}`, {
         headers: currentUser?.token ? { Authorization: `Bearer ${currentUser.token}` } : {}
       });
       const data = response.data || {};

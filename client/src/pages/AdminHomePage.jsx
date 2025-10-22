@@ -187,7 +187,7 @@ const AdminHomePage = () => {
   const [tutorialsStatus, setTutorialsStatus] = useState('all');
 
   const navigate = useNavigate();
-  const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+  const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://fit-hub-portal-1.onrender.com';
 
   useEffect(() => {
     const fetchAdminData = async () => {
@@ -2801,7 +2801,7 @@ const AdminHomePage = () => {
                       href={(function(){
                         const url = application.resumeUrl || '';
                         if (/^https?:\/\//.test(url)) return url;
-                        const apiBase = (process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000').replace(/\/$/, '');
+                        const apiBase = (process.env.REACT_APP_API_BASE_URL || 'https://fit-hub-portal-1.onrender.com').replace(/\/$/, '');
                         if (url.startsWith('/uploads/')) return `${apiBase}${url}`;
                         return `${window.location.origin}${url.startsWith('/') ? '' : '/'}${url}`;
                       })()}
