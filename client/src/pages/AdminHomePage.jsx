@@ -9,7 +9,6 @@ import api from '../utils/api';
 // import MusicAdminPanel from '../components/MusicAdminPanel';
 
 function MusicAdminPanel() {
-  const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
   const [tracks, setTracks] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [form, setForm] = React.useState({ title: '', artist: '', url: '', order: 0, status: 'published' });
@@ -18,8 +17,7 @@ function MusicAdminPanel() {
   const loadTracks = async () => {
     try {
       setLoading(true);
-      const currentUser = SessionManager.getCurrentUser();
-      const { data } = await api.get('/admin/music', { headers: { Authorization: `Bearer ${currentUser.token}` } });
+      const { data } = await api.get('/admin/music');
       setTracks(data.tracks || []);
     } catch (e) {
     } finally {
@@ -32,8 +30,7 @@ function MusicAdminPanel() {
   const createTrack = async (e) => {
     e.preventDefault();
     try {
-      const currentUser = SessionManager.getCurrentUser();
-      await api.post('/admin/music', form, { headers: { Authorization: `Bearer ${currentUser.token}` } });
+      await api.post('/admin/music', form);
       setForm({ title: '', artist: '', url: '', order: 0, status: 'published' });
       loadTracks();
     } catch (e) {}
@@ -41,8 +38,7 @@ function MusicAdminPanel() {
 
   const deleteTrack = async (id) => {
     try {
-      const currentUser = SessionManager.getCurrentUser();
-      await api.delete(`/admin/music/${id}`, { headers: { Authorization: `Bearer ${currentUser.token}` } });
+      await api.delete(`/admin/music/${id}`);
       loadTracks();
     } catch (e) {}
   };
@@ -55,7 +51,8 @@ function MusicAdminPanel() {
     formData.append('file', file);
     try {
       setUploading(true);
-      const res = await fetch(`${API_BASE}/admin/music/upload`, {
+      const baseURL = process.env.REACT_APP_API_BASE_URL || 'https://fit-hub-portal-1.onrender.com';
+      const res = await fetch(`${baseURL}/admin/music/upload`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${currentUser.token}` },
         body: formData
@@ -209,17 +206,15 @@ const AdminHomePage = () => {
 
       try {
         console.log('🔄 Fetching users from API...');
-        // include token for admin endpoints
-        const token = localStorage.getItem('token');
-        const authHeaders = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+        // Use api instance which automatically includes auth headers
 
-        const usersResponse = await axios.get(`${API_BASE}/users`, authHeaders);
+        const usersResponse = await api.get('/users');
         console.log('✅ Users fetched:', usersResponse.data.users);
         setUsers(usersResponse.data.users || []);
         setFilteredUsers(usersResponse.data.users || []);
 
         console.log('🔄 Fetching stats from API...');
-        const statsResponse = await axios.get(`${API_BASE}/stats`, authHeaders);
+        const statsResponse = await api.get('/stats');
         console.log('✅ Stats fetched:', statsResponse.data.stats);
         setStats(statsResponse.data.stats || {});
 
@@ -227,7 +222,7 @@ const AdminHomePage = () => {
         console.log('🔄 Fetching tutorials for admin moderation...');
         try {
           setTutorialsLoading(true);
-          const tutorialsResp = await axios.get(`${API_BASE}/admin/tutorials`, authHeaders);
+          const tutorialsResp = await api.get('/admin/tutorials');
           setTutorials(tutorialsResp.data.tutorials || []);
         } catch (e) {
           console.error('❌ Failed to load tutorials:', e);
@@ -239,8 +234,8 @@ const AdminHomePage = () => {
         // Fetch products and orders for dashboard summaries
         try {
           const [productsResp, ordersResp] = await Promise.all([
-            axios.get(`${API_BASE}/shop/api/products`, authHeaders),
-            axios.get(`${API_BASE}/shop/api/orders`, authHeaders)
+            api.get('/shop/api/products'),
+            api.get('/shop/api/orders')
           ]);
 
           const products = productsResp.data?.products || [];
@@ -540,9 +535,7 @@ const AdminHomePage = () => {
       }
       
       console.log('📡 Making API call to fetch orders...');
-      const { data } = await axios.get(`${API_BASE}/shop/api/orders`, {
-        headers: { Authorization: `Bearer ${currentUser.token}` }
-      });
+      const { data } = await api.get('/shop/api/orders');
       
       console.log('✅ Orders API response:', data);
       if (data?.success) {
@@ -617,9 +610,7 @@ const AdminHomePage = () => {
         return;
       }
 
-      const response = await axios.put(`${API_BASE}/shop/api/orders/${orderId}/status`, payload, {
-        headers: { Authorization: `Bearer ${currentUser.token}` }
-      });
+      const response = await api.put(`/shop/api/orders/${orderId}/status`, payload);
 
       console.log('✅ Order update response:', response.data);
       
@@ -649,9 +640,7 @@ const AdminHomePage = () => {
         return;
       }
 
-      const response = await axios.put(`${API_BASE}/shop/api/orders/${orderId}/payment`, payload, {
-        headers: { Authorization: `Bearer ${currentUser.token}` }
-      });
+      const response = await api.put(`/shop/api/orders/${orderId}/payment`, payload);
 
       console.log('✅ Payment update response:', response.data);
       
@@ -1003,11 +992,11 @@ const AdminHomePage = () => {
   // Refresh users list
   const refreshUsers = async () => {
     try {
-      const response = await axios.get(`${API_BASE}/users`);
+      const response = await api.get('/users');
       setUsers(response.data.users || []);
       
       // Refresh stats as well
-      const statsResponse = await axios.get(`${API_BASE}/stats`);
+      const statsResponse = await api.get('/stats');
       setStats(statsResponse.data.stats || {});
     } catch (error) {
       console.error('Error refreshing users:', error);
@@ -1036,7 +1025,7 @@ const AdminHomePage = () => {
         role: userForm.role
       };
 
-      const response = await axios.post(`${API_BASE}/signup`, userData);
+      const response = await api.post('/signup', userData);
       
       if (response.data.success || response.status === 201) {
         alert('User created successfully!');
@@ -1084,9 +1073,7 @@ const AdminHomePage = () => {
         status: editingUser.status
       };
 
-      const token = localStorage.getItem('token');
-      const headers = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-      const response = await axios.put(`${API_BASE}/users/${editingUser.id}`, updateData, headers);
+      const response = await api.put(`/users/${editingUser.id}`, updateData);
       
       if (response.status === 200 || response.data?.success) {
         alert('User updated successfully!');
@@ -1114,7 +1101,7 @@ const AdminHomePage = () => {
 
     try {
       console.log('🔄 Sending DELETE request to:', `${API_BASE}/users/${userId}`);
-      const response = await axios.delete(`${API_BASE}/users/${userId}`);
+      const response = await api.delete(`/users/${userId}`);
       console.log('✅ Delete response:', response.data);
       
       if (response.data.success) {
@@ -1156,7 +1143,7 @@ const AdminHomePage = () => {
   const fetchTrainerApplications = async () => {
     setApplicationsLoading(true);
     try {
-      const response = await axios.get(`${API_BASE}/trainer/applications`);
+      const response = await api.get('/trainer/applications');
       setTrainerApplications(response.data.applications || []);
     } catch (error) {
       console.error('Error fetching trainer applications:', error);
@@ -1168,7 +1155,7 @@ const AdminHomePage = () => {
 
   const handleApproveApplication = async (applicationId) => {
     try {
-      const response = await axios.post(`${API_BASE}/trainer/applications/${applicationId}/approve`, {
+      const response = await api.post(`/trainer/applications/${applicationId}/approve`, {
         admin_email: 'admin@fithub.com',
         admin_notes: 'Approved through admin dashboard'
       });
@@ -1191,7 +1178,7 @@ const AdminHomePage = () => {
     if (!reason) return;
 
     try {
-      const response = await axios.post(`${API_BASE}/trainer/applications/${applicationId}/reject`, {
+      const response = await api.post(`/trainer/applications/${applicationId}/reject`, {
         admin_email: 'admin@fithub.com',
         rejection_reason: reason
       });
@@ -1225,7 +1212,7 @@ const AdminHomePage = () => {
         role: 'trainer'
       };
 
-      await axios.post(`${API_BASE}/signup`, trainerData);
+      await api.post('/signup', trainerData);
       alert('Trainer created successfully!');
       setTrainerForm({
         firstName: '',
@@ -2435,9 +2422,6 @@ const AdminHomePage = () => {
   );
 
   const renderAdminTutorials = () => {
-    const token = localStorage.getItem('token');
-    const authHeaders = token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-
     const filtered = tutorials.filter(t => {
       const matchSearch = tutorialsSearch
         ? (t.title?.toLowerCase().includes(tutorialsSearch.toLowerCase()) || t.trainer_email?.toLowerCase().includes(tutorialsSearch.toLowerCase()))
@@ -2448,7 +2432,7 @@ const AdminHomePage = () => {
 
     const updateStatus = async (id, status) => {
       try {
-        await axios.post(`${API_BASE}/admin/tutorials/${id}/status`, { status }, authHeaders);
+        await api.post(`/admin/tutorials/${id}/status`, { status });
         setTutorials(tutorials.map(t => t.id === id ? { ...t, status } : t));
       } catch (e) {
         alert('Failed to update status');
@@ -2457,7 +2441,7 @@ const AdminHomePage = () => {
 
     const toggleFeatured = async (id, featured) => {
       try {
-        await axios.post(`${API_BASE}/admin/tutorials/${id}/feature`, { featured }, authHeaders);
+        await api.post(`/admin/tutorials/${id}/feature`, { featured });
         setTutorials(tutorials.map(t => t.id === id ? { ...t, featured } : t));
       } catch (e) {
         alert('Failed to update featured');
@@ -2467,7 +2451,7 @@ const AdminHomePage = () => {
     const deleteTutorial = async (id, title) => {
       if (!window.confirm(`Delete tutorial "${title}"?`)) return;
       try {
-        await axios.delete(`${API_BASE}/admin/tutorials/${id}`, authHeaders);
+        await api.delete(`/admin/tutorials/${id}`);
         setTutorials(tutorials.filter(t => t.id !== id));
       } catch (e) {
         alert('Failed to delete tutorial');
