@@ -7,29 +7,28 @@ Error: Cannot find module 'ajv/dist/compile/codegen'
 ```
 
 ## Root Cause
-- `ajv-keywords` package requires `ajv` v8.x
-- `react-scripts` 5.0.1 has dependency conflicts with newer Node.js versions
-- Missing explicit `ajv` dependency in package.json
+- `react-scripts` 5.0.1 was built for `ajv` v6, not v8
+- Trying to use `ajv` v8 causes incompatibility with webpack plugins
+- Node.js v22 on Vercel exposes these dependency conflicts
 
 ## Solution Applied
 
-### 1. Added ajv Dependencies
-Added compatible versions to dependencies in `client/package.json`:
-- `ajv@^8.12.0` - Main validation library
-- `ajv-formats@^2.1.1` - Format validators for ajv v8
-- `ajv-keywords@^5.1.0` - Additional keywords for ajv v8
+### Use ajv v6 (The Right Version)
+`react-scripts` 5.0.1 expects `ajv` v6, so we force all packages to use it:
 
-### 2. Added npm Overrides
-Added `overrides` section to force ALL nested packages to use compatible versions:
 ```json
+"dependencies": {
+  "ajv": "^6.12.6"
+},
 "overrides": {
-  "ajv": "^8.12.0",
-  "ajv-formats": "^2.1.1",
-  "ajv-keywords": "^5.1.0"
+  "ajv": "^6.12.6"
 }
 ```
 
-This fixes issues in nested dependencies like `fork-ts-checker-webpack-plugin`.
+**Why v6 not v8?**
+- `react-scripts` 5.0.1 and its webpack plugins were designed for ajv v6
+- ajv v8 has breaking changes that cause format errors
+- v6.12.6 is the last stable v6 release and works perfectly
 
 ## Changes Made
 
@@ -37,15 +36,11 @@ This fixes issues in nested dependencies like `fork-ts-checker-webpack-plugin`.
 ```json
 {
   "dependencies": {
-    "ajv": "^8.12.0",
-    "ajv-formats": "^2.1.1",
-    "ajv-keywords": "^5.1.0",
-    // ... other dependencies
+    "ajv": "^6.12.6",
+    // ... other dependencies (removed ajv-formats and ajv-keywords)
   },
   "overrides": {
-    "ajv": "^8.12.0",
-    "ajv-formats": "^2.1.1",
-    "ajv-keywords": "^5.1.0"
+    "ajv": "^6.12.6"
   }
 }
 ```
