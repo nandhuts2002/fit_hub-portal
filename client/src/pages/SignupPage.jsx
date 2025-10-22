@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { FaUser, FaDumbbell, FaSpa } from 'react-icons/fa';
@@ -32,6 +33,7 @@ const SignupPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isOtpStep, setIsOtpStep] = useState(false);
   const [otp, setOtp] = useState('');
+  const [debugOtp, setDebugOtp] = useState(null); // Store debug OTP from backend
   const [emailChecking, setEmailChecking] = useState(false);
   const [emailStatus, setEmailStatus] = useState(null); // 'available', 'exists', 'checking', null
   const navigate = useNavigate();
@@ -314,7 +316,14 @@ const SignupPage = () => {
         alert('Trainer application submitted! Please wait for admin approval.');
         navigate('/login');
       } else {
-        await axios.post(`${API_BASE_URL}/signup-init`, signupData);
+        const response = await axios.post(`${API_BASE_URL}/signup-init`, signupData);
+        
+        // Capture debug OTP if provided by backend (when email fails or dev mode)
+        if (response.data.debugOtp) {
+          setDebugOtp(response.data.debugOtp);
+          console.log('🔑 Debug OTP received:', response.data.debugOtp);
+        }
+        
         setIsOtpStep(true);
         setErrors({});
       }
@@ -828,6 +837,30 @@ const SignupPage = () => {
               <form onSubmit={handleVerifyOtp} className="space-y-6">
                 <h3 className="text-xl font-semibold text-gray-200">Verify Your Email</h3>
                 <p className="text-gray-300">We sent a 6-digit verification code to <strong className="text-orange-400">{formData.email}</strong>. Enter it below to activate your account.</p>
+                
+                {/* Debug OTP Display (when email fails or dev mode) */}
+                {debugOtp && (
+                  <div className="p-4 bg-blue-950/40 border border-blue-400/40 rounded-lg">
+                    <p className="text-blue-200 text-sm font-medium mb-2">📧 Email delivery may be delayed. Use this code:</p>
+                    <div className="flex items-center justify-center gap-2">
+                      <code className="text-2xl font-bold text-blue-300 bg-blue-900/50 px-4 py-2 rounded-lg tracking-widest">
+                        {debugOtp}
+                      </code>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOtp(debugOtp);
+                          navigator.clipboard.writeText(debugOtp);
+                          alert('OTP copied to clipboard!');
+                        }}
+                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded-lg transition-colors"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
                 <div>
                   <label htmlFor="otp" className="block text-sm font-medium text-gray-200 mb-2">Verification Code</label>
                   <input
@@ -852,7 +885,14 @@ const SignupPage = () => {
                     onClick={async () => {
                       try {
                         setIsLoading(true);
-                        await axios.post(`${API_BASE_URL}/signup-resend`, { email: formData.email });
+                        const response = await axios.post(`${API_BASE_URL}/signup-resend`, { email: formData.email });
+                        
+                        // Capture debug OTP from resend response too
+                        if (response.data.debugOtp) {
+                          setDebugOtp(response.data.debugOtp);
+                          console.log('🔑 Debug OTP (resent):', response.data.debugOtp);
+                        }
+                        
                         setErrors({});
                         alert('Verification code resent to your email.');
                       } catch (err) {
