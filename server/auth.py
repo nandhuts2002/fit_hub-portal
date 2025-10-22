@@ -234,7 +234,12 @@ def login():
     if not user_role:
         user_role = 'user'
     
-    token = create_access_token(identity={'email': user['email'], 'role': user_role})
+    # JWT identity MUST be a string (not a dict) - use email as identity
+    # Store additional data (like role) in additional_claims
+    token = create_access_token(
+        identity=user['email'],
+        additional_claims={'role': user_role}
+    )
     
     # Return user data along with token
     user_data = {
@@ -543,10 +548,16 @@ def login_verify():
     # Success -> clear OTP and issue token
     users_collection.update_one({'_id': user['_id']}, {'$unset': {'otp': ''}})
 
-    token = create_access_token(identity={'email': user['email'], 'role': user.get('role', 'user')})
+    # JWT identity MUST be a string - use email
+    # Store role in additional_claims
+    user_role = user.get('role', 'user')
+    token = create_access_token(
+        identity=user['email'],
+        additional_claims={'role': user_role}
+    )
     user_data = {
         'email': user['email'],
-        'role': user.get('role', 'user'),
+        'role': user_role,
         'name': f"{user.get('firstName', '')} {user.get('lastName', '')}".strip() or user['email'].split('@')[0],
         'firstName': user.get('firstName', ''),
         'lastName': user.get('lastName', ''),
@@ -561,19 +572,18 @@ def login_verify():
 def get_all_users():
     """Get all users (admin only)"""
     try:
-        identity = get_jwt_identity()
-        print(f"🔑 JWT Identity retrieved: {identity}")
+        from flask_jwt_extended import get_jwt
         
-        if not identity:
-            print("❌ No identity found in JWT token")
-            return jsonify({'msg': 'Invalid token - no identity'}), 401
-            
-        if not isinstance(identity, dict):
-            print(f"⚠️ Identity is not a dict: {type(identity)}")
-            return jsonify({'msg': 'Invalid token format'}), 401
-            
-        user_role = identity.get('role')
-        print(f"👤 User role from token: {user_role}")
+        # Get the email from identity (which is now a string)
+        identity = get_jwt_identity()
+        print(f"🔑 JWT Identity (email) retrieved: {identity}")
+        
+        # Get the full JWT claims to access the role
+        claims = get_jwt()
+        print(f"📋 JWT Claims: {claims}")
+        
+        user_role = claims.get('role', 'user')
+        print(f"👤 User role from claims: {user_role}")
         
         if user_role != 'admin':
             print(f"🚫 Access denied - role is '{user_role}', not 'admin'")
@@ -753,13 +763,17 @@ def google_login():
             new_user['_id'] = result.inserted_id
             user = new_user
         
-        # Create JWT token
-        token = create_access_token(identity={'email': user['email'], 'role': user.get('role', 'user')})
+        # Create JWT token - identity MUST be string, role goes in claims
+        user_role = user.get('role', 'user')
+        token = create_access_token(
+            identity=user['email'],
+            additional_claims={'role': user_role}
+        )
         
         # Prepare user data
         user_data = {
             'email': user['email'],
-            'role': user.get('role', 'user'),
+            'role': user_role,
             'name': f"{user.get('firstName', '')} {user.get('lastName', '')}".strip() or user['email'].split('@')[0],
             'firstName': user.get('firstName', ''),
             'lastName': user.get('lastName', ''),
