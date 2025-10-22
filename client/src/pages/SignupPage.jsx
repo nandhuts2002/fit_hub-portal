@@ -3,6 +3,8 @@ import { useNavigate, Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { FaUser, FaDumbbell, FaSpa } from 'react-icons/fa';
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+
 const SignupPage = () => {
   const [formData, setFormData] = useState({
     firstName: '',
@@ -186,7 +188,7 @@ case 'lastName':
     }
     setIsLoading(true);
     try {
-      await axios.post('http://localhost:5000/signup-verify', {
+      await axios.post(`${API_BASE_URL}/signup-verify`, {
         email: formData.email,
         otp: otp.trim()
       });
@@ -308,11 +310,11 @@ case 'lastName':
       };
 
       if (formData.role === 'trainer') {
-        await axios.post('http://localhost:5000/signup', signupData);
+        await axios.post(`${API_BASE_URL}/signup`, signupData);
         alert('Trainer application submitted! Please wait for admin approval.');
         navigate('/login');
       } else {
-        await axios.post('http://localhost:5000/signup-init', signupData);
+        await axios.post(`${API_BASE_URL}/signup-init`, signupData);
         setIsOtpStep(true);
         setErrors({});
       }
@@ -850,7 +852,7 @@ case 'lastName':
                     onClick={async () => {
                       try {
                         setIsLoading(true);
-                        await axios.post('http://localhost:5000/signup-resend', { email: formData.email });
+                        await axios.post(`${API_BASE_URL}/signup-resend`, { email: formData.email });
                         setErrors({});
                         alert('Verification code resent to your email.');
                       } catch (err) {
