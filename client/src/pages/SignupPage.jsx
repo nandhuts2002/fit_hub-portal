@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { FaUser, FaDumbbell, FaSpa } from 'react-icons/fa';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://fit-hub-portal-1.onrender.com';
 
 const SignupPage = () => {
   const [formData, setFormData] = useState({
