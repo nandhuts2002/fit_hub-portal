@@ -554,10 +554,25 @@ def login_verify():
 @jwt_required()
 def get_all_users():
     """Get all users (admin only)"""
-    identity = get_jwt_identity()
-    if not identity or identity.get('role') != 'admin':
-        return jsonify({'msg': 'Admin access required'}), 403
     try:
+        identity = get_jwt_identity()
+        print(f"🔑 JWT Identity retrieved: {identity}")
+        
+        if not identity:
+            print("❌ No identity found in JWT token")
+            return jsonify({'msg': 'Invalid token - no identity'}), 401
+            
+        if not isinstance(identity, dict):
+            print(f"⚠️ Identity is not a dict: {type(identity)}")
+            return jsonify({'msg': 'Invalid token format'}), 401
+            
+        user_role = identity.get('role')
+        print(f"👤 User role from token: {user_role}")
+        
+        if user_role != 'admin':
+            print(f"🚫 Access denied - role is '{user_role}', not 'admin'")
+            return jsonify({'msg': 'Admin access required'}), 403
+            
         users = list(users_collection.find({}, {'password': 0}))  # Exclude passwords
         formatted_users = []
         for user in users:
@@ -578,8 +593,10 @@ def get_all_users():
         print(f"📊 Retrieved {len(formatted_users)} users for admin dashboard")
         return jsonify({'users': formatted_users}), 200
     except Exception as e:
-        print(f"❌ Error fetching users: {str(e)}")
-        return jsonify({'msg': 'Error fetching users'}), 500
+        print(f"❌ Error in get_all_users: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'msg': f'Error fetching users: {str(e)}'}), 500
 
 @auth_bp.route('/users/<user_id>', methods=['PUT'])
 @jwt_required()

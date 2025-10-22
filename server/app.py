@@ -42,6 +42,39 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(days=7)
 jwt = JWTManager(app)
 
+# JWT Error Handlers
+@jwt.invalid_token_loader
+def invalid_token_callback(error_string):
+    print(f"❌ Invalid JWT token: {error_string}")
+    return jsonify({
+        'msg': 'Invalid token',
+        'error': error_string
+    }), 422
+
+@jwt.unauthorized_loader
+def missing_token_callback(error_string):
+    print(f"❌ Missing JWT token: {error_string}")
+    return jsonify({
+        'msg': 'Missing Authorization header',
+        'error': error_string
+    }), 401
+
+@jwt.expired_token_loader
+def expired_token_callback(jwt_header, jwt_payload):
+    print(f"❌ Expired JWT token for user: {jwt_payload.get('sub')}")
+    return jsonify({
+        'msg': 'Token has expired',
+        'error': 'token_expired'
+    }), 401
+
+@jwt.revoked_token_loader
+def revoked_token_callback(jwt_header, jwt_payload):
+    print(f"❌ Revoked JWT token")
+    return jsonify({
+        'msg': 'Token has been revoked',
+        'error': 'token_revoked'
+    }), 401
+
 app.register_blueprint(auth_bp)
 app.register_blueprint(trainer_bp, url_prefix='/trainer')
 app.register_blueprint(admin_bp, url_prefix='/admin')

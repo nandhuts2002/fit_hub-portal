@@ -1,21 +1,25 @@
-# Admin Dashboard Data Loading Fix
+# Admin Dashboard Data Loading Fix - COMPLETE SOLUTION
 
 ## Problem
 Admin dashboard was failing to load user data with a 422 error:
 ```
 GET https://fit-hub-portal-1.onrender.com/users 422 (Unprocessable Content)
+❌ Error fetching admin data: Du
 ```
 
-## Root Cause
-The frontend was using plain `axios` calls with manually constructed headers instead of the configured `api` instance that has proper authentication interceptors. Additionally, a 422 error from Flask-JWT-Extended typically indicates:
+## Root Cause Analysis
+The 422 error from Flask-JWT-Extended indicates JWT token validation failure. This can happen due to:
 
-1. **Missing or invalid JWT token**
-2. **JWT_SECRET mismatch** between token creation and validation
-3. **Token format issues**
+1. **Frontend Issue**: Using plain `axios` calls instead of configured `api` instance
+2. **Backend Issue**: Missing or incorrect `JWT_SECRET` environment variable
+3. **Token Format Issue**: Invalid or malformed Authorization header
+4. **Token Expiry**: Expired JWT tokens (though unlikely with 7-day expiry)
 
-## Changes Made
+## Complete Fix Applied
 
-### Frontend Changes (AdminHomePage.jsx)
+### 1. Frontend Changes (AdminHomePage.jsx)
+
+#### A. Replaced Manual axios Calls
 Replaced all manual `axios` calls with the configured `api` instance:
 
 **Before:**
@@ -30,11 +34,98 @@ const usersResponse = await axios.get(`${API_BASE}/users`, authHeaders);
 const usersResponse = await api.get('/users');
 ```
 
-The `api` instance (from `utils/api.js`) automatically:
-- Adds the correct base URL
-- Includes the Authorization header from SessionManager
-- Handles 401 errors and redirects to login
-- Uses proper token format
+#### B. Enhanced Error Logging
+Added detailed debugging to identify JWT issues:
+
+```javascript
+try {
+  console.log('🔄 Fetching users from API...');
+  console.log('📋 Current user session:', SessionManager.getCurrentUser());
+  
+  const currentUser = SessionManager.getCurrentUser();
+  if (currentUser?.token) {
+    console.log('🔑 Token present:', currentUser.token.substring(0, 20) + '...');
+    console.log('👤 User role:', currentUser.role);
+  } else {
+    console.error('❌ No token found in session!');
+    alert('Authentication error: Please log out and log in again.');
+    return;
+  }
+  // ... API calls
+} catch (error) {
+  console.error('❌ Error fetching admin data:', error);
+  console.error('📊 Error details:', {
+    message: error.message,
+    response: error.response?.data,
+    status: error.response?.status
+  });
+  
+  if (error.response?.status === 422) {
+    alert('Session authentication failed. Please log out and log in again.');
+  }
+}
+```
+
+### 2. Backend Changes
+
+#### A. Enhanced JWT Error Handlers (app.py)
+Added proper JWT error handling to provide better error messages:
+
+```python
+@jwt.invalid_token_loader
+def invalid_token_callback(error_string):
+    print(f"❌ Invalid JWT token: {error_string}")
+    return jsonify({
+        'msg': 'Invalid token',
+        'error': error_string
+    }), 422
+
+@jwt.unauthorized_loader
+def missing_token_callback(error_string):
+    print(f"❌ Missing JWT token: {error_string}")
+    return jsonify({
+        'msg': 'Missing Authorization header',
+        'error': error_string
+    }), 401
+
+@jwt.expired_token_loader
+def expired_token_callback(jwt_header, jwt_payload):
+    print(f"❌ Expired JWT token for user: {jwt_payload.get('sub')}")
+    return jsonify({
+        'msg': 'Token has expired',
+        'error': 'token_expired'
+    }), 401
+```
+
+#### B. Enhanced /users Endpoint Logging (auth.py)
+Improved error handling and logging in the admin users endpoint:
+
+```python
+@auth_bp.route('/users', methods=['GET'])
+@jwt_required()
+def get_all_users():
+    try:
+        identity = get_jwt_identity()
+        print(f"🔑 JWT Identity retrieved: {identity}")
+        
+        if not identity:
+            print("❌ No identity found in JWT token")
+            return jsonify({'msg': 'Invalid token - no identity'}), 401
+        
+        user_role = identity.get('role')
+        print(f"👤 User role from token: {user_role}")
+        
+        if user_role != 'admin':
+            print(f"🚫 Access denied - role is '{user_role}', not 'admin'")
+            return jsonify({'msg': 'Admin access required'}), 403
+        
+        # ... fetch and return users
+    except Exception as e:
+        print(f"❌ Error in get_all_users: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'msg': f'Error fetching users: {str(e)}'}), 500
+```
 
 ### Updated Endpoints
 All the following endpoints now use the `api` instance:

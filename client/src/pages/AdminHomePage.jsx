@@ -206,7 +206,18 @@ const AdminHomePage = () => {
 
       try {
         console.log('🔄 Fetching users from API...');
-        // Use api instance which automatically includes auth headers
+        console.log('📋 Current user session:', SessionManager.getCurrentUser());
+        
+        // Debug: Log the token being used
+        const currentUser = SessionManager.getCurrentUser();
+        if (currentUser?.token) {
+          console.log('🔑 Token present:', currentUser.token.substring(0, 20) + '...');
+          console.log('👤 User role:', currentUser.role);
+        } else {
+          console.error('❌ No token found in session!');
+          alert('Authentication error: Please log out and log in again.');
+          return;
+        }
 
         const usersResponse = await api.get('/users');
         console.log('✅ Users fetched:', usersResponse.data.users);
@@ -303,6 +314,19 @@ const AdminHomePage = () => {
 
       } catch (error) {
         console.error('❌ Error fetching admin data:', error);
+        console.error('📊 Error details:', {
+          message: error.message,
+          response: error.response?.data,
+          status: error.response?.status,
+          headers: error.response?.headers
+        });
+        
+        // If 422 error, likely JWT issue - prompt re-login
+        if (error.response?.status === 422) {
+          console.error('🔒 JWT validation failed - token might be invalid or expired');
+          alert('Session authentication failed. Please log out and log in again to refresh your credentials.');
+          // Don't auto-logout, let user manually logout to avoid redirect loop
+        }
         
         setStats({
           totalUsers: 0,
