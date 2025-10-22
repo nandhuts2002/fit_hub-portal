@@ -91,10 +91,15 @@ def _require_admin():
 
 def _require_same_user(target_email: str):
     identity = get_jwt_identity()
-    email = identity.get('email') if isinstance(identity, dict) else None
+    # identity is now a string (email), not a dict
+    email = identity if isinstance(identity, str) else (identity.get('email') if isinstance(identity, dict) else None)
     if not email or email.lower() != (target_email or '').lower():
         return None
     return identity
+
+def _get_email_from_identity(identity):
+    """Helper to extract email from JWT identity (supports both string and dict formats)"""
+    return identity if isinstance(identity, str) else (identity.get('email') if isinstance(identity, dict) else None)
 
 # PRODUCTS API
 @shop_bp.route('/api/products', methods=['GET'])
@@ -183,7 +188,7 @@ def get_products():
 def list_addresses():
     try:
         identity = get_jwt_identity()
-        user_email = identity.get('email') if isinstance(identity, dict) else None
+        user_email = _get_email_from_identity(identity)
         if not user_email:
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
@@ -206,7 +211,7 @@ def list_addresses():
 def create_address():
     try:
         identity = get_jwt_identity()
-        user_email = identity.get('email') if isinstance(identity, dict) else None
+        user_email = _get_email_from_identity(identity)
         if not user_email:
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
@@ -247,7 +252,7 @@ def create_address():
 def update_address(addr_id):
     try:
         identity = get_jwt_identity()
-        user_email = identity.get('email') if isinstance(identity, dict) else None
+        user_email = _get_email_from_identity(identity)
         if not user_email:
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
@@ -289,7 +294,7 @@ def update_address(addr_id):
 def delete_address(addr_id):
     try:
         identity = get_jwt_identity()
-        user_email = identity.get('email') if isinstance(identity, dict) else None
+        user_email = _get_email_from_identity(identity)
         if not user_email:
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
@@ -306,7 +311,7 @@ def delete_address(addr_id):
 def set_default_address(addr_id):
     try:
         identity = get_jwt_identity()
-        user_email = identity.get('email') if isinstance(identity, dict) else None
+        user_email = _get_email_from_identity(identity)
         if not user_email:
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
@@ -575,7 +580,7 @@ def init_cart():
             pass
 
         identity = get_jwt_identity()
-        user_email = identity.get('email') if isinstance(identity, dict) else None
+        user_email = _get_email_from_identity(identity)
         if not user_email:
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
@@ -1183,7 +1188,7 @@ def get_orders(user_email):
 def get_order_detail(order_id):
     try:
         identity = get_jwt_identity()
-        user_email = identity.get('email') if isinstance(identity, dict) else None
+        user_email = _get_email_from_identity(identity)
         if not user_email:
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
@@ -1237,7 +1242,7 @@ def create_order():
     try:
         data = request.get_json()
         identity = get_jwt_identity()
-        user_email = identity.get('email') if isinstance(identity, dict) else None
+        user_email = _get_email_from_identity(identity)
         if not user_email:
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
         items = data.get('items', [])
@@ -1413,7 +1418,7 @@ def create_review(product_id):
             pass
         data = request.get_json()
         identity = get_jwt_identity()
-        user_email = identity.get('email') if isinstance(identity, dict) else None
+        user_email = _get_email_from_identity(identity)
         if not user_email:
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
         rating = data.get('rating')
@@ -1674,7 +1679,7 @@ def init_shop_data():
 def get_notifications(user_email):
     try:
         identity = get_jwt_identity()
-        current_user_email = identity.get('email') if isinstance(identity, dict) else None
+        current_user_email = _get_email_from_identity(identity)
         if not current_user_email or current_user_email != user_email:
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
@@ -1727,7 +1732,7 @@ def get_notifications(user_email):
 def mark_notification_read(user_email):
     try:
         identity = get_jwt_identity()
-        current_user_email = identity.get('email') if isinstance(identity, dict) else None
+        current_user_email = _get_email_from_identity(identity)
         if not current_user_email or current_user_email != user_email:
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
