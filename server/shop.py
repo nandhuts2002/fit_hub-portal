@@ -84,10 +84,18 @@ def calculate_shipping(total_amount, address):
 
 # Auth helpers
 def _require_admin():
+    """Check if the current user is an admin. Returns True if admin, False otherwise."""
+    from flask_jwt_extended import get_jwt
+    
     identity = get_jwt_identity()
-    if not identity or identity.get('role') != 'admin':
-        return None
-    return identity
+    if not identity:
+        return False
+    
+    # Get role from JWT claims (new format)
+    claims = get_jwt()
+    user_role = claims.get('role', 'user')
+    
+    return user_role == 'admin'
 
 def _require_same_user(target_email: str):
     identity = get_jwt_identity()
