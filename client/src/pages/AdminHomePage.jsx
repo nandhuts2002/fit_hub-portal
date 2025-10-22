@@ -321,11 +321,33 @@ const AdminHomePage = () => {
           headers: error.response?.headers
         });
         
+        // Log the full error response from server
+        if (error.response) {
+          console.error('🔴 Server error response:', {
+            status: error.response.status,
+            statusText: error.response.statusText,
+            data: error.response.data,
+            headers: error.response.headers
+          });
+        }
+        
         // If 422 error, likely JWT issue - prompt re-login
         if (error.response?.status === 422) {
           console.error('🔒 JWT validation failed - token might be invalid or expired');
-          alert('Session authentication failed. Please log out and log in again to refresh your credentials.');
-          // Don't auto-logout, let user manually logout to avoid redirect loop
+          console.error('💡 Common causes:');
+          console.error('   1. JWT_SECRET not set in Render environment variables');
+          console.error('   2. JWT_SECRET changed (old tokens become invalid)');
+          console.error('   3. Token format is incorrect');
+          console.error('📝 Server message:', error.response?.data?.msg || error.response?.data?.error || 'No message');
+          
+          alert(
+            'JWT Authentication Failed!\n\n' +
+            'Server Response: ' + (error.response?.data?.msg || error.response?.data?.error || 'Token validation failed') + '\n\n' +
+            'This usually means:\n' +
+            '1. JWT_SECRET is not set on Render\n' +
+            '2. You need to logout and login again\n\n' +
+            'Please logout and try logging in again.'
+          );
         }
         
         setStats({

@@ -228,12 +228,18 @@ def login():
         return jsonify({'msg': 'Invalid credentials'}), 401
 
     print(f"   ✅ Login successful for {email} with role: {user.get('role', 'user')}")
-    token = create_access_token(identity={'email': user['email'], 'role': user['role']})
+    
+    # Ensure role exists with fallback
+    user_role = user.get('role', 'user')
+    if not user_role:
+        user_role = 'user'
+    
+    token = create_access_token(identity={'email': user['email'], 'role': user_role})
     
     # Return user data along with token
     user_data = {
         'email': user['email'],
-        'role': user['role'],
+        'role': user_role,
         'name': f"{user.get('firstName', '')} {user.get('lastName', '')}".strip() or user['email'].split('@')[0],
         'firstName': user.get('firstName', ''),
         'lastName': user.get('lastName', ''),
