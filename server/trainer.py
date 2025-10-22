@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
+from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from models import tutorials_collection, queries_collection, users_collection, trainer_applications_collection, music_tracks_collection
 from datetime import datetime
 from bson import ObjectId
@@ -9,10 +9,20 @@ trainer_bp = Blueprint('trainer', __name__)
 
 # Helper function to verify trainer role
 def verify_trainer():
-    current_user = get_jwt_identity()
-    if not current_user or current_user.get('role') != 'trainer':
+    """Verify if current user is a trainer. Returns email string if trainer, False otherwise."""
+    identity = get_jwt_identity()
+    if not identity:
         return False
-    return current_user
+    
+    # Get role from JWT claims (new format)
+    claims = get_jwt()
+    user_role = claims.get('role', 'user')
+    
+    if user_role != 'trainer':
+        return False
+    
+    # Return email string (identity is now email, not dict)
+    return identity
 
 # TUTORIAL MANAGEMENT ROUTES
 
@@ -43,8 +53,8 @@ def create_tutorial():
             'tags': data.get('tags', []),
             'videoUrl': data.get('videoUrl', ''),
             'imageUrl': data.get('imageUrl', ''),
-            'trainer_email': current_user['email'],
-            'trainer_name': data.get('trainer_name', current_user['email'].split('@')[0]),
+            'trainer_email': current_user,
+            'trainer_name': data.get('trainer_name', current_user.split('@')[0]),
             'created_at': datetime.utcnow(),
             'updated_at': datetime.utcnow(),
             'status': 'published',
@@ -73,7 +83,7 @@ def get_trainer_tutorials():
         return jsonify({'msg': 'Access denied. Trainer role required.'}), 403
     
     try:
-        tutorials = list(tutorials_collection.find({'trainer_email': current_user['email']}))
+        tutorials = list(tutorials_collection.find({'trainer_email': current_user}))
         
         # Format tutorials
         formatted_tutorials = []
@@ -114,7 +124,7 @@ def update_tutorial(tutorial_id):
         # Check if tutorial exists and belongs to trainer
         tutorial = tutorials_collection.find_one({
             '_id': ObjectId(tutorial_id),
-            'trainer_email': current_user['email']
+            'trainer_email': current_user
         })
         
         if not tutorial:
@@ -155,7 +165,7 @@ def delete_tutorial(tutorial_id):
         # Check if tutorial exists and belongs to trainer
         result = tutorials_collection.delete_one({
             '_id': ObjectId(tutorial_id),
-            'trainer_email': current_user['email']
+            'trainer_email': current_user
         })
         
         if result.deleted_count == 0:
@@ -180,7 +190,7 @@ def get_trainer_queries():
     try:
         queries = list(queries_collection.find({
             '$or': [
-                {'assigned_trainer': current_user['email']},
+                {'assigned_trainer': current_user},
                 {'assigned_trainer': None}  # Unassigned queries
             ]
         }).sort('created_at', -1))
@@ -223,7 +233,7 @@ def assign_query(query_id):
             {'_id': ObjectId(query_id)},
             {
                 '$set': {
-                    'assigned_trainer': current_user['email'],
+                    'assigned_trainer': current_user,
                     'status': 'assigned',
                     'updated_at': datetime.utcnow()
                 }
@@ -260,7 +270,7 @@ def respond_to_query(query_id):
         # Check if query is assigned to current trainer
         query = queries_collection.find_one({
             '_id': ObjectId(query_id),
-            'assigned_trainer': current_user['email']
+            'assigned_trainer': current_user
         })
         
         if not query:
@@ -296,15 +306,15 @@ def get_trainer_stats():
     
     try:
         # Get tutorial stats
-        total_tutorials = tutorials_collection.count_documents({'trainer_email': current_user['email']})
+        total_tutorials = tutorials_collection.count_documents({'trainer_email': current_user})
         published_tutorials = tutorials_collection.count_documents({
-            'trainer_email': current_user['email'],
+            'trainer_email': current_user,
             'status': 'published'
         })
         
         # Get total views and likes
         pipeline = [
-            {'$match': {'trainer_email': current_user['email']}},
+            {'$match': {'trainer_email': current_user}},
             {'$group': {
                 '_id': None,
                 'total_views': {'$sum': '$views'},
@@ -317,13 +327,13 @@ def get_trainer_stats():
         total_likes = tutorial_stats[0]['total_likes'] if tutorial_stats else 0
         
         # Get query stats
-        total_queries = queries_collection.count_documents({'assigned_trainer': current_user['email']})
+        total_queries = queries_collection.count_documents({'assigned_trainer': current_user})
         resolved_queries = queries_collection.count_documents({
-            'assigned_trainer': current_user['email'],
+            'assigned_trainer': current_user,
             'status': 'resolved'
         })
         pending_queries = queries_collection.count_documents({
-            'assigned_trainer': current_user['email'],
+            'assigned_trainer': current_user,
             'status': {'$in': ['assigned', 'open']}
         })
         
@@ -464,8 +474,8 @@ def submit_query():
             'description': description,
             'category': category,
             'priority': priority,
-            'user_email': current_user['email'],
-            'user_name': (data.get('user_name') or current_user['email'].split('@')[0]).strip(),
+            'user_email': current_user if isinstance(current_user, str) else current_user.get('email'),
+            'user_name': (data.get('user_name') or (current_user if isinstance(current_user, str) else current_user.get('email')).split('@')[0]).strip(),
             'assigned_trainer': None,
             'status': 'open',
             'response': '',
@@ -492,7 +502,8 @@ def get_my_queries():
     """Get all queries created by the current user (with trainer responses if any)"""
     try:
         current_user = get_jwt_identity()
-        email = current_user.get('email') if isinstance(current_user, dict) else None
+        # identity is now a string (email), not a dict
+        email = current_user if isinstance(current_user, str) else (current_user.get('email') if isinstance(current_user, dict) else None)
         if not email:
             return jsonify({'msg': 'Invalid user'}), 401
 
@@ -528,7 +539,8 @@ def get_my_query_detail(query_id):
     """Get a single query by ID (must belong to current user)"""
     try:
         current_user = get_jwt_identity()
-        email = current_user.get('email') if isinstance(current_user, dict) else None
+        # identity is now a string (email), not a dict
+        email = current_user if isinstance(current_user, str) else (current_user.get('email') if isinstance(current_user, dict) else None)
         if not email:
             return jsonify({'msg': 'Invalid user'}), 401
 
@@ -561,7 +573,8 @@ def delete_my_query(query_id):
     """Delete a query (must belong to current user)"""
     try:
         current_user = get_jwt_identity()
-        email = current_user.get('email') if isinstance(current_user, dict) else None
+        # identity is now a string (email), not a dict
+        email = current_user if isinstance(current_user, str) else (current_user.get('email') if isinstance(current_user, dict) else None)
         if not email:
             return jsonify({'msg': 'Invalid user'}), 401
 
