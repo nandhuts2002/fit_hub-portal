@@ -29,12 +29,22 @@ app = Flask(__name__)
 # Configure CORS for production and development
 # Get frontend URL from environment variable
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
-CORS(app, origins=[
-    FRONTEND_URL,               # Production frontend from env
-    "https://*.onrender.com",  # Allow any Render subdomain
-    "http://localhost:3000",    # Local development
-    "http://localhost:5000"     # Local backend testing
-], supports_credentials=True)
+
+# CORS configuration - allow all Render subdomains and local development
+CORS(app, 
+    resources={r"/*": {
+        "origins": [
+            FRONTEND_URL,                          # Production frontend from env
+            "http://localhost:3000",               # Local development
+            "http://localhost:5000",               # Local backend testing
+            "https://fit-hub-portal-2.onrender.com",  # Frontend deployment
+            "https://fit-hub-portal-1.onrender.com",  # Backend deployment (for testing)
+        ],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"],
+        "supports_credentials": True
+    }}
+)
 
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET')
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')
