@@ -71,7 +71,7 @@ const SignupPage = () => {
     // Debounce the API call
     const timeoutId = setTimeout(async () => {
       try {
-        const response = await axios.post('http://localhost:5000/email-exists', {
+        const response = await axios.post(`${API_BASE_URL}/email-exists`, {
           email: email
         });
         
@@ -96,14 +96,14 @@ const SignupPage = () => {
 
     switch (name) {
       case 'firstName':
-  if (!value.trim()) error = 'First name is required';
-  else if (!/^[A-Za-z\s]+$/.test(value)) error = 'First name can only contain letters and spaces';
-  break;
+        if (!value.trim()) error = 'First name is required';
+        else if (!/^[A-Za-z\s]+$/.test(value)) error = 'First name can only contain letters and spaces';
+        break;
 
-case 'lastName':
-  if (!value.trim()) error = 'Last name is required';
-  else if (!/^[A-Za-z\s]+$/.test(value)) error = 'Last name can only contain letters and spaces';
-  break;
+      case 'lastName':
+        if (!value.trim()) error = 'Last name is required';
+        else if (!/^[A-Za-z\s]+$/.test(value)) error = 'Last name can only contain letters and spaces';
+        break;
 
       case 'email':
         if (!value.trim()) error = 'Email is required';
@@ -601,7 +601,7 @@ case 'lastName':
                     )}
                   </div>
                 </div>
-        </div>
+              </div>
 
               {/* Trainer-Specific Information */}
               {formData.role === 'trainer' && (
@@ -629,7 +629,7 @@ case 'lastName':
                             const form = new FormData();
                             form.append('file', file);
                             form.append('email', formData.email || '');
-                            const res = await axios.post('http://localhost:5000/upload/resume', form, {
+                            const res = await axios.post(`${API_BASE_URL}/upload/resume`, form, {
                               headers: { 'Content-Type': 'multipart/form-data' }
                             });
                             if (res.data?.success && res.data?.url) {

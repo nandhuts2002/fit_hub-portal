@@ -56,9 +56,10 @@ const TrainerHomePage = () => {
   const fetchTrainerData = async () => {
     try {
       const token = localStorage.getItem('token');
+      const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
       
       // Fetch stats
-      const statsResponse = await fetch('http://localhost:5000/trainer/stats', {
+      const statsResponse = await fetch(`${API_BASE}/trainer/stats`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (statsResponse.ok) {
@@ -67,7 +68,7 @@ const TrainerHomePage = () => {
       }
 
       // Fetch tutorials
-      const tutorialsResponse = await fetch('http://localhost:5000/trainer/tutorials', {
+      const tutorialsResponse = await fetch(`${API_BASE}/trainer/tutorials`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (tutorialsResponse.ok) {
@@ -76,7 +77,7 @@ const TrainerHomePage = () => {
       }
 
       // Fetch queries
-      const queriesResponse = await fetch('http://localhost:5000/trainer/queries', {
+      const queriesResponse = await fetch(`${API_BASE}/trainer/queries`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (queriesResponse.ok) {
@@ -102,9 +103,10 @@ const TrainerHomePage = () => {
         trainer_name: user?.name || user?.firstName + ' ' + user?.lastName || 'Anonymous'
       };
 
+      const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
       const url = isEditing
-        ? `http://localhost:5000/trainer/tutorials/${editTutorialId}`
-        : 'http://localhost:5000/trainer/tutorials';
+        ? `${API_BASE}/trainer/tutorials/${editTutorialId}`
+        : `${API_BASE}/trainer/tutorials`;
       const method = isEditing ? 'PUT' : 'POST';
 
       const response = await fetch(url, {
@@ -146,7 +148,8 @@ const TrainerHomePage = () => {
   const handleAssignQuery = async (queryId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/trainer/queries/${queryId}/assign`, {
+      const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+      const response = await fetch(`${API_BASE}/trainer/queries/${queryId}/assign`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -177,7 +180,8 @@ const TrainerHomePage = () => {
         alert('Response is too long (max 5000 characters).');
         return;
       }
-      const resp = await fetch(`http://localhost:5000/trainer/queries/${responseForm.queryId}/respond`, {
+      const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+      const resp = await fetch(`${API_BASE}/trainer/queries/${responseForm.queryId}/respond`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -217,7 +221,8 @@ const TrainerHomePage = () => {
         alert('Response is too long (max 5000 characters).');
         return;
       }
-      const resp = await fetch(`http://localhost:5000/trainer/queries/${editingResponseId}/respond`, {
+      const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+      const resp = await fetch(`${API_BASE}/trainer/queries/${editingResponseId}/respond`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -772,7 +777,8 @@ const TrainerHomePage = () => {
                               const token = localStorage.getItem('token');
                               if (!window.confirm('Delete this tutorial?')) return;
                               try {
-                                const resp = await fetch(`http://localhost:5000/trainer/tutorials/${tutorial.id}`, {
+                                const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+                                const resp = await fetch(`${API_BASE}/trainer/tutorials/${tutorial.id}`, {
                                   method: 'DELETE',
                                   headers: { 'Authorization': `Bearer ${token}` }
                                 });

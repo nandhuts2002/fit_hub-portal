@@ -23,7 +23,8 @@ export default function ProductDetailsPage() {
       setLoading(true);
       setError('');
       try {
-        const res = await fetch(`http://localhost:5000/shop/api/products/${id}`);
+        const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+        const res = await fetch(`${API_BASE}/shop/api/products/${id}`);
         const data = await res.json();
         if (mounted) {
           if (data.success) setProduct(data.product);

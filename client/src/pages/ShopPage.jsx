@@ -301,8 +301,9 @@ const ShopPage = () => {
     const loadShopData = async () => {
       setLoading(true);
       try {
+        const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
         // Load products first
-        const productsResponse = await fetch('http://localhost:5000/shop/api/products');
+        const productsResponse = await fetch(`${API_BASE}/shop/api/products`);
         const productsData = await productsResponse.json();
         
         // Only initialize sample data if no products exist
@@ -316,7 +317,7 @@ const ShopPage = () => {
           }
           
           // Reload products after initialization
-          const newProductsResponse = await fetch('http://localhost:5000/shop/api/products');
+          const newProductsResponse = await fetch(`${API_BASE}/shop/api/products`);
           const newProductsData = await newProductsResponse.json();
           if (newProductsData.success) {
             setApiProducts(newProductsData.products);
@@ -326,7 +327,7 @@ const ShopPage = () => {
         }
 
         // Load categories
-        const categoriesResponse = await fetch('http://localhost:5000/shop/api/categories');
+        const categoriesResponse = await fetch(`${API_BASE}/shop/api/categories`);
         const categoriesData = await categoriesResponse.json();
         if (categoriesData.success) {
           setApiCategories(categoriesData.categories);
