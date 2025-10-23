@@ -123,16 +123,56 @@ def list_posts():
 @community_bp.route('/posts', methods=['POST'])
 @jwt_required()
 def create_post():
-    payload = request.get_json(silent=True) or {}
-    text = (payload.get('text') or '').strip()
-    image_url = (payload.get('imageUrl') or '').strip()
+    # Handle both form data (for file uploads) and JSON
+    if request.content_type.startswith('multipart/form-data'):
+        # Handle file upload
+        text = request.form.get('text', '').strip()
+        image_file = request.files.get('image')
+        image_url = ''
+        
+        if image_file and image_file.filename:
+            try:
+                # Use the existing upload functionality
+                from upload import allowed_file, create_upload_folder
+                import uuid
+                from werkzeug.utils import secure_filename
+                import os
+                
+                UPLOAD_FOLDER = 'uploads'
+                folder = 'community'
+                
+                if allowed_file(image_file.filename):
+                    # Generate unique filename
+                    file_extension = image_file.filename.rsplit('.', 1)[1].lower()
+                    unique_filename = f"{uuid.uuid4().hex}.{file_extension}"
+                    
+                    # Create folder structure
+                    folder_path = os.path.join(UPLOAD_FOLDER, folder)
+                    create_upload_folder(folder_path)
+                    
+                    # Save file
+                    file_path = os.path.join(folder_path, unique_filename)
+                    image_file.save(file_path)
+                    
+                    # Set image URL
+                    image_url = f"/{file_path.replace(os.sep, '/')}"
+            except Exception as e:
+                print(f"Error uploading image: {e}")
+    else:
+        # Handle JSON data
+        payload = request.get_json(silent=True) or {}
+        text = (payload.get('text') or '').strip()
+        image_url = (payload.get('imageUrl') or '').strip()
+    
     # Derive user from JWT to ensure ownership works for delete
     ident = get_jwt_identity() or {}
     user_email = str(ident.get('email') or '').strip().lower()
     user_name = ident.get('name') or ident.get('firstName') or ident.get('email') or 'Member'
     user_avatar = ident.get('avatar') or ''
+    
     if not text and not image_url:
         return jsonify({'ok': False, 'error': 'Post must have text or image'}), 400
+    
     post = {
         'id': str(uuid.uuid4()),
         'text': text,
@@ -150,18 +190,21 @@ def create_post():
         'tags': [],  # list of tagged user emails
         'poll': None  # {question, options[], votes[]}
     }
+    
     posts = _load_posts()
     posts.append(post)
     _save_posts(posts)
+    
     try:
         community_posts_collection.update_one({'id': post['id']}, {'$set': post}, upsert=True)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Error saving to MongoDB: {e}")
+    
     # Emit real-time event
     try:
         socketio.emit('post:created', post, namespace='/community')
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Error emitting socket event: {e}")
     
     # Check for new badges (integrate with extended features)
     try:

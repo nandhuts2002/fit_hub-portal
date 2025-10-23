@@ -42,15 +42,29 @@ class ImageProxy {
   // Test if an image URL is accessible (best-effort only)
   async testImageUrl(url) {
     try {
-      await fetch(url, { method: 'HEAD', mode: 'no-cors' });
-      return true;
+      // For mobile devices, use a more lenient approach
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      
+      const response = await fetch(url, { 
+        method: 'HEAD', 
+        mode: 'cors',
+        signal: controller.signal,
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Accept': 'image/*'
+        }
+      });
+      
+      clearTimeout(timeoutId);
+      return response.ok;
     } catch (error) {
       console.log('Image URL test failed:', error.message);
       return false;
     }
   }
 
-  // Get the best available image URL
+  // Get the best available image URL with retry logic
   async getBestImageUrl(exercise) {
     const { gifUrl, mediaUrl, id, bodyPart, name } = exercise || {};
 

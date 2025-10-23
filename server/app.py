@@ -123,14 +123,52 @@ def proxy_exercise_gif(gif_id: str):
     # gif_id is usually the numeric id with .gif implied; accept both "1234" and "1234.gif"
     url_id = gif_id if gif_id.endswith('.gif') else f"{gif_id}.gif"
     upstream = f"https://d205bpvrqc9yn1.cloudfront.net/{url_id}"
+    
+    # Log request for debugging
+    user_agent = request.headers.get('User-Agent', 'Unknown')
+    is_mobile = 'Mobile' in user_agent or 'Android' in user_agent or 'iPhone' in user_agent
+    print(f"Proxy request - GIF: {gif_id}, Mobile: {is_mobile}, User-Agent: {user_agent[:50]}...")
+    
     try:
-        r = requests.get(upstream, stream=True, timeout=20)
+        # Add headers to help with mobile network issues
         headers = {
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36',
+            'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Language': 'en-US,en;q=0.9',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+        }
+        
+        r = requests.get(upstream, stream=True, timeout=30, headers=headers)
+        
+        print(f"Upstream response - Status: {r.status_code}, Content-Type: {r.headers.get('Content-Type')}")
+        
+        response_headers = {
             'Content-Type': r.headers.get('Content-Type', 'image/gif'),
             'Cache-Control': 'public, max-age=3600',
+            'Content-Length': r.headers.get('Content-Length', ''),
+            'Accept-Ranges': 'bytes',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Accept, Accept-Encoding'
         }
-        return Response(r.iter_content(chunk_size=8192), status=r.status_code, headers=headers)
-    except requests.RequestException:
+        
+        # Handle mobile network issues by ensuring proper chunked transfer
+        return Response(
+            r.iter_content(chunk_size=8192), 
+            status=r.status_code, 
+            headers=response_headers,
+            direct_passthrough=True
+        )
+    except requests.Timeout:
+        print(f"Proxy timeout for {upstream}")
+        return Response(b'', status=408)  # Request Timeout
+    except requests.ConnectionError as e:
+        print(f"Proxy connection error for {upstream}: {str(e)}")
+        return Response(b'', status=502)  # Bad Gateway
+    except requests.RequestException as e:
+        print(f"Proxy error for {upstream}: {str(e)}")
         return Response(b'', status=502)
 
 # Proxy: BMI Calculator (RapidAPI)

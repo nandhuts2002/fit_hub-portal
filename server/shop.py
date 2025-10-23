@@ -1,4 +1,8 @@
 import os
+# Fix for order creation and product ID handling
+# This ensures both string and ObjectId formats are handled correctly
+
+import os
 try:
     from werkzeug.utils import secure_filename
 except Exception:
@@ -56,7 +60,7 @@ def _save_product_images(product_object_id, files_list):
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from bson import ObjectId
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import random
 import string
 import os
@@ -289,7 +293,9 @@ def update_address(addr_id):
         addr = data.get('data')
         is_default = data.get('default')
 
-        set_fields = {'updated_at': datetime.utcnow()}
+        # Build update fields carefully to avoid type errors
+        set_fields = {}
+        set_fields['updated_at'] = datetime.utcnow()
         if label is not None:
             set_fields['label'] = label
         if addr is not None:
@@ -315,6 +321,15 @@ def update_address(addr_id):
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+import datetime
+from bson import ObjectId
+from flask import Blueprint, jsonify, request
+from flask_jwt_extended import jwt_required, get_jwt_identity
+
+from app import addresses_collection
+from app.utils import _get_email_from_identity
+
+shop_bp = Blueprint('shop', __name__)
 
 
 @shop_bp.route('/api/addresses/<addr_id>', methods=['DELETE'])
@@ -346,7 +361,8 @@ def set_default_address(addr_id):
         # Unset others
         addresses_collection.update_many({'user_email': user_email, 'default': True}, {'$set': {'default': False}})
         # Set this one
-        res = addresses_collection.update_one({'_id': ObjectId(addr_id), 'user_email': user_email}, {'$set': {'default': True, 'updated_at': datetime.utcnow()}})
+        update_fields = {'default': True, 'updated_at': datetime.utcnow()}
+        res = addresses_collection.update_one({'_id': ObjectId(addr_id), 'user_email': user_email}, {'$set': update_fields})
         if res.matched_count == 0:
             return jsonify({'success': False, 'error': 'Address not found'}), 404
         return jsonify({'success': True})
@@ -1286,7 +1302,18 @@ def create_order():
         order_items = []
         
         for item in items:
-            product = products_collection.find_one({'_id': ObjectId(item['product_id'])})
+            # Handle both string and ObjectId product_id
+            product_id = item['product_id']
+            try:
+                if isinstance(product_id, str):
+                    product_obj_id = ObjectId(product_id)
+                else:
+                    product_obj_id = product_id
+                product = products_collection.find_one({'_id': product_obj_id})
+            except Exception:
+                # If ObjectId conversion fails, try to find by string ID
+                product = products_collection.find_one({'_id': product_id})
+            
             if not product:
                 continue
                 
@@ -1294,7 +1321,7 @@ def create_order():
             subtotal += item_total
             
             order_items.append({
-                'product_id': ObjectId(item['product_id']),
+                'product_id': product['_id'],  # Keep as ObjectId for DB storage
                 'product_name': product['name'],
                 'product_image': product['images'][0] if product.get('images') else '',
                 'quantity': item['quantity'],
@@ -1382,10 +1409,19 @@ def create_order():
             
         # Update inventory
         for item in items:
-            inventory_collection.update_one(
-                {'product_id': ObjectId(item['product_id'])},
-                {'$inc': {'stock': -item['quantity']}}
-            )
+            try:
+                product_id = item['product_id']
+                if isinstance(product_id, str):
+                    product_obj_id = ObjectId(product_id)
+                else:
+                    product_obj_id = product_id
+                    
+                inventory_collection.update_one(
+                    {'product_id': product_obj_id},
+                    {'$inc': {'stock': -item['quantity']}}
+                )
+            except Exception as e:
+                print(f"Error updating inventory for product {item['product_id']}: {e}")
             
         # Clear cart
         carts_collection.update_one(
@@ -1400,8 +1436,10 @@ def create_order():
             'total': total,
             'message': 'Order created successfully'
         })
-        
     except Exception as e:
+        print(f"Error creating order: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # REVIEWS API

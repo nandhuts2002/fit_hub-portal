@@ -17,14 +17,18 @@ const ExerciseImage = ({ exercise, className = "w-full h-full object-cover" }) =
 
   const loadBestImage = async () => {
     try {
-      console.log('Loading best image for exercise:', exercise.name);
+      console.log('Loading best image for exercise:', exercise?.name);
       
       // Get the best available image URL (now using reliable fallback images)
       const bestUrl = await imageProxy.getBestImageUrl(exercise);
       console.log('Best image URL:', bestUrl);
       
-      // Test if the image loads
+      // Test if the image loads with mobile-friendly settings
       const img = new Image();
+      
+      // Set mobile-friendly attributes
+      img.crossOrigin = 'anonymous';
+      img.referrerPolicy = 'no-referrer';
       
       img.onload = () => {
         console.log('Image loaded successfully:', bestUrl);
@@ -34,12 +38,20 @@ const ExerciseImage = ({ exercise, className = "w-full h-full object-cover" }) =
       
       img.onerror = () => {
         console.log('Image failed to load:', bestUrl);
-        // Since we're using reliable Unsplash images, this shouldn't happen often
-        // But if it does, show the fallback UI
-        setImageState('error');
+        // Try fallback after retries
+        if (retryCount < maxRetries) {
+          setTimeout(() => {
+            setRetryCount(prev => prev + 1);
+            loadBestImage();
+          }, 1000 * (retryCount + 1)); // Exponential backoff
+        } else {
+          // Use fallback image
+          const fallbackUrl = imageProxy.getFallbackImage(exercise?.bodyPart);
+          setLoadedUrl(fallbackUrl);
+          setImageState('loaded');
+        }
       };
       
-      img.crossOrigin = 'anonymous';
       img.src = bestUrl;
       
     } catch (error) {
@@ -67,9 +79,24 @@ const ExerciseImage = ({ exercise, className = "w-full h-full object-cover" }) =
         return (
           <img
             src={loadedUrl}
-            alt={exercise.name}
+            alt={exercise?.name || 'Exercise'}
             className={className}
-            onError={() => setImageState('error')}
+            onError={() => {
+              // If the loaded image fails, try fallback
+              if (retryCount < maxRetries) {
+                setRetryCount(prev => prev + 1);
+                setImageState('loading');
+                loadBestImage();
+              } else {
+                setImageState('error');
+              }
+            }}
+            onLoad={() => {
+              // Image loaded successfully
+              console.log('Image displayed successfully');
+            }}
+            loading="lazy"
+            decoding="async"
           />
         );
       

@@ -1,8 +1,36 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaArrowLeft, FaSearch, FaFilter, FaPlus, FaClock, FaCheckCircle, FaTag, FaShieldAlt, FaTimes, FaPaperPlane, FaTrash, FaMicrophone, FaPaperclip } from 'react-icons/fa';
 import SessionManager from "../utils/sessionManager";
+import api from "../utils/api"; // Import the api utility
+import {
+  ArrowLeft as FaArrowLeft,
+  Search as FaSearch,
+  Filter as FaFilter,
+  Plus as FaPlus,
+  Trash2 as FaTrash,
+  Shield as FaShieldAlt,
+  ChevronDown as FaChevronDown,
+  ChevronUp as FaChevronUp,
+  Star as FaStar,
+  Star as FaRegStar,
+  CheckCircle as FaCheckCircle,
+  Clock as FaClock,
+  XCircle as FaTimesCircle,
+  MessageCircle as FaComments,
+  User as FaUserMd,
+  Dumbbell as FaDumbbell,
+  Apple as FaAppleAlt,
+  Heart as FaHeart,
+  Activity as FaRunning,
+  Utensils as FaUtensils,
+  Bed as FaBed,
+  HelpCircle as FaQuestionCircle,
+  Tag as FaTag,
+  Send as FaPaperPlane,
+  Paperclip as FaPaperclip,
+  X as FaTimes
+} from "lucide-react";
 
 // Formatters
 const formatDate = (iso) => {
@@ -316,7 +344,7 @@ const MyQueriesChat = () => {
       'Sleep 7–9 hours. Keep caffeine before noon and a regular sleep window.',
       'Warm-up: 5–8 min light cardio, then dynamic mobility for target joints.'
     ];
-    const reply = `Here are some pointers:\n• ${tips.slice(0,3).join('\n• ')}\n\nWant a plan? Tell me your goal, equipment, and days/week.`;
+    const reply = 'Here are some pointers:\n• ' + tips.slice(0,3).join('\n• ') + '\n\nWant a plan? Tell me your goal, equipment, and days/week.';
     return new Promise((resolve)=> setTimeout(()=> resolve(reply), 600));
   };
 
@@ -346,20 +374,10 @@ const MyQueriesChat = () => {
         setLoading(true);
         const { token } = SessionManager.getCurrentUser() || {};
         if (!token) throw new Error("No auth token");
-        const res = await fetch(
-          "http://localhost:5000/trainer/public/queries",
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          }
-        );
-        if (res.status === 401) {
-          alert("Your session has expired. Please log in again.");
-          SessionManager.clearSession();
-          return;
-        }
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        setQueries(data.queries || []);
+        
+        // Use the api utility instead of hardcoded fetch
+        const res = await api.get("/trainer/public/queries");
+        setQueries(res.data.queries || []);
         setError("");
       } catch (err) {
         console.error("Failed to fetch queries:", err);
@@ -389,44 +407,23 @@ const MyQueriesChat = () => {
       setCreating(true);
       const { token } = SessionManager.getCurrentUser() || {};
       if (!token) throw new Error("No auth token");
-      const res = await fetch("http://localhost:5000/trainer/public/queries", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        body: JSON.stringify({
-          // Common server expectations covered
-          title: data.title,
-          description: data.description,
-          content: data.description, // in case server expects 'content'
-          category: data.category || "general",
-          priority: data.priority || "medium",
-          status: "open",
-        }),
+      
+      // Use the api utility instead of hardcoded fetch
+      const res = await api.post("/trainer/public/queries", {
+        // Common server expectations covered
+        title: data.title,
+        description: data.description,
+        content: data.description, // in case server expects 'content'
+        category: data.category || "general",
+        priority: data.priority || "medium",
+        status: "open",
       });
-      if (res.status === 401) {
-        alert("Your session has expired. Please log in again.");
-        SessionManager.clearSession();
-        return;
-      }
-      if (!res.ok) {
-        // Try to read server error details
-        let serverMsg = "";
-        try {
-          const errJson = await res.json();
-          serverMsg = errJson?.msg || errJson?.error || JSON.stringify(errJson);
-        } catch {
-          try { serverMsg = await res.text(); } catch {}
-        }
-        throw new Error(serverMsg || `HTTP ${res.status}`);
-      }
-      const newQuery = await res.json();
-      setQueries((prev) => [newQuery, ...prev]);
+      
+      setQueries((prev) => [res.data, ...prev]);
       setCreateOpen(false);
     } catch (err) {
       console.error("Failed to create query:", err);
-      alert(`Failed to create query. ${err?.message ? `\n${err.message}` : "Please try again."}`);
+      alert('Failed to create query. ' + (err?.message ? '\n' + err.message : "Please try again."));
     } finally {
       setCreating(false);
     }
@@ -444,23 +441,8 @@ const MyQueriesChat = () => {
       const { token } = SessionManager.getCurrentUser() || {};
       if (!token) throw new Error("No auth token");
       
-      const res = await fetch(`http://localhost:5000/trainer/public/queries/${queryId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      
-      if (res.status === 401) {
-        alert("Your session has expired. Please log in again.");
-        SessionManager.clearSession();
-        return;
-      }
-      
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.msg || `HTTP ${res.status}`);
-      }
+      // Use the api utility instead of hardcoded fetch
+      await api.delete(`/trainer/public/queries/${queryId}`);
       
       // Remove the query from the local state
       setQueries((prev) => prev.filter((q) => q.id !== queryId));

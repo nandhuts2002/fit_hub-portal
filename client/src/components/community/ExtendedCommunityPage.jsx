@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Award, MessageCircle, Star, Users, Plus } from 'lucide-react';
+import { Trophy, Award, MessageCircle, Star, Users, Plus, Image as ImageIcon } from 'lucide-react';
 import ChallengesSection from './ChallengesSection';
 import BadgesSection from './BadgesSection';
 import QASection from './QASection';
@@ -13,6 +13,10 @@ const ExtendedCommunityPage = () => {
   const [userEmail, setUserEmail] = useState('');
   const [activitySummary, setActivitySummary] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showCreatePost, setShowCreatePost] = useState(false);
+  const [newPostText, setNewPostText] = useState('');
+  const [newPostImage, setNewPostImage] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
 
   const tabs = [
     { id: 'feed', label: 'Feed', icon: Users },
@@ -127,6 +131,83 @@ const ExtendedCommunityPage = () => {
     console.log('Comment on post:', postId);
   };
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setNewPostImage(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPreviewImage(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCreatePost = async (e) => {
+    e.preventDefault();
+    
+    if (!newPostText.trim() && !newPostImage) {
+      alert('Please add some text or an image to your post');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      if (newPostImage) {
+        // Handle file upload
+        const formData = new FormData();
+        formData.append('image', newPostImage);
+        formData.append('text', newPostText);
+        
+        const response = await fetch('/community/posts', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formData
+        });
+        
+        const data = await response.json();
+        if (!data.ok) {
+          throw new Error(data.error || 'Failed to create post');
+        }
+      } else {
+        // Handle text-only post
+        const response = await fetch('/community/posts', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ text: newPostText })
+        });
+        
+        const data = await response.json();
+        if (!data.ok) {
+          throw new Error(data.error || 'Failed to create post');
+        }
+      }
+      
+      // Reset form
+      setNewPostText('');
+      setNewPostImage(null);
+      setPreviewImage(null);
+      setShowCreatePost(false);
+      
+      // Refresh posts
+      fetchPosts();
+    } catch (error) {
+      console.error('Error creating post:', error);
+      alert('Failed to create post: ' + error.message);
+    }
+  };
+
+  const removeImage = () => {
+    setNewPostImage(null);
+    setPreviewImage(null);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -204,13 +285,92 @@ const ExtendedCommunityPage = () => {
                 <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
-                    <button className="flex-1 text-left px-4 py-3 bg-gray-100 text-gray-500 rounded-full hover:bg-gray-200 transition-colors">
+                    <button 
+                      onClick={() => setShowCreatePost(!showCreatePost)}
+                      className="flex-1 text-left px-4 py-3 bg-gray-100 text-gray-500 rounded-full hover:bg-gray-200 transition-colors"
+                    >
                       What's on your mind? Share your fitness journey...
                     </button>
-                    <button className="p-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors">
+                    <button 
+                      onClick={() => setShowCreatePost(!showCreatePost)}
+                      className="p-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
+                    >
                       <Plus className="w-5 h-5" />
                     </button>
                   </div>
+                  
+                  {/* Post Creation Form */}
+                  {showCreatePost && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="mt-4 pt-4 border-t border-gray-200"
+                    >
+                      <form onSubmit={handleCreatePost}>
+                        <textarea
+                          value={newPostText}
+                          onChange={(e) => setNewPostText(e.target.value)}
+                          placeholder="What would you like to share?"
+                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          rows="3"
+                        />
+                        
+                        {previewImage && (
+                          <div className="mt-3 relative">
+                            <img 
+                              src={previewImage} 
+                              alt="Preview" 
+                              className="max-h-64 rounded-lg object-contain"
+                            />
+                            <button
+                              type="button"
+                              onClick={removeImage}
+                              className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
+                        
+                        <div className="flex items-center justify-between mt-3">
+                          <label className="flex items-center gap-2 cursor-pointer text-gray-600 hover:text-blue-600">
+                            <ImageIcon className="w-5 h-5" />
+                            <span>Add Image</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={handleImageChange}
+                              className="hidden"
+                            />
+                          </label>
+                          
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowCreatePost(false);
+                                setNewPostText('');
+                                setNewPostImage(null);
+                                setPreviewImage(null);
+                              }}
+                              className="px-4 py-2 text-gray-600 hover:text-gray-800"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="submit"
+                              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                            >
+                              Post
+                            </button>
+                          </div>
+                        </div>
+                      </form>
+                    </motion.div>
+                  )}
                 </div>
 
                 {/* Posts Feed */}
