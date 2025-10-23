@@ -265,8 +265,8 @@ def create_address():
                 'pincode': addr.get('pincode', ''),
             },
             'default': is_default,
-            'created_at': datetime.utcnow(),
-            'updated_at': datetime.utcnow(),
+            'created_at': datetime.now(timezone.utc),
+            'updated_at': datetime.now(timezone.utc),
         }
 
         # If making default, unset others
@@ -295,7 +295,7 @@ def update_address(addr_id):
 
         # Build update fields carefully to avoid type errors
         set_fields = {}
-        set_fields['updated_at'] = datetime.utcnow()
+        set_fields['updated_at'] = datetime.now(timezone.utc)
         if label is not None:
             set_fields['label'] = label
         if addr is not None:
@@ -321,13 +321,12 @@ def update_address(addr_id):
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-import datetime
 from bson import ObjectId
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
-from app import addresses_collection
-from app.utils import _get_email_from_identity
+from models import addresses_collection
+# _get_email_from_identity is defined locally in this file
 
 shop_bp = Blueprint('shop', __name__)
 
@@ -361,7 +360,7 @@ def set_default_address(addr_id):
         # Unset others
         addresses_collection.update_many({'user_email': user_email, 'default': True}, {'$set': {'default': False}})
         # Set this one
-        update_fields = {'default': True, 'updated_at': datetime.utcnow()}
+        update_fields = {'default': True, 'updated_at': datetime.now(timezone.utc)}
         res = addresses_collection.update_one({'_id': ObjectId(addr_id), 'user_email': user_email}, {'$set': update_fields})
         if res.matched_count == 0:
             return jsonify({'success': False, 'error': 'Address not found'}), 404
@@ -448,7 +447,7 @@ def create_product():
             'tags': data.get('tags', []),
             'featured': data.get('featured', False),
             'created_at': datetime.utcnow(),
-            'updated_at': datetime.utcnow()
+            'updated_at': datetime.now(timezone.utc)
         }
         
         # Insert product
@@ -470,7 +469,7 @@ def create_product():
             'product_id': result.inserted_id,
             'stock': product['stock_quantity'],
             'reserved': 0,
-            'updated_at': datetime.utcnow()
+            'updated_at': datetime.now(timezone.utc)
         })
         
         return jsonify({
@@ -532,7 +531,7 @@ def update_product(product_id):
             'features': data.get('features', None),
             'tags': data.get('tags', None),
             'featured': data.get('featured', False),
-            'updated_at': datetime.utcnow()
+            'updated_at': datetime.now(timezone.utc)
         }
         
         # Remove None values
@@ -570,7 +569,7 @@ def update_product(product_id):
         if 'stock_quantity' in update_data:
             inventory_collection.update_one(
                 {'product_id': ObjectId(product_id)},
-                {'$set': {'stock': update_data['stock_quantity'], 'updated_at': datetime.utcnow()}}
+                {'$set': {'stock': update_data['stock_quantity'], 'updated_at': datetime.now(timezone.utc)}}
             )
         
         return jsonify({'success': True, 'message': 'Product updated successfully'})
@@ -635,7 +634,7 @@ def init_cart():
                 'user_email': user_email,
                 'items': [],
                 'created_at': datetime.utcnow(),
-                'updated_at': datetime.utcnow()
+                'updated_at': datetime.now(timezone.utc)
             })
             created = True
         else:
@@ -700,7 +699,7 @@ def add_to_cart(user_email):
                 'user_email': user_email,
                 'items': [],
                 'created_at': datetime.utcnow(),
-                'updated_at': datetime.utcnow()
+                'updated_at': datetime.now(timezone.utc)
             }
             carts_collection.insert_one(cart)
             
@@ -722,11 +721,11 @@ def add_to_cart(user_email):
                 'product_id': ObjectId(product_id),
                 'quantity': quantity,
                 'variant': variant,
-                'added_at': datetime.utcnow()
+                'added_at': datetime.now(timezone.utc)
             })
             
         # Update cart
-        cart['updated_at'] = datetime.utcnow()
+        cart['updated_at'] = datetime.now(timezone.utc)
         carts_collection.update_one(
             {'user_email': user_email},
             {'$set': {'items': cart['items'], 'updated_at': cart['updated_at']}}
@@ -869,7 +868,7 @@ def verify_razorpay_signature():
             'payment_method.type': 'razorpay',
             'payment_method.status': 'paid',
             'timestamps.paid': datetime.utcnow(),
-            'updated_at': datetime.utcnow()
+            'updated_at': datetime.now(timezone.utc)
         }
 
         matched = 0
@@ -942,7 +941,7 @@ def admin_ship_order(order_id):
             'shipping.tracking_number': tracking_number,
             'shipping.tracking_url': tracking_url,
             'shipping.dispatched_at': datetime.utcnow(),
-            'updated_at': datetime.utcnow()
+            'updated_at': datetime.now(timezone.utc)
         }
         if expected_delivery:
             update['shipping.expected_delivery'] = expected_delivery
@@ -971,7 +970,7 @@ def admin_update_shipping(order_id):
             set_fields['shipping_address'] = data['shipping_address']
         if not set_fields:
             return jsonify({'success': False, 'error': 'No fields to update'}), 400
-        set_fields['updated_at'] = datetime.utcnow()
+        set_fields['updated_at'] = datetime.now(timezone.utc)
         res = orders_collection.update_one({'_id': ObjectId(order_id)}, {'$set': set_fields})
         if res.matched_count == 0:
             return jsonify({'success': False, 'error': 'Order not found'}), 404
@@ -989,7 +988,7 @@ def admin_mark_delivered(order_id):
             'orderStatus': 'Delivered',
             'shipping.status': 'delivered',
             'shipping.delivered_at': datetime.utcnow(),
-            'updated_at': datetime.utcnow()
+            'updated_at': datetime.now(timezone.utc)
         }
         res = orders_collection.update_one({'_id': ObjectId(order_id)}, {'$set': update})
         if res.matched_count == 0:
@@ -1019,7 +1018,7 @@ def update_order_status(order_id):
             update['trackingNumber'] = tracking
         if not update:
             return jsonify({'success': False, 'error': 'No fields to update'}), 400
-        update['updated_at'] = datetime.utcnow()
+        update['updated_at'] = datetime.now(timezone.utc)
         orders_collection.update_one({'_id': ObjectId(order_id)}, {'$set': update})
         return jsonify({'success': True, 'trackingNumber': update.get('trackingNumber')})
     except Exception as e:
@@ -1041,14 +1040,14 @@ def update_order_payment(order_id):
             update['paymentStatus'] = payment_status
             # set paid timestamp if moving to Paid
             if payment_status == 'Paid':
-                update['timestamps.paid'] = datetime.utcnow()
+                update['timestamps.paid'] = datetime.now(timezone.utc)
         if method:
             update['payment_method.type'] = method
         if transaction_id:
             update['payment_method.transactionId'] = transaction_id
         if not update:
             return jsonify({'success': False, 'error': 'No fields to update'}), 400
-        update['updated_at'] = datetime.utcnow()
+        update['updated_at'] = datetime.now(timezone.utc)
         orders_collection.update_one({'_id': ObjectId(order_id)}, {'$set': update})
         return jsonify({'success': True})
     except Exception as e:
@@ -1103,7 +1102,7 @@ def toggle_wishlist(user_email):
                 'user_email': user_email,
                 'items': [],
                 'created_at': datetime.utcnow(),
-                'updated_at': datetime.utcnow()
+                'updated_at': datetime.now(timezone.utc)
             }
             wishlists_collection.insert_one(wishlist)
             
@@ -1122,12 +1121,12 @@ def toggle_wishlist(user_email):
             # Add to wishlist
             wishlist['items'].append({
                 'product_id': ObjectId(product_id),
-                'added_at': datetime.utcnow()
+                'added_at': datetime.now(timezone.utc)
             })
             action = 'added'
             
         # Update wishlist
-        wishlist['updated_at'] = datetime.utcnow()
+        wishlist['updated_at'] = datetime.now(timezone.utc)
         wishlists_collection.update_one(
             {'user_email': user_email},
             {'$set': wishlist},
@@ -1396,7 +1395,7 @@ def create_order():
                 'status': payment_method.get('status') or ('pending' if (payment_method.get('type') or 'razorpay') == 'razorpay' else 'cod_pending'),
             },
             'created_at': datetime.utcnow(),
-            'updated_at': datetime.utcnow()
+            'updated_at': datetime.now(timezone.utc)
         }
         
         result = orders_collection.insert_one(order)
@@ -1505,7 +1504,7 @@ def create_review(product_id):
             'user_email': user_email,
             'rating': rating,
             'comment': comment,
-            'created_at': datetime.utcnow()
+            'created_at': datetime.now(timezone.utc)
         }
         
         result = reviews_collection.insert_one(review)
@@ -1636,7 +1635,7 @@ def init_shop_data():
                 'features': ['Quick-change system', 'Non-slip grip', 'Compact storage', '2-year warranty'],
                 'tags': ['Best Seller', 'Premium'],
                 'featured': True,
-                'created_at': datetime.utcnow()
+                'created_at': datetime.now(timezone.utc)
             },
             {
                 'name': 'Yoga Mat Pro - Extra Thick',
@@ -1660,7 +1659,7 @@ def init_shop_data():
                 'features': ['6mm thickness', 'Non-slip surface', 'Eco-friendly', 'Easy to clean'],
                 'tags': ['Eco-Friendly'],
                 'featured': True,
-                'created_at': datetime.utcnow()
+                'created_at': datetime.now(timezone.utc)
             },
             {
                 'name': 'Whey Protein Isolate - Vanilla',
@@ -1684,7 +1683,7 @@ def init_shop_data():
                 'features': ['25g protein', 'Low carb', 'No artificial flavors', 'Lab tested'],
                 'tags': ['High Protein', 'Lab Tested'],
                 'featured': True,
-                'created_at': datetime.utcnow()
+                'created_at': datetime.now(timezone.utc)
             }
         ]
         
@@ -1701,7 +1700,7 @@ def init_shop_data():
                 'product_id': product_id,
                 'stock': product['stock_quantity'],
                 'reserved': 0,
-                'updated_at': datetime.utcnow()
+                'updated_at': datetime.now(timezone.utc)
             })
         
         # Sample coupons
@@ -1757,7 +1756,7 @@ def get_notifications(user_email):
         notifications = []
         for order in orders[:10]:
             status = order.get('orderStatus') or 'Pending'
-            updated_at = order.get('updated_at') or order.get('created_at') or datetime.utcnow()
+            updated_at = order.get('updated_at') or order.get('created_at') or datetime.now(timezone.utc)
             order_number = order.get('order_id') or order.get('orderNumber') or str(order.get('_id'))
 
             # Map order statuses to notification categories
