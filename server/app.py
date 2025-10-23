@@ -39,6 +39,7 @@ CORS(app,
             "http://localhost:5000",               # Local backend testing
             "https://fit-hub-portal-2.onrender.com",  # Frontend deployment
             "https://fit-hub-portal-1.onrender.com",  # Backend deployment (for testing)
+            "https://*.vercel.app",                # Vercel deployments
         ],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"],
@@ -146,6 +147,12 @@ def proxy_bmi():
     except requests.RequestException as e:
         return jsonify({'error': 'Upstream request failed', 'details': str(e)}), 502
 
+# Vercel requires a handler for serverless functions
+@app.route('/')
+def home():
+    return jsonify({"message": "Fit-Hub Portal Backend is running!", "status": "healthy"})
+
+# This is required for Vercel serverless deployment
 if __name__ == '__main__':
     try:
         # Initialize SocketIO with the Flask app and run
