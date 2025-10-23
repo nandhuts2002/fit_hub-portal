@@ -88,7 +88,8 @@ const OrderHistory = ({ isOpen, onClose }) => {
       }
       
       console.log('Fetching orders for:', currentUser.email);
-      const { data } = await api.get(`/shop/api/orders/${encodeURIComponent(currentUser.email)}`, {
+      // Don't encode the email here, let the browser handle it automatically
+      const { data } = await api.get(`/shop/api/orders/${currentUser.email}`, {
         headers: { Authorization: `Bearer ${currentUser.token}` }
       });
       
@@ -103,6 +104,8 @@ const OrderHistory = ({ isOpen, onClose }) => {
     } catch (error) {
       console.error('Error loading orders:', error);
       console.error('Error details:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      console.error('Error headers:', error.response?.headers);
     } finally {
       setLoading(false);
     }

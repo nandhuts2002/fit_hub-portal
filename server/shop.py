@@ -1197,11 +1197,18 @@ def admin_list_orders():
 @shop_bp.route('/api/orders/<user_email>', methods=['GET'])
 @jwt_required()
 def get_orders(user_email):
-    if not _require_same_user(user_email):
+    # URL decode the email parameter in case it's encoded
+    import urllib.parse
+    decoded_email = urllib.parse.unquote(user_email)
+    print(f"DEBUG: get_orders called with user_email: {user_email}, decoded: {decoded_email}")
+    auth_check = _require_same_user(decoded_email)
+    print(f"DEBUG: _require_same_user returned: {auth_check}")
+    if not auth_check:
+        print(f"DEBUG: Unauthorized access attempt for user: {decoded_email}")
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     try:
-        print(f"Fetching orders for user: {user_email}")
-        orders = list(orders_collection.find({'user_email': user_email}).sort('created_at', -1))
+        print(f"Fetching orders for user: {decoded_email}")
+        orders = list(orders_collection.find({'user_email': decoded_email}).sort('created_at', -1))
         print(f"Found {len(orders)} orders in database")
         
         for order in orders:
@@ -1267,16 +1274,22 @@ def get_order_detail(order_id):
         if not user_email:
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
+        # URL decode the order_id parameter in case it's encoded
+        import urllib.parse
+        decoded_order_id = urllib.parse.unquote(order_id)
+        print(f"DEBUG: get_order_detail called with order_id: {order_id}, decoded: {decoded_order_id}")
+        print(f"DEBUG: User email from JWT: {user_email}")
+
         # Try by Mongo _id first
         order = None
         try:
-            order = orders_collection.find_one({'_id': ObjectId(order_id)})
+            order = orders_collection.find_one({'_id': ObjectId(decoded_order_id)})
         except Exception:
             order = None
         
         # Fallback: if not found, try by human-readable order number
         if not order:
-            order = orders_collection.find_one({'order_id': order_id})
+            order = orders_collection.find_one({'order_id': decoded_order_id})
         
         if not order:
             return jsonify({'success': False, 'error': 'Order not found'}), 404
