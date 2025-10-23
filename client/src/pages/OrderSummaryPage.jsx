@@ -32,7 +32,7 @@ const OrderSummaryPage = () => {
           
           if (ordersResponse.data.success && ordersResponse.data.orders) {
             const foundOrder = ordersResponse.data.orders.find(order => 
-              order._id === id || order.order_id === id || order._id === id.toString()
+              order._id === id || order.order_id === id || order.orderNumber === id
             );
             if (foundOrder) {
               console.log('Found order in user orders list:', foundOrder);
@@ -43,6 +43,7 @@ const OrderSummaryPage = () => {
           }
         } catch (ordersError) {
           console.error('Error fetching user orders:', ordersError);
+          console.error('Error details:', ordersError.response?.data || ordersError.message);
         }
         
         // If not found in user orders, try direct API call
@@ -62,6 +63,7 @@ const OrderSummaryPage = () => {
           }
         } catch (directError) {
           console.error('Direct order fetch error:', directError);
+          console.error('Error details:', directError.response?.data || directError.message);
         }
         
         // If API calls fail, try localStorage as last resort

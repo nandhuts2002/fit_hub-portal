@@ -124,8 +124,8 @@ def _require_same_user(target_email: str):
     # identity is now a string (email), not a dict
     email = identity if isinstance(identity, str) else (identity.get('email') if isinstance(identity, dict) else None)
     if not email or email.lower() != (target_email or '').lower():
-        return None
-    return identity
+        return False
+    return True
 
 def _get_email_from_identity(identity):
     """Helper to extract email from JWT identity (supports both string and dict formats)"""
@@ -1211,11 +1211,16 @@ def get_orders(user_email):
             # Get order items using the raw ObjectId when possible
             order_items = []
             try:
+                # Try with ObjectId first
                 lookup_id = raw_id if isinstance(raw_id, ObjectId) else ObjectId(order['_id'])
                 order_items = list(order_items_collection.find({'order_id': lookup_id}))
             except Exception:
-                # If lookup_id creation fails, leave items as empty and continue
-                order_items = []
+                # If lookup_id creation fails, try with string version
+                try:
+                    order_items = list(order_items_collection.find({'order_id': order['_id']}))
+                except Exception:
+                    # If both fail, leave items as empty and continue
+                    order_items = []
             safe_order_number = order.get('order_id') or order.get('orderNumber') or order['_id']
             print(f"Found {len(order_items)} items for order {safe_order_number}")
             for item in order_items:
@@ -1249,6 +1254,8 @@ def get_orders(user_email):
         
     except Exception as e:
         print(f"Error fetching orders: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @shop_bp.route('/api/order/<order_id>', methods=['GET'])
@@ -1278,9 +1285,21 @@ def get_order_detail(order_id):
 
         oid = order['_id']
         order['_id'] = str(order['_id'])
-        items = list(order_items_collection.find({'order_id': oid}))
+        # Fix the order item lookup - handle both ObjectId and string versions
+        try:
+            # Try with ObjectId first
+            items = list(order_items_collection.find({'order_id': ObjectId(oid)}))
+        except Exception:
+            # Fallback to string
+            items = list(order_items_collection.find({'order_id': oid}))
+        
         for item in items:
             item['_id'] = str(item['_id'])
+            # Also ensure product_id is converted to string
+            if isinstance(item.get('product_id'), ObjectId):
+                item['product_id'] = str(item['product_id'])
+            if isinstance(item.get('order_id'), ObjectId):
+                item['order_id'] = str(item['order_id'])
         order['items'] = items
 
         # Normalize datetime fields in this single order
@@ -1302,6 +1321,9 @@ def get_order_detail(order_id):
 
         return jsonify({'success': True, 'order': order})
     except Exception as e:
+        print(f"Error in get_order_detail: {str(e)}")  # Add logging
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @shop_bp.route('/api/orders', methods=['POST'])
