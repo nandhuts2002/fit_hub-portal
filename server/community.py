@@ -154,8 +154,9 @@ def create_post():
                     file_path = os.path.join(folder_path, unique_filename)
                     image_file.save(file_path)
                     
-                    # Set image URL
-                    image_url = f"/{file_path.replace(os.sep, '/')}"
+                    # Set image URL - generate absolute URL to prevent mixed content issues
+                    base_url = request.host_url.rstrip('/')
+                    image_url = f"{base_url}/{file_path.replace(os.sep, '/')}"
             except Exception as e:
                 print(f"Error uploading image: {e}")
     else:
@@ -348,15 +349,18 @@ def upload_image():
     f = request.files['image']
     if f.filename == '':
         return jsonify({'ok': False, 'error': 'Empty filename'}), 400
-    filename = secure_filename(f.filename)
+    filename = secure_filename(f.filename) if f.filename else ''
+    if not filename:
+        return jsonify({'ok': False, 'error': 'Invalid filename'}), 400
     ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
     if ext not in ALLOWED_IMAGE_EXT:
         return jsonify({'ok': False, 'error': 'Unsupported file type'}), 400
     new_name = f"{int(time.time()*1000)}_{uuid.uuid4().hex}.{ext}"
     save_path = _path.join(UPLOAD_DIR, new_name)
     f.save(save_path)
-    # public URL via /uploads
-    url = f"/uploads/community/{new_name}"
+    # public URL via /uploads - generate absolute URL to prevent mixed content issues
+    base_url = request.host_url.rstrip('/')
+    url = f"{base_url}/uploads/community/{new_name}"
     return jsonify({'ok': True, 'url': url})
 
 

@@ -52,6 +52,8 @@ def upload_image():
             return jsonify({'ok': False, 'error': 'File too large. Maximum size: 5MB'}), 400
         
         # Generate unique filename
+        if not file.filename or '.' not in file.filename:
+            return jsonify({'ok': False, 'error': 'Invalid filename'}), 400
         file_extension = file.filename.rsplit('.', 1)[1].lower()
         unique_filename = f"{uuid.uuid4().hex}.{file_extension}"
         
@@ -63,8 +65,9 @@ def upload_image():
         file_path = os.path.join(folder_path, unique_filename)
         file.save(file_path)
         
-        # Return URL
-        file_url = f"/{file_path.replace(os.sep, '/')}"
+        # Return URL - generate absolute URL to prevent mixed content issues
+        base_url = request.host_url.rstrip('/')
+        file_url = f"{base_url}/{file_path.replace(os.sep, '/')}"
         
         return jsonify({
             'ok': True,
