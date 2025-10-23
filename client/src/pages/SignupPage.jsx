@@ -765,6 +765,7 @@ const SignupPage = () => {
                       type="password"
                       id="password"
                       name="password"
+                      autoComplete="new-password"
                       value={formData.password}
                       onChange={handleInputChange}
                       onBlur={handleBlur}
@@ -780,6 +781,7 @@ const SignupPage = () => {
                       type="password"
                       id="confirmPassword"
                       name="confirmPassword"
+                      autoComplete="new-password"
                       value={formData.confirmPassword}
                       onChange={handleInputChange}
                       onBlur={handleBlur}

@@ -253,6 +253,7 @@ const ProfessionalLoginPage = () => {
                     id="password"
                     name="password"
                     type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
                     className={`input-field pr-10 ${errors.password ? 'border-red-300 focus:ring-red-500' : ''}`}
                     placeholder="Enter your password"
                     value={formData.password}

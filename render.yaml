@@ -38,6 +38,9 @@ services:
       # Development mode for email debugging
       - key: EMAIL_DEV_MODE
         value: 'true'
+      # Frontend URL for CORS
+      - key: FRONTEND_URL
+        sync: false
     healthCheckPath: /
     autoDeploy: true
 
