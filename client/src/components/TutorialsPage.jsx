@@ -50,22 +50,7 @@ const TutorialsPage = () => {
   const currentTrack = musicTracks[currentTrackIndex];
 
   // Medical acknowledgement removed per request
-
-  useEffect(() => {
-    // Medical acknowledgement gate
-    try {
-      const ack = localStorage.getItem('medical_ack_v1');
-      if (ack !== 'accepted') {
-        const params = new URLSearchParams();
-        params.set('next', location.pathname + (location.search || ''));
-        navigate({ pathname: '/services/medical-check', search: params.toString() }, { replace: true });
-        return;
-      }
-    } catch {}
-    if (audioRef.current) {
-      audioRef.current.volume = volume;
-    }
-  }, [volume]);
+  // The ProtectedRoute component now handles this properly
 
   const togglePlayPause = () => {
     const audio = audioRef.current;
