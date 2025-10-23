@@ -302,9 +302,11 @@ const ShopPage = () => {
       setLoading(true);
       try {
         const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://fit-hub-portal-1.onrender.com';
+        console.log('API Base URL:', API_BASE);
         // Load products first
         const productsResponse = await fetch(`${API_BASE}/shop/api/products`);
         const productsData = await productsResponse.json();
+        console.log('Products API response:', productsData);
         
         // Only initialize sample data if no products exist
         if (productsData.success && productsData.products.length === 0) {
@@ -320,10 +322,48 @@ const ShopPage = () => {
           const newProductsResponse = await fetch(`${API_BASE}/shop/api/products`);
           const newProductsData = await newProductsResponse.json();
           if (newProductsData.success) {
-            setApiProducts(newProductsData.products);
+            // Fix image URLs for Vercel deployment
+            const fixedProducts = newProductsData.products.map(product => {
+              if (product.images && product.images.length > 0) {
+                const fixedImages = product.images.map(img => {
+                  // If it's already a full URL, keep it
+                  if (img.startsWith('http')) {
+                    return img;
+                  }
+                  // If it's a relative path, prepend the base URL
+                  if (img.startsWith('/')) {
+                    return `${API_BASE}${img}`;
+                  }
+                  // Otherwise, return as is
+                  return img;
+                });
+                return { ...product, images: fixedImages };
+              }
+              return product;
+            });
+            setApiProducts(fixedProducts);
           }
         } else if (productsData.success) {
-          setApiProducts(productsData.products);
+          // Fix image URLs for Vercel deployment
+          const fixedProducts = productsData.products.map(product => {
+            if (product.images && product.images.length > 0) {
+              const fixedImages = product.images.map(img => {
+                // If it's already a full URL, keep it
+                if (img.startsWith('http')) {
+                  return img;
+                }
+                // If it's a relative path, prepend the base URL
+                if (img.startsWith('/')) {
+                  return `${API_BASE}${img}`;
+                }
+                // Otherwise, return as is
+                return img;
+              });
+              return { ...product, images: fixedImages };
+            }
+            return product;
+          });
+          setApiProducts(fixedProducts);
         }
 
         // Load categories
@@ -370,12 +410,32 @@ const ShopPage = () => {
   // Refresh products when component mounts or when needed
   const refreshProducts = async () => {
     try {
-      const productsResponse = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'https://fit-hub-portal-1.onrender.com'}/shop/api/products`);
+      const baseUrl = process.env.REACT_APP_API_BASE_URL || 'https://fit-hub-portal-1.onrender.com';
+      const productsResponse = await fetch(`${baseUrl}/shop/api/products`);
       const productsData = await productsResponse.json();
       if (productsData.success) {
-        setApiProducts(productsData.products);
-        console.log('Products refreshed:', productsData.products.length);
-        console.log('First product images:', productsData.products[0]?.images);
+        // Fix image URLs for Vercel deployment
+        const fixedProducts = productsData.products.map(product => {
+          if (product.images && product.images.length > 0) {
+            const fixedImages = product.images.map(img => {
+              // If it's already a full URL, keep it
+              if (img.startsWith('http')) {
+                return img;
+              }
+              // If it's a relative path, prepend the base URL
+              if (img.startsWith('/')) {
+                return `${baseUrl}${img}`;
+              }
+              // Otherwise, return as is
+              return img;
+            });
+            return { ...product, images: fixedImages };
+          }
+          return product;
+        });
+        setApiProducts(fixedProducts);
+        console.log('Products refreshed:', fixedProducts.length);
+        console.log('First product images:', fixedProducts[0]?.images);
       }
     } catch (error) {
       console.error('Error refreshing products:', error);

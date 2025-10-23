@@ -89,17 +89,23 @@ const ProductCard = ({
             onError={(e) => {
               console.log('❌ ProductCard image failed to load:', e.target.src);
               console.log('❌ Product data:', product);
-              e.target.style.display = 'none';
-              e.target.nextSibling.style.display = 'flex';
+              // Try a fallback image
+              e.target.onerror = null; // Prevent infinite loop
+              e.target.src = '/images/fallback.gif';
+              e.target.style.display = 'block';
+              // Hide the no-image div
+              e.target.nextSibling.style.display = 'none';
             }}
-            onLoad={() => {
-              console.log('✅ ProductCard image loaded successfully:', product.images?.[0] || product.image);
+            onLoad={(e) => {
+              console.log('✅ ProductCard image loaded successfully:', e.target.src);
+              // Hide the no-image div when image loads
+              e.target.nextSibling.style.display = 'none';
             }}
           />
         ) : null}
         <div 
           className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center"
-          style={{ display: product.images?.[0] || product.image ? 'none' : 'flex' }}
+          style={{ display: (product.images?.[0] || product.image) ? 'none' : 'flex' }}
         >
           <div className="text-center text-gray-400">
             <Package className="w-12 h-12 mx-auto mb-2" />

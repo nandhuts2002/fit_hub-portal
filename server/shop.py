@@ -198,6 +198,23 @@ def get_products():
             product['stock_quantity'] = stock_val
             product['in_stock'] = bool(stock_val > 0)
             
+            # Fix image URLs for Vercel deployment
+            if product.get('images'):
+                fixed_images = []
+                for img in product['images']:
+                    if img.startswith('http'):
+                        # Already a full URL, keep as is
+                        fixed_images.append(img)
+                    elif img.startswith('/'):
+                        # Relative path, prepend the correct base URL
+                        base_url = os.getenv('FRONTEND_URL') or 'https://fit-hub-portal-1.onrender.com'
+                        fixed_images.append(f"{base_url}{img}")
+                    else:
+                        # Just a filename, prepend the correct base URL
+                        base_url = os.getenv('FRONTEND_URL') or 'https://fit-hub-portal-1.onrender.com'
+                        fixed_images.append(f"{base_url}/uploads/products/{str(product_id)}/{img}")
+                product['images'] = fixed_images
+            
         return jsonify({
             'success': True,
             'products': products,
@@ -375,6 +392,24 @@ def get_product(product_id):
         product['in_stock'] = bool(stock_val > 0)
         
         product['_id'] = str(product['_id'])
+        
+        # Fix image URLs for Vercel deployment
+        if product.get('images'):
+            fixed_images = []
+            for img in product['images']:
+                if img.startswith('http'):
+                    # Already a full URL, keep as is
+                    fixed_images.append(img)
+                elif img.startswith('/'):
+                    # Relative path, prepend the correct base URL
+                    base_url = os.getenv('FRONTEND_URL') or 'https://fit-hub-portal-1.onrender.com'
+                    fixed_images.append(f"{base_url}{img}")
+                else:
+                    # Just a filename, prepend the correct base URL
+                    base_url = os.getenv('FRONTEND_URL') or 'https://fit-hub-portal-1.onrender.com'
+                    fixed_images.append(f"{base_url}/uploads/products/{str(product['_id'])}/{img}")
+            product['images'] = fixed_images
+        
         return jsonify({'success': True, 'product': product})
         
     except Exception as e:
