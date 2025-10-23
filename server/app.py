@@ -17,7 +17,7 @@ from exercise_gifs import exercise_gifs_bp
 from upload import upload_bp
 from dotenv import load_dotenv
 import os
-from datetime import timedelta
+from datetime import datetime, timedelta
 from os import path as _path
 from flask import send_from_directory, Response, request, jsonify
 import requests
@@ -39,6 +39,8 @@ CORS(app,
             "http://localhost:5000",               # Local backend testing
             "https://fit-hub-portal-2.onrender.com",  # Frontend deployment
             "https://fit-hub-portal-1.onrender.com",  # Backend deployment (for testing)
+            "https://fit-hub-portal-2.vercel.app",    # Vercel frontend deployment
+            "https://fit-hub-portal-1.vercel.app",    # Vercel backend deployment
         ],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"],
@@ -99,6 +101,15 @@ app.register_blueprint(profile_bp, url_prefix='/profile')
 app.register_blueprint(ai_bp)
 app.register_blueprint(exercise_gifs_bp)
 app.register_blueprint(upload_bp)
+
+# Root route for health check
+@app.route('/')
+def health_check():
+    return jsonify({
+        'status': 'OK',
+        'message': 'Fit-Hub Portal Backend is running!',
+        'timestamp': datetime.utcnow().isoformat()
+    })
 
 # Serve uploaded files
 UPLOAD_DIR = _path.join(_path.dirname(__file__), 'uploads')

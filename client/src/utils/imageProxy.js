@@ -15,7 +15,9 @@ class ImageProxy {
     };
 
     // Allow configuring proxy URL via env at build time
-    this.proxyBase = process.env.REACT_APP_IMAGE_PROXY_URL || 'http://localhost:5001';
+    // Use the main API base URL for the proxy endpoint
+    const apiBase = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+    this.proxyBase = `${apiBase}/proxy/exercise-gif`;
   }
 
   // Get a fallback image based on body part
@@ -27,8 +29,14 @@ class ImageProxy {
   // Create a proxy URL for the ExerciseDB image
   getProxyUrl(originalUrl, bodyPart) {
     if (!originalUrl) return this.getFallbackImage(bodyPart);
-    const encodedUrl = encodeURIComponent(originalUrl);
-    return `${this.proxyBase}/proxy-image?url=${encodedUrl}`;
+    
+    // Extract the filename from the URL
+    const urlParts = originalUrl.split('/');
+    const filename = urlParts[urlParts.length - 1];
+    // Remove .gif extension if present
+    const fileId = filename.replace(/\.gif$/, '');
+    
+    return `${this.proxyBase}/${fileId}`;
   }
 
   // Test if an image URL is accessible (best-effort only)
