@@ -8,7 +8,6 @@ from datetime import datetime, timedelta
 import os
 import smtplib
 from email.message import EmailMessage
-from typing import Optional
 
 from os import path as _path
 from werkzeug.utils import secure_filename
@@ -46,29 +45,17 @@ def _generate_reset_token():
     return secrets.token_urlsafe(32)
 
 
-def _send_email(subject: str, to_email: str, html_body: str, text_body: Optional[str] = None) -> bool:
+def _send_email(subject: str, to_email: str, html_body: str, text_body: str = None):
     """Send email via SMTP using env vars. Raises on failure."""
-    smtp_host = os.getenv('SMTP_HOST', '')
+    smtp_host = os.getenv('SMTP_HOST')
     smtp_port = int(os.getenv('SMTP_PORT', '587'))
-    smtp_user = os.getenv('SMTP_USER', '')
-    smtp_pass = os.getenv('SMTP_PASS', '')
-    from_email = os.getenv('SMTP_FROM', smtp_user or 'no-reply@fithub.com')
+    smtp_user = os.getenv('SMTP_USER')
+    smtp_pass = os.getenv('SMTP_PASS')
+    from_email = os.getenv('SMTP_FROM', smtp_user)
 
     # Fallback for Gmail if host missing
     if not smtp_host and smtp_user and smtp_user.endswith('@gmail.com'):
         smtp_host = 'smtp.gmail.com'
-
-    # For Vercel deployment, we might need to handle email differently
-    vercel_env = os.getenv('VERCEL_ENV', '')
-    email_dev_mode = os.getenv('EMAIL_DEV_MODE', '').lower() == 'true' or os.getenv('ENV', '').lower() in ['dev', 'development']
-    
-    # If in Vercel environment and no SMTP configured, we should not fail but warn
-    if vercel_env and not (smtp_host and smtp_user and smtp_pass and from_email):
-        print("⚠️  Warning: SMTP not configured in Vercel environment. Email sending will be skipped.")
-        print("To enable email sending, configure SMTP_HOST, SMTP_USER, SMTP_PASS, and SMTP_FROM environment variables.")
-        if email_dev_mode:
-            print("⚠️  EMAIL_DEV_MODE is enabled. OTP codes will be returned in API responses.")
-        return True  # Don't fail the request if email can't be sent
 
     if not (smtp_host and smtp_user and smtp_pass and from_email):
         missing = [name for name, val in [
@@ -87,29 +74,22 @@ def _send_email(subject: str, to_email: str, html_body: str, text_body: Optional
     msg.set_content(text_body or 'Please view this email in an HTML-capable client.')
     msg.add_alternative(html_body, subtype='html')
 
-    try:
-        with smtplib.SMTP(smtp_host, smtp_port) as server:
-            server.starttls()
-            server.login(smtp_user, smtp_pass)
-            server.send_message(msg)
-        return True
-    except Exception as e:
-        print(f"❌ Email send failed to {to_email}: {str(e)}")
-        # In development mode, we might want to continue even if email fails
-        if email_dev_mode:
-            print("⚠️  EMAIL_DEV_MODE is enabled. Continuing despite email failure.")
-            return True
-        raise
+    with smtplib.SMTP(smtp_host, smtp_port) as server:
+        server.starttls()
+        server.login(smtp_user, smtp_pass)
+        server.send_message(msg)
+
+
 
 
 @auth_bp.route('/signup', methods=['POST'])
 def signup():
-    data = request.json or {}
+    data = request.json
     print(f"🔍 SIGNUP ATTEMPT: {data}")  # Debug log
     
     # Required fields
-    email = data.get('email', '')
-    password = data.get('password', '')
+    email = data.get('email')
+    password = data.get('password')
     role = data.get('role', 'user')  # Default to user if not specified
     
     # Validate required fields
@@ -190,7 +170,7 @@ def signup():
 def check_email_exists():
     """Check if email already exists in users or trainer applications"""
     try:
-        data = request.json or {}
+        data = request.json
         email = data.get('email', '').strip().lower()
         
         if not email:
@@ -215,9 +195,9 @@ def check_email_exists():
 
 @auth_bp.route('/login', methods=['POST'])
 def login():
-    data = request.json or {}
-    email = data.get('email', '')
-    password = data.get('password', '')
+    data = request.json
+    email = data.get('email')
+    password = data.get('password')
     
     print(f"🔍 LOGIN ATTEMPT:")
     print(f"   Email: {email}")
@@ -325,10 +305,6 @@ def signup_init():
             from bson import ObjectId
             inserted = users_collection.insert_one(base_fields)
             user_doc = users_collection.find_one({'_id': inserted.inserted_id})
-
-        # Check that user_doc exists before proceeding
-        if not user_doc:
-            return jsonify({'success': False, 'msg': 'Failed to create user'}), 500
 
         # Generate OTP and store under emailVerification
         import random
@@ -882,7 +858,7 @@ def forgot_password_request():
 
         # Compose absolute reset link for email
         # Prefer client-provided base URL so links work across devices
-        app_base_url = (request.json or {}).get('appBaseUrl') or os.getenv('APP_BASE_URL', 'http://localhost:3000')
+        app_base_url = request.json.get('appBaseUrl') or os.getenv('APP_BASE_URL', 'http://localhost:3000')
         reset_link = f"{app_base_url}/reset-password?token={reset_token}"
 
         # Send email (HTML + text)
