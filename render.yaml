@@ -24,6 +24,20 @@ services:
         sync: false
       - key: FLASK_ENV
         value: production
+      # SMTP Configuration for email delivery
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: '587'
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      # Development mode for email debugging
+      - key: EMAIL_DEV_MODE
+        value: 'true'
     healthCheckPath: /
     autoDeploy: true
 
