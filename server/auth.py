@@ -19,7 +19,9 @@ auth_bp = Blueprint('auth', __name__)
 # Avatar upload settings
 ROOT_DIR = _path.dirname(__file__)
 USER_UPLOAD_DIR = _path.join(ROOT_DIR, 'uploads', 'users')
-os.makedirs(USER_UPLOAD_DIR, exist_ok=True)
+# Only create directory if not on Vercel (read-only filesystem)
+if not os.getenv('VERCEL'):
+    os.makedirs(USER_UPLOAD_DIR, exist_ok=True)
 ALLOWED_AVATAR_EXT = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
 def _save_avatar_and_get_url(file_storage):

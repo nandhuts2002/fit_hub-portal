@@ -15,7 +15,9 @@ ALLOWED_EXTENSIONS = {'gif', 'webp', 'mp4', 'mov', 'jpg', 'jpeg', 'png'}
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
 # Ensure upload directory exists
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+# Only create directory if not on Vercel (read-only filesystem)
+if not os.getenv('VERCEL'):
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Custom exercises database file
 CUSTOM_EXERCISES_FILE = os.path.join(os.path.dirname(__file__), 'custom_exercises.json')

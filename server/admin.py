@@ -142,7 +142,9 @@ def admin_delete_tutorial(tutorial_id: str):
 ALLOWED_AUDIO_EXTS = {'.mp3', '.wav', '.m4a', '.aac', '.ogg'}
 UPLOAD_ROOT = os.path.join(os.path.dirname(__file__), 'uploads')
 MUSIC_UPLOAD_DIR = os.path.join(UPLOAD_ROOT, 'music')
-os.makedirs(MUSIC_UPLOAD_DIR, exist_ok=True)
+# Only create directory if not on Vercel (read-only filesystem)
+if not os.getenv('VERCEL'):
+    os.makedirs(MUSIC_UPLOAD_DIR, exist_ok=True)
 
 @admin_bp.route('/music/upload', methods=['POST'])
 @jwt_required()

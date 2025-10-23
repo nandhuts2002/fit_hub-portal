@@ -18,7 +18,9 @@ COLLECTIONS_FILE = _path.join(ROOT_DIR, 'community_collections.json')
 REPORTS_FILE = _path.join(ROOT_DIR, 'community_reports.json')
 UPLOAD_DIR = _path.join(ROOT_DIR, 'uploads', 'community')
 
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+# Only create directory if not on Vercel (read-only filesystem)
+if not os.getenv('VERCEL'):
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # Basic in-file storage helpers
 

@@ -7,12 +7,32 @@ except Exception:
 # Helpers for image storage
 _BASE_DIR = os.path.dirname(__file__)
 _UPLOAD_PRODUCTS_DIR = os.path.join(_BASE_DIR, 'uploads', 'products')
-os.makedirs(_UPLOAD_PRODUCTS_DIR, exist_ok=True)
+
+def _is_vercel():
+    """Check if we're running on Vercel"""
+    return os.getenv('VERCEL') == '1'
+
+def _ensure_upload_dir():
+    """Ensure the upload directory exists, but only when actually needed"""
+    # On Vercel, we can't write to the filesystem, so skip directory creation
+    if _is_vercel():
+        return False
+    
+    if not os.path.exists(_UPLOAD_PRODUCTS_DIR):
+        os.makedirs(_UPLOAD_PRODUCTS_DIR, exist_ok=True)
+    return True
 
 def _save_product_images(product_object_id, files_list):
     """Save uploaded images for a product in order as image_1.jpg, image_2.jpg, ...
     Returns a list of public URLs like /uploads/products/<product_id>/image_1.jpg
     """
+    # On Vercel, we can't save files to local filesystem
+    if _is_vercel():
+        # Return empty list or implement cloud storage solution
+        # For now, we'll just return empty list and handle this in the frontend
+        return []
+    
+    # Local development or other environments
     product_id_str = str(product_object_id)
     target_dir = os.path.join(_UPLOAD_PRODUCTS_DIR, product_id_str)
     os.makedirs(target_dir, exist_ok=True)

@@ -17,6 +17,9 @@ def allowed_file(filename):
 
 def create_upload_folder(folder_path):
     """Create upload folder if it doesn't exist"""
+    # Only create directory if not on Vercel (read-only filesystem)
+    if os.getenv('VERCEL'):
+        return
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
 
