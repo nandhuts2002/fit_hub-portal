@@ -17,7 +17,8 @@ const WishlistPage = () => {
       try {
         const currentUser = SessionManager.getCurrentUser();
         if (currentUser?.token && currentUser?.email) {
-          const { data } = await api.get(`/shop/api/wishlist/${encodeURIComponent(currentUser.email)}`, {
+          // Don't encode the email here, let the browser handle it automatically
+          const { data } = await api.get(`/shop/api/wishlist/${currentUser.email}`, {
             headers: { Authorization: `Bearer ${currentUser.token}` }
           });
           const items = data?.wishlist?.items || [];
@@ -40,6 +41,7 @@ const WishlistPage = () => {
         const key = user?.email ? `fithub-wishlist:${user.email}` : 'fithub-wishlist';
         const saved = localStorage.getItem(key);
         if (saved) setWishlist(JSON.parse(saved));
+        console.error('Error loading wishlist:', e);
       }
     };
     loadWishlist();
@@ -62,8 +64,9 @@ const WishlistPage = () => {
     try {
       const currentUser = SessionManager.getCurrentUser();
       if (!currentUser?.token || !currentUser?.email) return;
+      // Don't encode the email here, let the browser handle it automatically
       await api.post(
-        `/shop/api/wishlist/${encodeURIComponent(currentUser.email)}/toggle`,
+        `/shop/api/wishlist/${currentUser.email}/toggle`,
         { product_id: productId },
         { headers: { Authorization: `Bearer ${currentUser.token}` } }
       );
@@ -71,6 +74,7 @@ const WishlistPage = () => {
       // revert on failure
       setWishlist(prev);
       localStorage.setItem('fithub-wishlist', JSON.stringify(prev));
+      console.error('Error removing from wishlist:', e);
     }
   };
 

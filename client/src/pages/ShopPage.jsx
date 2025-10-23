@@ -220,7 +220,8 @@ const ShopPage = () => {
       try {
         const currentUser = SessionManager.getCurrentUser();
         if (!currentUser?.token || !currentUser?.email) return;
-        const { data } = await api.get(`/shop/api/wishlist/${encodeURIComponent(currentUser.email)}`, {
+        // Don't encode the email here, let the browser handle it automatically
+        const { data } = await api.get(`/shop/api/wishlist/${currentUser.email}`, {
           headers: { Authorization: `Bearer ${currentUser.token}` }
         });
         const items = data?.wishlist?.items || [];
@@ -237,6 +238,7 @@ const ShopPage = () => {
         localStorage.setItem('fithub-wishlist', JSON.stringify(normalized));
       } catch (e) {
         // Silent fail to avoid breaking UI if API not available
+        console.error('Error syncing wishlist:', e);
       }
     };
     syncWishlist();
@@ -601,8 +603,9 @@ const ShopPage = () => {
     try {
       const currentUser = SessionManager.getCurrentUser();
       if (!currentUser?.token || !currentUser?.email) return; // if not logged, keep local only
+      // Don't encode the email here, let the browser handle it automatically
       await api.post(
-        `/shop/api/wishlist/${encodeURIComponent(currentUser.email)}/toggle`,
+        `/shop/api/wishlist/${currentUser.email}/toggle`,
         { product_id: (product.id || product._id) },
         { headers: { Authorization: `Bearer ${currentUser.token}` } }
       );
@@ -610,6 +613,7 @@ const ShopPage = () => {
       // Revert on failure
       setWishlist(wishlist);
       localStorage.setItem('fithub-wishlist', JSON.stringify(wishlist));
+      console.error('Error toggling wishlist:', e);
     }
   };
 

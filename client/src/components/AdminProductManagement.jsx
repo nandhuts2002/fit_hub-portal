@@ -13,7 +13,8 @@ import {
   Package,
   Tag,
   DollarSign,
-  Star
+  Star,
+  AlertTriangle
 } from "lucide-react";
 
 const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://fit-hub-portal-1.onrender.com';
@@ -39,10 +40,21 @@ const AdminProductManagement = () => {
     tags: ['']
   });
   const [selectedFiles, setSelectedFiles] = useState([]); // File[] for multipart
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [checkedAdmin, setCheckedAdmin] = useState(false);
 
   // Live validation state
   const [touched, setTouched] = useState({});
   const [formErrors, setFormErrors] = useState({});
+
+  // Check if user is admin
+  useEffect(() => {
+    const currentUser = SessionManager.getCurrentUser();
+    if (currentUser && currentUser.role === 'admin') {
+      setIsAdmin(true);
+    }
+    setCheckedAdmin(true);
+  }, []);
 
   // Field-level validator
   const fieldError = (name, value) => {
@@ -74,8 +86,21 @@ const AdminProductManagement = () => {
 
   // Seed a demo product with multiple image URLs (uses fallback 360 viewer)
   const createDemoProduct = async () => {
+    if (!isAdmin) {
+      alert('You must be an administrator to perform this action.');
+      return;
+    }
+    
     try {
       setLoading(true);
+      
+      // Check if user is admin before proceeding
+      const currentUser = SessionManager.getCurrentUser();
+      if (!currentUser || !currentUser.token) {
+        alert('You must be logged in to perform this action.');
+        return;
+      }
+      
       const demoImages = [
         // Public sample images (same image repeated for demo; replace with different shots for realism)
         'https://m.media-amazon.com/images/I/81w0A8gJwsL._SX522_.jpg',
@@ -105,12 +130,14 @@ const AdminProductManagement = () => {
         features: ['Demo 360 viewer', 'Multiple images sequence'],
         tags: ['Demo', '360']
       };
-      const currentUser = SessionManager.getCurrentUser();
       const response = await api.request({
         url: `${API_BASE}/shop/api/products`,
         method: 'POST',
         data: productData,
-        headers: currentUser?.token ? { Authorization: `Bearer ${currentUser.token}` } : {}
+        headers: { 
+          'Authorization': `Bearer ${currentUser.token}`,
+          'Content-Type': 'application/json'
+        }
       });
       const data = response.data || {};
       if (data.success && data.product_id) {
@@ -122,7 +149,7 @@ const AdminProductManagement = () => {
       }
     } catch (e) {
       console.error('Demo seed failed:', e);
-      alert('Demo product creation failed');
+      alert('Demo product creation failed: ' + (e.response?.data?.error || e.message));
     } finally {
       setLoading(false);
     }
@@ -152,9 +179,15 @@ const AdminProductManagement = () => {
 
   // Load products and categories
   useEffect(() => {
+    if (!checkedAdmin) return;
+    
+    if (!isAdmin) {
+      return;
+    }
+    
     loadProducts();
     loadCategories();
-  }, []);
+  }, [isAdmin, checkedAdmin]);
 
   const loadProducts = async () => {
     try {
@@ -225,11 +258,22 @@ const AdminProductManagement = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!isAdmin) {
+      alert('You must be an administrator to perform this action.');
+      return;
+    }
+
     // Validate all required fields before submit
     if (!validateAll()) {
       // Mark core fields as touched to reveal errors
       setTouched(prev => ({ ...prev, name: true, price: true, stockQuantity: true, originalPrice: true }));
       return alert('Please fix the highlighted errors before submitting.');
+    }
+
+    // Check if user is admin before proceeding
+    const currentUser = SessionManager.getCurrentUser();
+    if (!currentUser || !currentUser.token) {
+      return alert('You must be logged in to perform this action.');
     }
 
     setLoading(true);
@@ -239,7 +283,6 @@ const AdminProductManagement = () => {
         ? `${API_BASE}/shop/api/products/${editingProduct._id}`
         : `${API_BASE}/shop/api/products`;
       const method = editingProduct ? 'PUT' : 'POST';
-      const currentUser = SessionManager.getCurrentUser();
 
       let response;
       if (selectedFiles && selectedFiles.length > 0) {
@@ -267,7 +310,7 @@ const AdminProductManagement = () => {
           method,
           data: fd,
           headers: {
-            ...(currentUser?.token ? { Authorization: `Bearer ${currentUser.token}` } : {}),
+            'Authorization': `Bearer ${currentUser.token}`,
             'Content-Type': 'multipart/form-data'
           }
         });
@@ -287,7 +330,10 @@ const AdminProductManagement = () => {
           url,
           method,
           data: productData,
-          headers: currentUser?.token ? { Authorization: `Bearer ${currentUser.token}` } : {}
+          headers: { 
+            'Authorization': `Bearer ${currentUser.token}`,
+            'Content-Type': 'application/json'
+          }
         });
       }
 
@@ -303,13 +349,18 @@ const AdminProductManagement = () => {
       }
     } catch (error) {
       console.error('Error saving product:', error);
-      alert('Error saving product');
+      alert('Error saving product: ' + (error.response?.data?.error || error.message));
     } finally {
       setLoading(false);
     }
   };
 
   const editProduct = (product) => {
+    if (!isAdmin) {
+      alert('You must be an administrator to perform this action.');
+      return;
+    }
+    
     setEditingProduct(product);
     setFormData({
       name: product.name || '',
@@ -329,22 +380,36 @@ const AdminProductManagement = () => {
   };
 
   const deleteProduct = async (productId) => {
+    if (!isAdmin) {
+      alert('You must be an administrator to perform this action.');
+      return;
+    }
+    
     if (!window.confirm('Are you sure you want to delete this product?')) return;
 
+    // Check if user is admin before proceeding
+    const currentUser = SessionManager.getCurrentUser();
+    if (!currentUser || !currentUser.token) {
+      return alert('You must be logged in to perform this action.');
+    }
+
     try {
-      const currentUser = SessionManager.getCurrentUser();
       const response = await api.delete(`${API_BASE}/shop/api/products/${productId}`, {
-        headers: currentUser?.token ? { Authorization: `Bearer ${currentUser.token}` } : {}
+        headers: { 
+          'Authorization': `Bearer ${currentUser.token}`,
+          'Content-Type': 'application/json'
+        }
       });
       const data = response.data || {};
       if (data.success) {
         loadProducts();
+        alert('Product deleted successfully!');
       } else {
         alert('Error: ' + data.error);
       }
     } catch (error) {
       console.error('Error deleting product:', error);
-      alert('Error deleting product');
+      alert('Error deleting product: ' + (error.response?.data?.error || error.message));
     }
   };
 
@@ -372,8 +437,68 @@ const AdminProductManagement = () => {
     resetForm();
   };
 
+  // Show access denied message if user is not admin
+  if (checkedAdmin && !isAdmin) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-6 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle className="w-8 h-8 text-red-500" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
+          <p className="text-gray-600 mb-6">
+            You must be an administrator to access the product management panel.
+          </p>
+          <button
+            onClick={() => window.history.back()}
+            className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading state while checking admin status
+  if (!checkedAdmin) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-6 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking permissions...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-6">
+      {/* Show access denied message if user is not admin */}
+      {!isAdmin && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <motion.div
+            className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 max-w-md w-full text-center"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+          >
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-8 h-8 text-red-500" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Denied</h2>
+            <p className="text-gray-600 mb-6">
+              You must be an administrator to access the product management panel.
+            </p>
+            <button
+              onClick={() => window.history.back()}
+              className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200"
+            >
+              Go Back
+            </button>
+          </motion.div>
+        </div>
+      )}
+      
       <div className="max-w-7xl mx-auto">
         {/* Header Section */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 mb-6">
@@ -385,7 +510,8 @@ const AdminProductManagement = () => {
             <div className="flex gap-2">
               <button
                 onClick={createDemoProduct}
-                className="flex items-center space-x-2 px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all duration-200 shadow-lg border border-green-600"
+                disabled={!isAdmin}
+                className="flex items-center space-x-2 px-4 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all duration-200 shadow-lg border border-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Create a demo product with multiple images"
               >
                 <Star className="w-4 h-4" />
@@ -393,7 +519,8 @@ const AdminProductManagement = () => {
               </button>
               <button
                 onClick={() => setShowForm(true)}
-                className="flex items-center space-x-3 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 border border-blue-600"
+                disabled={!isAdmin}
+                className="flex items-center space-x-3 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 border border-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{ backgroundColor: '#2563eb', color: '#ffffff', border: '1px solid #2563eb' }}
               >
                 <Plus className="w-5 h-5" />
@@ -766,14 +893,16 @@ const AdminProductManagement = () => {
                         <div className="flex space-x-2">
                           <button
                             onClick={() => editProduct(product)}
-                            className="text-indigo-600 hover:text-indigo-900 p-2 rounded-lg hover:bg-indigo-50 transition-all duration-200"
+                            disabled={!isAdmin}
+                            className="text-indigo-600 hover:text-indigo-900 p-2 rounded-lg hover:bg-indigo-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                             title="Edit Product"
                           >
                             <Edit className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => deleteProduct(product._id || product.id)}
-                            className="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-50 transition-all duration-200"
+                            disabled={!isAdmin}
+                            className="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-50 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                             title="Delete Product"
                           >
                             <Trash2 className="w-4 h-4" />

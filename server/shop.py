@@ -1082,16 +1082,29 @@ def update_order_payment(order_id):
 @shop_bp.route('/api/wishlist/<user_email>', methods=['GET'])
 @jwt_required()
 def get_wishlist(user_email):
-    if not _require_same_user(user_email):
+    # URL decode the email parameter in case it's encoded
+    import urllib.parse
+    decoded_email = urllib.parse.unquote(user_email)
+    if not _require_same_user(decoded_email):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     try:
-        wishlist = wishlists_collection.find_one({'user_email': user_email})
+        wishlist = wishlists_collection.find_one({'user_email': decoded_email})
         if not wishlist:
             return jsonify({'success': True, 'wishlist': {'items': []}})
             
         # Populate product details
         for item in wishlist['items']:
-            product = products_collection.find_one({'_id': ObjectId(item['product_id'])})
+            # Handle both ObjectId and string product_id
+            product_id = item['product_id']
+            if isinstance(product_id, str):
+                try:
+                    product_obj_id = ObjectId(product_id)
+                except Exception:
+                    product_obj_id = product_id
+            else:
+                product_obj_id = product_id
+                
+            product = products_collection.find_one({'_id': product_obj_id})
             if product:
                 item['product'] = {
                     'name': product['name'],
@@ -1109,43 +1122,56 @@ def get_wishlist(user_email):
 @shop_bp.route('/api/wishlist/<user_email>/toggle', methods=['POST'])
 @jwt_required()
 def toggle_wishlist(user_email):
-    if not _require_same_user(user_email):
+    # URL decode the email parameter in case it's encoded
+    import urllib.parse
+    decoded_email = urllib.parse.unquote(user_email)
+    if not _require_same_user(decoded_email):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
     try:
         data = request.get_json()
         product_id = data.get('product_id')
         
         # Check if product exists
-        product = products_collection.find_one({'_id': ObjectId(product_id)})
+        if isinstance(product_id, str):
+            try:
+                product_obj_id = ObjectId(product_id)
+            except Exception:
+                product_obj_id = product_id
+        else:
+            product_obj_id = product_id
+            
+        product = products_collection.find_one({'_id': product_obj_id})
         if not product:
             return jsonify({'success': False, 'error': 'Product not found'}), 404
             
         # Get or create wishlist
-        wishlist = wishlists_collection.find_one({'user_email': user_email})
+        wishlist = wishlists_collection.find_one({'user_email': decoded_email})
         if not wishlist:
             wishlist = {
-                'user_email': user_email,
+                'user_email': decoded_email,
                 'items': [],
                 'created_at': datetime.utcnow(),
                 'updated_at': datetime.now(timezone.utc)
             }
             wishlists_collection.insert_one(wishlist)
             
-        # Check if item exists
+        # Check if item exists (handle both ObjectId and string comparisons)
         existing_item = None
         for item in wishlist['items']:
-            if str(item['product_id']) == product_id:
+            item_product_id = item['product_id']
+            # Convert both to strings for comparison
+            if str(item_product_id) == str(product_id):
                 existing_item = item
                 break
                 
         if existing_item:
             # Remove from wishlist
-            wishlist['items'] = [item for item in wishlist['items'] if str(item['product_id']) != product_id]
+            wishlist['items'] = [item for item in wishlist['items'] if str(item['product_id']) != str(product_id)]
             action = 'removed'
         else:
             # Add to wishlist
             wishlist['items'].append({
-                'product_id': ObjectId(product_id),
+                'product_id': product_obj_id,  # Keep as ObjectId for DB storage
                 'added_at': datetime.now(timezone.utc)
             })
             action = 'added'
@@ -1153,7 +1179,7 @@ def toggle_wishlist(user_email):
         # Update wishlist
         wishlist['updated_at'] = datetime.now(timezone.utc)
         wishlists_collection.update_one(
-            {'user_email': user_email},
+            {'user_email': decoded_email},
             {'$set': wishlist},
             upsert=True
         )
