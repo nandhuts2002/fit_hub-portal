@@ -4,6 +4,7 @@ import axios from 'axios';
 import SessionManager from '../utils/sessionManager';
 import { signInWithPopup } from 'firebase/auth';
 import { auth, provider } from '../firebase';
+import api from '../utils/api';
 import { FaSpa } from 'react-icons/fa';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://fit-hub-portal-1.onrender.com';
@@ -67,7 +68,7 @@ const ProfessionalLoginPage = () => {
 
     setIsLoading(true);
     try {
-      const res = await axios.post(`${API_BASE_URL}/login`, {
+      const res = await api.post('/login', {
         email: formData.email,
         password: formData.password
       });
@@ -105,7 +106,7 @@ const ProfessionalLoginPage = () => {
       const idToken = await user.getIdToken();
 
       try {
-        const response = await axios.post(`${API_BASE_URL}/google-login`, {
+        const response = await api.post('/google-login', {
           idToken,
           email: user.email,
           name: user.displayName,

@@ -2,7 +2,10 @@
 import axios from 'axios';
 import { SessionManager } from './sessionManager';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://fit-hub-portal-1.onrender.com';
+// IMPORTANT: This should be set in Render environment variables
+// Example: REACT_APP_API_BASE_URL=https://your-vercel-backend.vercel.app
+// Ensure no trailing slash
+const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || 'https://your-vercel-backend-url.vercel.app').replace(/\/$/, '');
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
