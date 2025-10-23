@@ -319,14 +319,6 @@ def update_address(addr_id):
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-from bson import ObjectId
-from flask import Blueprint, jsonify, request
-from flask_jwt_extended import jwt_required, get_jwt_identity
-
-from models import addresses_collection
-# _get_email_from_identity is defined locally in this file
-
-shop_bp = Blueprint('shop', __name__)
 
 
 @shop_bp.route('/api/addresses/<addr_id>', methods=['DELETE'])
