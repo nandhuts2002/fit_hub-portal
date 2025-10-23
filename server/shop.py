@@ -1,8 +1,6 @@
 import os
 # Fix for order creation and product ID handling
 # This ensures both string and ObjectId formats are handled correctly
-
-import os
 try:
     from werkzeug.utils import secure_filename
 except Exception:
@@ -446,7 +444,7 @@ def create_product():
             'features': data.get('features', []),
             'tags': data.get('tags', []),
             'featured': data.get('featured', False),
-            'created_at': datetime.utcnow(),
+            'created_at': datetime.now(timezone.utc),
             'updated_at': datetime.now(timezone.utc)
         }
         
