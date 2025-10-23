@@ -8,6 +8,14 @@ import SessionManager from './utils/sessionManager';
 
 console.log('Index.js loaded - React app starting...');
 
+// Handle redirect from 404.html
+const redirect = sessionStorage.getItem('redirect');
+if (redirect) {
+  console.log('Restoring URL from 404 redirect:', redirect);
+  sessionStorage.removeItem('redirect');
+  window.history.replaceState(null, '', redirect);
+}
+
 // Check if root element exists
 const rootElement = document.getElementById('root');
 if (!rootElement) {

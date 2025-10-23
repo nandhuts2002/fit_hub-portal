@@ -2,7 +2,7 @@ services:
   - type: web
     name: fithub-frontend
     env: static
-    buildCommand: cd client && npm install --legacy-peer-deps && npm run build
+    buildCommand: cd client && npm install --legacy-peer-deps && npm run build && echo "Build complete. Checking _redirects file..." && ls -la build/ && cat build/_redirects || echo "_redirects file not found in build directory"
     staticPublishPath: ./client/build
     envVars:
       - key: NODE_VERSION
