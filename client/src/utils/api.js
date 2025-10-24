@@ -1,6 +1,6 @@
 // Axios instance with auth token and base URL
 import axios from 'axios';
-import { SessionManager } from './sessionManager';
+import SessionManager from './sessionManager';
 
 // IMPORTANT: This should be set in Render environment variables
 // Example: REACT_APP_API_BASE_URL=https://your-vercel-backend.vercel.app

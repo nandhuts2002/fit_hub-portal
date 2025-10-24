@@ -7,13 +7,11 @@ class SessionManager {
    */
   static setSession(userData) {
     try {
-      console.log('SessionManager.setSession called with:', userData);
       const sessionData = {
         ...userData,
         timestamp: Date.now()
       };
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(sessionData));
-      console.log('Session successfully set');
     } catch (error) {
       console.error('Failed to set session:', error);
     }
@@ -26,7 +24,6 @@ class SessionManager {
   static getSession() {
     try {
       const sessionStr = localStorage.getItem(this.STORAGE_KEY);
-      console.log('SessionManager.getSession - raw session:', sessionStr);
       
       if (!sessionStr) return null;
       
@@ -37,7 +34,6 @@ class SessionManager {
       const oneDay = 24 * 60 * 60 * 1000;
       
       if (now - session.timestamp > oneDay) {
-        console.log('Session expired, clearing...');
         this.clearSession();
         return null;
       }
@@ -54,9 +50,7 @@ class SessionManager {
    * @returns {Object|null} User data or null if not authenticated
    */
   static getCurrentUser() {
-    const session = this.getSession();
-    console.log('SessionManager.getCurrentUser - session:', session);
-    return session;
+    return this.getSession();
   }
 
   /**
@@ -66,13 +60,11 @@ class SessionManager {
   static isAuthenticated() {
     try {
       const session = this.getSession();
-      console.log('SessionManager.isAuthenticated - session:', session);
       
       // Legacy check for older session format
       if (!session) {
         const legacyToken = localStorage.getItem('token');
         const legacyUserName = localStorage.getItem('userName');
-        console.log('SessionManager.isAuthenticated - legacy check:', { token: legacyToken, userName: legacyUserName });
         
         if (legacyToken && legacyUserName) {
           // Migrate legacy session
@@ -104,7 +96,6 @@ class SessionManager {
    */
   static clearSession() {
     try {
-      console.log('SessionManager.clearSession called');
       localStorage.removeItem(this.STORAGE_KEY);
       
       // Also clear legacy items if they exist
@@ -123,7 +114,6 @@ class SessionManager {
    * @returns {string} Redirect path
    */
   static getRedirectPath(role) {
-    console.log('SessionManager.getRedirectPath called with role:', role);
     switch (role) {
       case 'admin':
         return '/admin-home';
