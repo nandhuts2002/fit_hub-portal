@@ -20,14 +20,14 @@ export const uploadImage = async (file, folder = 'community') => {
     });
 
     if (!response.ok) {
-      throw new Error(`Upload failed: ${response.statusText}`);
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Upload failed: ${response.statusText}`);
     }
 
     const data = await response.json();
     if (data.ok) {
-      // Return full URL
-      const imageUrl = data.url.startsWith('http') ? data.url : `${API_BASE_URL}${data.url}`;
-      return imageUrl;
+      // Return Cloudinary URL
+      return data.url;
     } else {
       throw new Error(data.error || 'Upload failed');
     }

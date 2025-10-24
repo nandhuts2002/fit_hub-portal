@@ -15,6 +15,8 @@ from profile import profile_bp
 from ai import ai_bp
 from exercise_gifs import exercise_gifs_bp
 from upload import upload_bp
+# Import Cloudinary configuration to initialize it
+import cloudinary_config
 from dotenv import load_dotenv
 import os
 from datetime import datetime, timedelta

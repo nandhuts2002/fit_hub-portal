@@ -12,3 +12,4 @@ python-socketio==5.12.1
 flask-socketio==5.4.1
 eventlet==0.39.0
 pymongo==4.10.1
+cloudinary==1.41.0

@@ -28,6 +28,7 @@ fit-hub-portal/
 - **JWT**: Authentication tokens
 - **Bcrypt**: Password hashing
 - **Flask-CORS**: Cross-origin requests
+- **Cloudinary**: Image management and storage
 
 ### Frontend
 - **React**: UI framework
@@ -63,7 +64,12 @@ Create a `.env` file in the server directory:
 ```
 MONGO_URI=mongodb://localhost:27017/
 JWT_SECRET=your-secret-key
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
 ```
+
+For detailed Cloudinary setup instructions, see [CLOUDINARY_SETUP.md](CLOUDINARY_SETUP.md).
 
 ## 👨‍💻 Author
 

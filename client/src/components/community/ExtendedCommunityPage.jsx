@@ -7,6 +7,7 @@ import QASection from './QASection';
 import SpotlightsSection from './SpotlightsSection';
 import EnhancedPostCard from './EnhancedPostCard';
 import SessionManager from '../../utils/sessionManager';
+import { uploadImage, validateImageFile } from '../../utils/imageUpload';
 
 const ExtendedCommunityPage = () => {
   const [activeTab, setActiveTab] = useState('feed');
@@ -138,12 +139,17 @@ const ExtendedCommunityPage = () => {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      setNewPostImage(file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setPreviewImage(e.target.result);
-      };
-      reader.readAsDataURL(file);
+      try {
+        validateImageFile(file);
+        setNewPostImage(file);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setPreviewImage(e.target.result);
+        };
+        reader.readAsDataURL(file);
+      } catch (error) {
+        alert(error.message);
+      }
     }
   };
 
@@ -159,39 +165,37 @@ const ExtendedCommunityPage = () => {
       const currentUser = SessionManager.getCurrentUser();
       const token = currentUser?.token;
       
+      let imageUrl = null;
+      
+      // Handle image upload if present
       if (newPostImage) {
-        // Handle file upload
-        const formData = new FormData();
-        formData.append('image', newPostImage);
-        formData.append('text', newPostText);
-        
-        const response = await fetch('/community/posts', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
-          body: formData
-        });
-        
-        const data = await response.json();
-        if (!data.ok) {
-          throw new Error(data.error || 'Failed to create post');
+        try {
+          imageUrl = await uploadImage(newPostImage, 'community/posts');
+        } catch (uploadError) {
+          console.error('Image upload error:', uploadError);
+          alert('Failed to upload image: ' + uploadError.message);
+          return;
         }
-      } else {
-        // Handle text-only post
-        const response = await fetch('/community/posts', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ text: newPostText })
-        });
-        
-        const data = await response.json();
-        if (!data.ok) {
-          throw new Error(data.error || 'Failed to create post');
-        }
+      }
+      
+      // Create post with or without image
+      const postData = {
+        text: newPostText,
+        imageUrl: imageUrl
+      };
+      
+      const response = await fetch('/community/posts', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(postData)
+      });
+      
+      const data = await response.json();
+      if (!data.ok) {
+        throw new Error(data.error || 'Failed to create post');
       }
       
       // Reset form

@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required
 import os
 import uuid
 from werkzeug.utils import secure_filename
+from cloudinary_config import upload_image_to_cloudinary
 
 upload_bp = Blueprint('upload', __name__)
 
@@ -26,14 +27,14 @@ def create_upload_folder(folder_path):
 @upload_bp.route('/upload/image', methods=['POST'])
 @jwt_required()
 def upload_image():
-    """Upload an image file"""
+    """Upload an image file to Cloudinary"""
     try:
         # Check if file is present
         if 'image' not in request.files:
             return jsonify({'ok': False, 'error': 'No image file provided'}), 400
         
         file = request.files['image']
-        folder = request.form.get('folder', 'general')
+        folder = request.form.get('folder', 'community')
         
         # Check if file is selected
         if file.filename == '':
@@ -51,28 +52,14 @@ def upload_image():
         if file_size > MAX_FILE_SIZE:
             return jsonify({'ok': False, 'error': 'File too large. Maximum size: 5MB'}), 400
         
-        # Generate unique filename
-        if not file.filename or '.' not in file.filename:
-            return jsonify({'ok': False, 'error': 'Invalid filename'}), 400
-        file_extension = file.filename.rsplit('.', 1)[1].lower()
-        unique_filename = f"{uuid.uuid4().hex}.{file_extension}"
-        
-        # Create folder structure
-        folder_path = os.path.join(UPLOAD_FOLDER, folder)
-        create_upload_folder(folder_path)
-        
-        # Save file
-        file_path = os.path.join(folder_path, unique_filename)
-        file.save(file_path)
-        
-        # Return URL - generate absolute URL to prevent mixed content issues
-        base_url = request.host_url.rstrip('/')
-        file_url = f"{base_url}/{file_path.replace(os.sep, '/')}"
+        # Upload to Cloudinary
+        upload_result = upload_image_to_cloudinary(file, folder)
         
         return jsonify({
             'ok': True,
-            'url': file_url,
-            'filename': unique_filename,
+            'url': upload_result['url'],
+            'public_id': upload_result['public_id'],
+            'format': upload_result['format'],
             'size': file_size
         })
         
