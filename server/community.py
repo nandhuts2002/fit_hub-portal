@@ -340,6 +340,14 @@ def upload_image():
         print("Community upload endpoint called")
         print(f"Vercel environment: {os.getenv('VERCEL')}")
         
+        # Debug JWT authentication
+        try:
+            identity = get_jwt_identity()
+            print(f"JWT identity: {identity}")
+        except Exception as e:
+            print(f"JWT authentication error: {str(e)}")
+            return jsonify({'ok': False, 'error': 'Authentication failed'}), 401
+        
         # Debug: Check if required modules are available
         try:
             import cloudinary
@@ -356,12 +364,16 @@ def upload_image():
         image_file = request.files['image']
         print(f"File received: {image_file.filename}")
         print(f"File content type: {image_file.content_type}")
-        print(f"File size: {len(image_file.read()) if hasattr(image_file, 'read') else 'Unknown'}")
-        image_file.seek(0)  # Reset file pointer after reading
         
         if image_file.filename == '':
             print("Empty filename")
             return jsonify({'ok': False, 'error': 'Empty filename'}), 400
+        
+        # Get file size without reading content
+        image_file.seek(0, os.SEEK_END)
+        file_size = image_file.tell()
+        image_file.seek(0)  # Reset file pointer
+        print(f"File size: {file_size}")
         
         try:
             # Validate file
@@ -372,6 +384,11 @@ def upload_image():
         except Exception as e:
             print(f"Error validating file: {str(e)}")
             return jsonify({'ok': False, 'error': f'File validation failed: {str(e)}'}), 500
+        
+        # Check file size (5MB limit)
+        if file_size > 5 * 1024 * 1024:
+            print(f"File too large: {file_size} bytes")
+            return jsonify({'ok': False, 'error': 'File too large. Maximum size: 5MB'}), 400
         
         try:
             # Use Cloudinary for image upload
