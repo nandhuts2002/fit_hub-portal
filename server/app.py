@@ -15,7 +15,6 @@ from profile import profile_bp
 from ai import ai_bp
 from exercise_gifs import exercise_gifs_bp
 from upload import upload_bp
-from recommendations import recommendations_bp
 from dotenv import load_dotenv
 import os
 from datetime import datetime, timedelta
@@ -106,7 +105,6 @@ app.register_blueprint(profile_bp, url_prefix='/profile')
 app.register_blueprint(ai_bp)
 app.register_blueprint(exercise_gifs_bp)
 app.register_blueprint(upload_bp)
-app.register_blueprint(recommendations_bp)
 
 # Root route for health check
 @app.route('/')
