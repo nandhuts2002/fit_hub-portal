@@ -8,6 +8,7 @@ from os import path as _path
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import community_posts_collection, follows_collection
 from socketio_instance import socketio
+from upload import allowed_file
 
 community_bp = Blueprint('community', __name__)
 

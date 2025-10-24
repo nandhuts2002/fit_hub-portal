@@ -4,6 +4,10 @@ import os
 import uuid
 from werkzeug.utils import secure_filename
 from cloudinary_config import upload_image_to_cloudinary
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 upload_bp = Blueprint('upload', __name__)
 
@@ -31,6 +35,9 @@ def upload_image():
     try:
         print("Main upload endpoint called")
         print(f"Vercel environment: {os.getenv('VERCEL')}")
+        print(f"CLOUDINARY_CLOUD_NAME: {os.getenv('CLOUDINARY_CLOUD_NAME')}")
+        print(f"CLOUDINARY_API_KEY: {os.getenv('CLOUDINARY_API_KEY')}")
+        print(f"CLOUDINARY_API_SECRET set: {bool(os.getenv('CLOUDINARY_API_SECRET'))}")
         
         # Check if file is present
         if 'image' not in request.files:

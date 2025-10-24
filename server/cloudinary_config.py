@@ -26,8 +26,13 @@ def upload_image_to_cloudinary(file, folder='community'):
         config = cloudinary.config()
         print(f"Cloudinary configuration: cloud_name={config.cloud_name}, api_key={config.api_key}")
         
-        if not config.cloud_name or not config.api_key or not config.api_secret:
-            raise Exception("Cloudinary not properly configured. Check environment variables.")
+        # Additional validation
+        if not config.cloud_name:
+            raise Exception("Cloudinary cloud_name is not set. Check CLOUDINARY_CLOUD_NAME environment variable.")
+        if not config.api_key:
+            raise Exception("Cloudinary api_key is not set. Check CLOUDINARY_API_KEY environment variable.")
+        if not config.api_secret:
+            raise Exception("Cloudinary api_secret is not set. Check CLOUDINARY_API_SECRET environment variable.")
         
         # Upload file to Cloudinary
         print("Starting Cloudinary upload...")
