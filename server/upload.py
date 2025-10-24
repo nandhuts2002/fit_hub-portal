@@ -63,5 +63,8 @@ def upload_image():
             'size': file_size
         })
         
+    except ImportError as e:
+        return jsonify({'ok': False, 'error': 'Cloudinary package not installed. Please check server configuration.'}), 500
     except Exception as e:
-        return jsonify({'ok': False, 'error': str(e)}), 500
+        print(f"Upload error: {str(e)}")  # Log the error for debugging
+        return jsonify({'ok': False, 'error': f'Upload failed: {str(e)}'}), 500

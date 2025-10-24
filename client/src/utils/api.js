@@ -7,6 +7,9 @@ import SessionManager from './sessionManager';
 // Ensure no trailing slash
 const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || 'https://fit-hub-portal-1.onrender.com').replace(/\/$/, '');
 
+// Debug log to verify the API base URL
+console.log('API Base URL:', API_BASE_URL);
+
 export const api = axios.create({
   baseURL: API_BASE_URL,
 });

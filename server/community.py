@@ -125,40 +125,30 @@ def list_posts():
 def create_post():
     # Handle both form data (for file uploads) and JSON
     if request.content_type.startswith('multipart/form-data'):
-        # Handle file upload
+        # Handle file upload with Cloudinary
         text = request.form.get('text', '').strip()
         image_file = request.files.get('image')
         image_url = ''
         
         if image_file and image_file.filename:
             try:
-                # Use the existing upload functionality
-                from upload import allowed_file, create_upload_folder
-                import uuid
-                from werkzeug.utils import secure_filename
-                import os
+                # Validate file
+                from upload import allowed_file
+                if not allowed_file(image_file.filename):
+                    return jsonify({'ok': False, 'error': 'Invalid file type'}), 400
                 
-                UPLOAD_FOLDER = 'uploads'
-                folder = 'community'
+                # Use Cloudinary for image upload
+                from cloudinary_config import upload_image_to_cloudinary
                 
-                if allowed_file(image_file.filename):
-                    # Generate unique filename
-                    file_extension = image_file.filename.rsplit('.', 1)[1].lower()
-                    unique_filename = f"{uuid.uuid4().hex}.{file_extension}"
-                    
-                    # Create folder structure
-                    folder_path = os.path.join(UPLOAD_FOLDER, folder)
-                    create_upload_folder(folder_path)
-                    
-                    # Save file
-                    file_path = os.path.join(folder_path, unique_filename)
-                    image_file.save(file_path)
-                    
-                    # Set image URL - generate absolute URL to prevent mixed content issues
-                    base_url = request.host_url.rstrip('/')
-                    image_url = f"{base_url}/{file_path.replace(os.sep, '/')}"
+                # Upload to Cloudinary
+                upload_result = upload_image_to_cloudinary(image_file, 'community/posts')
+                image_url = upload_result['url']
+            except ImportError as e:
+                print(f"Cloudinary import error: {e}")
+                return jsonify({'ok': False, 'error': 'Cloudinary package not installed'}), 500
             except Exception as e:
-                print(f"Error uploading image: {e}")
+                print(f"Error uploading image to Cloudinary: {e}")
+                return jsonify({'ok': False, 'error': f'Image upload failed: {str(e)}'}), 500
     else:
         # Handle JSON data
         payload = request.get_json(silent=True) or {}
@@ -346,22 +336,36 @@ ALLOWED_IMAGE_EXT = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 def upload_image():
     if 'image' not in request.files:
         return jsonify({'ok': False, 'error': 'No image provided'}), 400
-    f = request.files['image']
-    if f.filename == '':
+    
+    image_file = request.files['image']
+    if image_file.filename == '':
         return jsonify({'ok': False, 'error': 'Empty filename'}), 400
-    filename = secure_filename(f.filename) if f.filename else ''
-    if not filename:
-        return jsonify({'ok': False, 'error': 'Invalid filename'}), 400
-    ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
-    if ext not in ALLOWED_IMAGE_EXT:
-        return jsonify({'ok': False, 'error': 'Unsupported file type'}), 400
-    new_name = f"{int(time.time()*1000)}_{uuid.uuid4().hex}.{ext}"
-    save_path = _path.join(UPLOAD_DIR, new_name)
-    f.save(save_path)
-    # public URL via /uploads - generate absolute URL to prevent mixed content issues
-    base_url = request.host_url.rstrip('/')
-    url = f"{base_url}/uploads/community/{new_name}"
-    return jsonify({'ok': True, 'url': url})
+    
+    try:
+        # Validate file
+        from upload import allowed_file
+        if not allowed_file(image_file.filename):
+            return jsonify({'ok': False, 'error': 'Invalid file type'}), 400
+        
+        # Use Cloudinary for image upload
+        from cloudinary_config import upload_image_to_cloudinary
+        
+        # Upload to Cloudinary
+        upload_result = upload_image_to_cloudinary(image_file, 'community')
+        url = upload_result['url']
+        
+        return jsonify({
+            'ok': True, 
+            'url': url,
+            'public_id': upload_result['public_id'],
+            'format': upload_result['format']
+        })
+    except ImportError as e:
+        print(f"Cloudinary import error: {e}")
+        return jsonify({'ok': False, 'error': 'Cloudinary package not installed'}), 500
+    except Exception as e:
+        print(f"Error uploading image to Cloudinary: {e}")
+        return jsonify({'ok': False, 'error': f'Image upload failed: {str(e)}'}), 500
 
 
 # Typing indicator endpoints (simple stateless broadcast)

@@ -9,6 +9,9 @@ import { FaSpa } from 'react-icons/fa';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'https://fit-hub-portal-1.onrender.com';
 
+// Debug log to verify the API base URL
+console.log('Login Page API Base URL:', API_BASE_URL);
+
 // Match YogaIndexPage hero background
 const heroBg = 'https://images6.alphacoders.com/126/thumb-1920-1263719.jpg';
 

@@ -173,7 +173,7 @@ const ExtendedCommunityPage = () => {
           imageUrl = await uploadImage(newPostImage, 'community/posts');
         } catch (uploadError) {
           console.error('Image upload error:', uploadError);
-          alert('Failed to upload image: ' + uploadError.message);
+          alert('Failed to upload image: ' + (uploadError.message || 'Please check your internet connection and try again'));
           return;
         }
       }
@@ -208,7 +208,7 @@ const ExtendedCommunityPage = () => {
       fetchPosts();
     } catch (error) {
       console.error('Error creating post:', error);
-      alert('Failed to create post: ' + error.message);
+      alert('Failed to create post: ' + (error.message || 'Please try again later'));
     }
   };
 
