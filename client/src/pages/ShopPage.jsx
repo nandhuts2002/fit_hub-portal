@@ -23,6 +23,7 @@ import OrderSuccessModal from "../components/OrderSuccessModal";
 import OrderHistory from "../components/OrderHistory";
 import NotificationSystem from "../components/NotificationSystem";
 import FlyToCartDumbbell from "../components/FlyToCartDumbbell";
+import RecommendationsSection from "../components/RecommendationsSection";
 
 // Enhanced sample products with more details
 const products = [
@@ -1009,6 +1010,15 @@ const ShopPage = () => {
                 </div>
               </div>
             </div>
+
+            {/* Recommendations Section */}
+            <RecommendationsSection 
+              onProductClick={(productName) => {
+                // Search for products matching the recommendation
+                setSearchTerm(productName);
+                setSelectedCategory('All');
+              }}
+            />
 
             {/* Product Grid */}
             {loading ? (

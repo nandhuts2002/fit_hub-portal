@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local Recommendations Test - FitHub</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            width: 100%;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        .results {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .recommendation {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: 1px solid #e1e5e9;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .confidence {
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #f44336;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Local Recommendations Test</h1>
+        <p style="text-align: center; color: #666; margin-bottom: 30px;">
+            This test works offline and provides fallback recommendations when the backend is unavailable.
+        </p>
+        
+        <form id="recommendationForm">
+            <div class="form-group">
+                <label for="age">Age:</label>
+                <input type="number" id="age" name="age" value="25" min="13" max="100" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="gender">Gender:</label>
+                <select id="gender" name="gender" required>
+                    <option value="M">Male</option>
+                    <option value="F">Female</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="goal">Fitness Goal:</label>
+                <select id="goal" name="goal" required>
+                    <option value="Muscle Gain">Muscle Gain</option>
+                    <option value="Weight Loss">Weight Loss</option>
+                    <option value="General Fitness">General Fitness</option>
+                    <option value="Endurance">Endurance</option>
+                    <option value="Strength">Strength</option>
+                    <option value="Flexibility">Flexibility</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="experience">Experience Level:</label>
+                <select id="experience" name="experience" required>
+                    <option value="Beginner">Beginner</option>
+                    <option value="Intermediate">Intermediate</option>
+                    <option value="Advanced">Advanced</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="budget">Budget ($):</label>
+                <input type="number" id="budget" name="budget" value="50" min="0" required>
+            </div>
+            
+            <button type="submit">Get Recommendations</button>
+        </form>
+        
+        <div id="results"></div>
+    </div>
+
+    <script>
+        // Fallback recommendations (same as in React component)
+        function getFallbackRecommendations(profile) {
+            const { goal, experience, budget } = profile;
+            
+            const fallbackProducts = {
+                'Muscle Gain': [
+                    { product: 'Whey Protein', confidence: 0.9 },
+                    { product: 'Creatine', confidence: 0.8 },
+                    { product: 'Mass Gainer', confidence: 0.7 }
+                ],
+                'Weight Loss': [
+                    { product: 'Green Tea Extract', confidence: 0.9 },
+                    { product: 'CLA', confidence: 0.8 },
+                    { product: 'Fat Burner', confidence: 0.7 }
+                ],
+                'General Fitness': [
+                    { product: 'Multivitamin', confidence: 0.9 },
+                    { product: 'Omega-3', confidence: 0.8 },
+                    { product: 'Joint Support', confidence: 0.7 }
+                ],
+                'Endurance': [
+                    { product: 'Electrolytes', confidence: 0.9 },
+                    { product: 'Energy Gel', confidence: 0.8 },
+                    { product: 'Beta-Alanine', confidence: 0.7 }
+                ],
+                'Strength': [
+                    { product: 'Advanced Creatine', confidence: 0.9 },
+                    { product: 'Power Complex', confidence: 0.8 },
+                    { product: 'Peak Performance Stack', confidence: 0.7 }
+                ],
+                'Flexibility': [
+                    { product: 'Magnesium', confidence: 0.9 },
+                    { product: 'Turmeric', confidence: 0.8 },
+                    { product: 'Glucosamine', confidence: 0.7 }
+                ]
+            };
+            
+            const products = fallbackProducts[goal] || fallbackProducts['General Fitness'];
+            
+            return products.map((item, index) => ({
+                rank: index + 1,
+                product: item.product,
+                confidence: item.confidence
+            }));
+        }
+        
+        function displayRecommendations(recommendations) {
+            const resultsDiv = document.getElementById('results');
+            
+            let html = '<div class="results"><h3>🎯 Your Personalized Recommendations:</h3>';
+            
+            recommendations.forEach((rec, index) => {
+                const confidencePercent = (rec.confidence * 100).toFixed(0);
+                html += `
+                    <div class="recommendation">
+                        <div>
+                            <strong>#${rec.rank} ${rec.product}</strong>
+                        </div>
+                        <div class="confidence">${confidencePercent}% match</div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            resultsDiv.innerHTML = html;
+        }
+        
+        document.getElementById('recommendationForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const userProfile = {
+                age: parseInt(formData.get('age')),
+                gender: formData.get('gender'),
+                goal: formData.get('goal'),
+                experience: formData.get('experience'),
+                budget: parseInt(formData.get('budget'))
+            };
+            
+            console.log('User profile:', userProfile);
+            
+            // Get fallback recommendations
+            const recommendations = getFallbackRecommendations(userProfile);
+            
+            // Display results
+            displayRecommendations(recommendations);
+            
+            // Show success message
+            const resultsDiv = document.getElementById('results');
+            const successMsg = document.createElement('div');
+            successMsg.className = 'success';
+            successMsg.innerHTML = '✅ Recommendations generated successfully! (Using fallback system)';
+            resultsDiv.insertBefore(successMsg, resultsDiv.firstChild);
+        });
+        
+        // Auto-generate recommendations on page load
+        window.addEventListener('load', () => {
+            const form = document.getElementById('recommendationForm');
+            form.dispatchEvent(new Event('submit'));
+        });
+    </script>
+</body>
+</html>
