@@ -112,16 +112,21 @@ def serve_react_app(path):
         # Let Flask handle API routes
         return None
     
-    # Serve React app for all other routes
-    try:
-        return send_from_directory('client/build', path)
-    except:
-        # Fallback to index.html for client-side routing
+    # Check if it's a static asset (has file extension)
+    if '.' in path and not path.endswith('/'):
+        # Try to serve the static file
         try:
-            return send_from_directory('client/build', 'index.html')
-        except Exception as e:
-            print(f"Error serving React app: {e}")
-            return jsonify({'error': 'React app not found', 'message': 'Please ensure the React app is built'}), 404
+            return send_from_directory('client/build', path)
+        except:
+            # If static file not found, return 404
+            return jsonify({'error': 'File not found'}), 404
+    
+    # For all other routes (React Router routes), serve index.html
+    try:
+        return send_from_directory('client/build', 'index.html')
+    except Exception as e:
+        print(f"Error serving React app: {e}")
+        return jsonify({'error': 'React app not found', 'message': 'Please ensure the React app is built'}), 404
 
 # API status endpoint
 @app.route('/api/status')
