@@ -79,9 +79,9 @@ const NotificationSystem = () => {
 
       // Try to fetch from API
       try {
-        const response = await api.get(`/shop/api/notifications/${encodeURIComponent(currentUser.email)}`, {
-          headers: { Authorization: `Bearer ${currentUser.token}` }
-        });
+        // Use encodeURIComponent to properly encode the email
+        const encodedEmail = encodeURIComponent(currentUser.email);
+        const response = await api.get(`/shop/api/notifications/${encodedEmail}`);
         
         if (response.data.success && response.data.notifications) {
           setNotifications(response.data.notifications);
@@ -92,6 +92,7 @@ const NotificationSystem = () => {
         }
       } catch (apiError) {
         console.log('Notifications API not available, using localStorage fallback');
+        console.error('API Error:', apiError);
       }
 
       // Fallback to localStorage
@@ -119,9 +120,8 @@ const NotificationSystem = () => {
         if (!currentUser?.token || !currentUser?.email) return;
 
         // Check for order updates
-        const ordersResponse = await api.get(`/shop/api/orders/${encodeURIComponent(currentUser.email)}`, {
-          headers: { Authorization: `Bearer ${currentUser.token}` }
-        });
+        const encodedEmail = encodeURIComponent(currentUser.email);
+        const ordersResponse = await api.get(`/shop/api/orders/${encodedEmail}`);
 
         if (ordersResponse.data.success && ordersResponse.data.orders) {
           const orders = ordersResponse.data.orders;

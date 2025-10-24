@@ -1834,10 +1834,13 @@ def get_notifications(user_email):
         if not current_user_email or current_user_email != user_email:
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
-        print(f"Fetching notifications for user: {user_email}")
+        # URL decode the email parameter in case it's encoded
+        import urllib.parse
+        decoded_email = urllib.parse.unquote(user_email)
+        print(f"Fetching notifications for user: {decoded_email}")
 
         # Synthesize notifications from recent order updates as a simple, zero-DB model demo
-        orders = list(orders_collection.find({'user_email': user_email}).sort('updated_at', -1))
+        orders = list(orders_collection.find({'user_email': decoded_email}).sort('updated_at', -1))
 
         notifications = []
         for order in orders[:10]:

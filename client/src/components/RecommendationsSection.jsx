@@ -79,54 +79,23 @@ const RecommendationsSection = ({ onProductClick }) => {
     setError('');
     
     try {
-      // Use relative URL for local development, absolute URL for production
-      const API_BASE = process.env.NODE_ENV === 'development' 
-        ? '' // Use proxy in development
-        : (process.env.REACT_APP_API_BASE_URL || 'https://fit-hub-portal-1.onrender.com');
+      const response = await api.post('/api/recommendations', userProfile);
       
-      console.log('Loading recommendations from:', `${API_BASE}/api/recommendations`);
-      
-      const response = await fetch(`${API_BASE}/api/recommendations`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${currentUser.token}`
-        },
-        body: JSON.stringify(userProfile)
-      });
-
-      console.log('Response status:', response.status);
-      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-
-      // Check if response is HTML (error page) instead of JSON
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        console.error('Received non-JSON response:', text.substring(0, 200));
-        throw new Error('Server returned HTML instead of JSON. Backend might be down.');
-      }
-
-      const data = await response.json();
-      console.log('Response data:', data);
-      
-      if (response.ok && data.success) {
-        setRecommendations(data.recommendations);
+      if (response.data.success) {
+        setRecommendations(response.data.recommendations);
       } else {
-        setError(data.error || 'Failed to load recommendations');
+        setError(response.data.error || 'Failed to load recommendations');
       }
     } catch (err) {
       console.error('Error loading recommendations:', err);
-      if (err.message.includes('HTML instead of JSON')) {
-        setError('Backend is currently unavailable. Please try again later.');
-      } else if (err.message.includes('Failed to fetch')) {
+      if (err.response?.status === 401) {
+        setError('Authentication required. Please log in.');
+      } else if (err.code === 'ERR_NETWORK') {
         setError('Network error. Please check your connection and try again.');
+        // Show fallback recommendations when backend is down
+        setRecommendations(getFallbackRecommendations(userProfile));
       } else {
         setError('Unable to load recommendations. Please try again.');
-      }
-      
-      // Show fallback recommendations when backend is down
-      if (err.message.includes('HTML instead of JSON') || err.message.includes('Failed to fetch')) {
-        setRecommendations(getFallbackRecommendations(userProfile));
       }
     } finally {
       setLoading(false);
