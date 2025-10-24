@@ -15,7 +15,7 @@ from server.profile import profile_bp
 from server.ai import ai_bp
 from server.exercise_gifs import exercise_gifs_bp
 from server.upload import upload_bp
-from server.recommendations import recommendations_bp
+from server.simple_recommendations import simple_recommendations_bp as recommendations_bp
 from dotenv import load_dotenv
 import os
 from datetime import timedelta
