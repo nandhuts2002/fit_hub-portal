@@ -1,8 +1,11 @@
 // API utilities for extended community features
+import SessionManager from './sessionManager';
+
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
 
 const getAuthHeaders = () => {
-  const token = localStorage.getItem('token');
+  const currentUser = SessionManager.getCurrentUser();
+  const token = currentUser?.token;
   return token ? { 'Authorization': `Bearer ${token}` } : {};
 };
 

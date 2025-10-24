@@ -4,6 +4,7 @@ import { Star, Heart, MessageCircle, Upload, Award, Eye, Camera, Edit, Trash2, M
 import { spotlightsApi } from '../../utils/communityExtendedApi';
 import { uploadImage, validateImageFile } from '../../utils/imageUpload';
 import { useToast } from '../../contexts/ToastContext';
+import SessionManager from '../../utils/sessionManager';
 
 const SpotlightsSection = () => {
   const [spotlights, setSpotlights] = useState([]);
@@ -21,7 +22,8 @@ const SpotlightsSection = () => {
     fetchSpotlights();
     
     // Get current user info
-    const token = localStorage.getItem('token');
+    const currentUser = SessionManager.getCurrentUser();
+    const token = currentUser?.token;
     console.log('Token found:', !!token);
     if (token) {
       try {
@@ -71,7 +73,7 @@ const SpotlightsSection = () => {
       const response = await fetch(`http://localhost:5000/community/spotlights/${spotlightId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${SessionManager.getCurrentUser()?.token}`,
           'Content-Type': 'application/json'
         }
       });
@@ -114,7 +116,7 @@ const SpotlightsSection = () => {
       const response = await fetch(`http://localhost:5000/community/spotlights/${selectedSpotlight.id}/comments`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${SessionManager.getCurrentUser()?.token}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({

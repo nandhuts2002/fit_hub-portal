@@ -22,6 +22,7 @@ import locationService from '../utils/locationService';
 import exerciseApi from '../utils/exerciseApi';
 import GymDetailsModal from '../components/GymDetailsModal';
 import EventDetailsModal from '../components/EventDetailsModal';
+import SessionManager from '../utils/sessionManager';
 
 const LocationFeaturesPage = () => {
   const [activeTab, setActiveTab] = useState('gyms');
@@ -52,7 +53,8 @@ const LocationFeaturesPage = () => {
     
     try {
       // Check authentication first
-      const token = localStorage.getItem('token');
+      const currentUser = SessionManager.getCurrentUser();
+      const token = currentUser?.token;
       console.log('Token found:', !!token);
       if (!token) {
         setError('Please log in to access location features.');

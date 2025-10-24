@@ -9,7 +9,8 @@ class PaymentService {
   // Create Razorpay order for event booking
   async createEventPaymentOrder(eventData, userData) {
     try {
-      const token = SessionManager.getCurrentUser()?.token || localStorage.getItem('token');
+      const currentUser = SessionManager.getCurrentUser();
+      const token = currentUser?.token;
       if (!token) {
         throw new Error('Authentication required');
       }
@@ -46,7 +47,8 @@ class PaymentService {
   // Create Razorpay order for gym membership
   async createGymPaymentOrder(gymData, userData, membershipType = 'monthly') {
     try {
-      const token = SessionManager.getCurrentUser()?.token || localStorage.getItem('token');
+      const currentUser = SessionManager.getCurrentUser();
+      const token = currentUser?.token;
       if (!token) {
         throw new Error('Authentication required');
       }
@@ -83,7 +85,8 @@ class PaymentService {
   // Verify payment signature
   async verifyPayment(paymentData) {
     try {
-      const token = SessionManager.getCurrentUser()?.token || localStorage.getItem('token');
+      const currentUser = SessionManager.getCurrentUser();
+      const token = currentUser?.token;
       if (!token) {
         throw new Error('Authentication required');
       }
@@ -155,7 +158,8 @@ class PaymentService {
   // Create booking record pending admin approval (best-effort)
   async createPendingBooking({ kind, refId, meta }) {
     try {
-      const token = SessionManager.getCurrentUser()?.token || localStorage.getItem('token');
+      const currentUser = SessionManager.getCurrentUser();
+      const token = currentUser?.token;
       if (!token) return; // best-effort
       await fetch(`${this.apiBaseUrl}/location/api/bookings`, {
         method: 'POST',

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, TrendingUp, Award, CheckCircle, Plus, Activity, X } from 'lucide-react';
 import { challengesApi, badgesApi } from '../../utils/communityExtendedApi';
+import SessionManager from '../../utils/sessionManager';
 
 const ChallengeProgressTracker = ({ refreshTrigger, onSwitchToChallenges }) => {
   const [myChallenges, setMyChallenges] = useState([]);
@@ -14,7 +15,8 @@ const ChallengeProgressTracker = ({ refreshTrigger, onSwitchToChallenges }) => {
 
   useEffect(() => {
     // Get current user
-    const token = localStorage.getItem('token');
+    const currentUser = SessionManager.getCurrentUser();
+    const token = currentUser?.token;
     if (token) {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));

@@ -4,6 +4,7 @@ import { Trophy, Users, Calendar, Target, Plus, Award, Trash2, TrendingUp, X, Ey
 import { validateChallenge } from '../../utils/formValidation';
 import { challengesApi } from '../../utils/communityExtendedApi';
 import { useToast } from '../../contexts/ToastContext';
+import SessionManager from '../../utils/sessionManager';
 
 const ChallengesSection = ({ onSwitchToProgress }) => {
   const [challenges, setChallenges] = useState([]);
@@ -21,7 +22,8 @@ const ChallengesSection = ({ onSwitchToProgress }) => {
     fetchChallenges();
     
     // Get current user info
-    const token = localStorage.getItem('token');
+    const currentUser = SessionManager.getCurrentUser();
+    const token = currentUser?.token;
     console.log('Token found:', !!token);
     if (token) {
       try {
@@ -33,7 +35,7 @@ const ChallengesSection = ({ onSwitchToProgress }) => {
         console.error('Error parsing token:', error);
       }
     } else {
-      console.log('No token found in localStorage');
+      console.log('No token found in session');
     }
   }, []);
 
@@ -58,7 +60,8 @@ const ChallengesSection = ({ onSwitchToProgress }) => {
 
   const fetchChallengeProgress = async (challengeId) => {
     try {
-      const token = localStorage.getItem('token');
+      const currentUser = SessionManager.getCurrentUser();
+      const token = currentUser?.token;
       if (!token) return;
       
       const payload = JSON.parse(atob(token.split('.')[1]));
@@ -86,7 +89,8 @@ const ChallengesSection = ({ onSwitchToProgress }) => {
     try {
       setJoiningChallengeId(challengeId);
       
-      const token = localStorage.getItem('token');
+      const currentUser = SessionManager.getCurrentUser();
+      const token = currentUser?.token;
       if (!token) {
         showError('Please login to join challenges');
         return;

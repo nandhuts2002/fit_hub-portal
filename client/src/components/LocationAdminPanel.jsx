@@ -79,7 +79,8 @@ const LocationAdminPanel = () => {
   const geocodeAndValidateAddress = async (address, city, state) => {
     try {
       setIsValidatingLocation(true);
-      const token = localStorage.getItem('token');
+      const currentUser = SessionManager.getCurrentUser();
+      const token = currentUser?.token;
       const response = await fetch(`${API_BASE}/location/geocode`, {
         method: 'POST',
         headers: {
@@ -139,7 +140,8 @@ const LocationAdminPanel = () => {
   // Manual location validation
   const validateLocation = async (latitude, longitude, city, state) => {
     try {
-      const token = localStorage.getItem('token');
+      const currentUser = SessionManager.getCurrentUser();
+      const token = currentUser?.token;
       const response = await fetch(`${API_BASE}/location/validate-location`, {
         method: 'POST',
         headers: {

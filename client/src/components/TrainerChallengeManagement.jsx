@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Users, Calendar, Target, Plus, Award, Trash2, Edit2, TrendingUp, Activity } from 'lucide-react';
 import { challengesApi } from '../utils/communityExtendedApi';
+import SessionManager from '../utils/sessionManager';
 
 const TrainerChallengeManagement = () => {
   const [challenges, setChallenges] = useState([]);
@@ -17,7 +18,8 @@ const TrainerChallengeManagement = () => {
     fetchChallenges();
     
     // Get current user info
-    const token = localStorage.getItem('token');
+    const currentUser = SessionManager.getCurrentUser();
+    const token = currentUser?.token;
     if (token) {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));

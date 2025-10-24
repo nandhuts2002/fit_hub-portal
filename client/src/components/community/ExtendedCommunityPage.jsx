@@ -6,6 +6,7 @@ import BadgesSection from './BadgesSection';
 import QASection from './QASection';
 import SpotlightsSection from './SpotlightsSection';
 import EnhancedPostCard from './EnhancedPostCard';
+import SessionManager from '../../utils/sessionManager';
 
 const ExtendedCommunityPage = () => {
   const [activeTab, setActiveTab] = useState('feed');
@@ -28,7 +29,8 @@ const ExtendedCommunityPage = () => {
 
   useEffect(() => {
     // Get user info from JWT or session
-    const token = localStorage.getItem('token');
+    const currentUser = SessionManager.getCurrentUser();
+    const token = currentUser?.token;
     if (token) {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
@@ -88,7 +90,8 @@ const ExtendedCommunityPage = () => {
 
   const handleReact = async (postId, emoji) => {
     try {
-      const token = localStorage.getItem('token');
+      const currentUser = SessionManager.getCurrentUser();
+      const token = currentUser?.token;
       const response = await fetch(`/community/posts/${postId}/react`, {
         method: 'POST',
         headers: {
@@ -108,7 +111,8 @@ const ExtendedCommunityPage = () => {
 
   const handleVote = async (postId, optionIndex) => {
     try {
-      const token = localStorage.getItem('token');
+      const currentUser = SessionManager.getCurrentUser();
+      const token = currentUser?.token;
       const response = await fetch(`/community/posts/${postId}/poll/vote`, {
         method: 'POST',
         headers: {
@@ -152,7 +156,8 @@ const ExtendedCommunityPage = () => {
     }
 
     try {
-      const token = localStorage.getItem('token');
+      const currentUser = SessionManager.getCurrentUser();
+      const token = currentUser?.token;
       
       if (newPostImage) {
         // Handle file upload

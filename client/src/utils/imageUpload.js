@@ -1,4 +1,6 @@
 // Image upload utility for community features
+import SessionManager from './sessionManager';
+
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
 
 export const uploadImage = async (file, folder = 'community') => {
@@ -7,7 +9,8 @@ export const uploadImage = async (file, folder = 'community') => {
     formData.append('image', file);
     formData.append('folder', folder);
 
-    const token = localStorage.getItem('token');
+    const currentUser = SessionManager.getCurrentUser();
+    const token = currentUser?.token;
     const response = await fetch(`${API_BASE_URL}/upload/image`, {
       method: 'POST',
       headers: {

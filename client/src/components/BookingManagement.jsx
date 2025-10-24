@@ -16,6 +16,7 @@ import {
   Search,
   RefreshCw
 } from 'lucide-react';
+import SessionManager from '../utils/sessionManager';
 
 const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://fit-hub-portal-1.onrender.com';
 
@@ -37,7 +38,8 @@ const BookingManagement = () => {
     setError(null);
     
     try {
-      const token = localStorage.getItem('token');
+      const currentUser = SessionManager.getCurrentUser();
+      const token = currentUser?.token;
       if (!token) {
         throw new Error('Authentication required');
       }
@@ -71,7 +73,8 @@ const BookingManagement = () => {
 
   const updateBookingStatus = async (bookingId, newStatus, type) => {
     try {
-      const token = localStorage.getItem('token');
+      const currentUser = SessionManager.getCurrentUser();
+      const token = currentUser?.token;
       const endpoint = type === 'event' 
         ? `${API_BASE}/location/admin/event-bookings/${bookingId}/status`
         : `${API_BASE}/location/admin/gym-memberships/${bookingId}/status`;

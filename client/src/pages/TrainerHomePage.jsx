@@ -55,7 +55,8 @@ const TrainerHomePage = () => {
 
   const fetchTrainerData = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const currentUser = SessionManager.getCurrentUser();
+      const token = currentUser?.token;
       const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
       
       // Fetch stats
@@ -96,7 +97,8 @@ const TrainerHomePage = () => {
   const handleCreateOrUpdateTutorial = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
+      const currentUser = SessionManager.getCurrentUser();
+      const token = currentUser?.token;
       const tutorialData = {
         ...tutorialForm,
         tags: tutorialForm.tags.split(',').map(tag => tag.trim()).filter(tag => tag),
@@ -147,7 +149,8 @@ const TrainerHomePage = () => {
 
   const handleAssignQuery = async (queryId) => {
     try {
-      const token = localStorage.getItem('token');
+      const currentUser = SessionManager.getCurrentUser();
+      const token = currentUser?.token;
       const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
       const response = await fetch(`${API_BASE}/trainer/queries/${queryId}/assign`, {
         method: 'POST',
@@ -170,7 +173,8 @@ const TrainerHomePage = () => {
   const handleRespondToQuery = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
+      const currentUser = SessionManager.getCurrentUser();
+      const token = currentUser?.token;
       const payload = { response: responseForm.response?.trim() };
       if (!payload.response || payload.response.length < 5) {
         alert('Response must be at least 5 characters.');
@@ -211,7 +215,8 @@ const TrainerHomePage = () => {
 
   const handleSaveEditedResponse = async () => {
     try {
-      const token = localStorage.getItem('token');
+      const currentUser = SessionManager.getCurrentUser();
+      const token = currentUser?.token;
       const text = editingResponseText.trim();
       if (!text || text.length < 5) {
         alert('Response must be at least 5 characters.');
@@ -774,7 +779,8 @@ const TrainerHomePage = () => {
                           </button>
                           <button
                             onClick={async () => {
-                              const token = localStorage.getItem('token');
+                              const currentUser = SessionManager.getCurrentUser();
+                              const token = currentUser?.token;
                               if (!window.confirm('Delete this tutorial?')) return;
                               try {
                                 const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';

@@ -1,4 +1,6 @@
 // Location-based services for FitHub
+import SessionManager from './sessionManager';
+
 class LocationService {
   constructor() {
     this.currentLocation = null;
@@ -135,7 +137,8 @@ class LocationService {
   async getNearbyGyms(radius = 5) {
     try {
       const location = await this.getCurrentLocation();
-      const token = localStorage.getItem('token');
+      const currentUser = SessionManager.getCurrentUser();
+      const token = currentUser?.token;
       
       if (!token) {
         throw new Error('Authentication required');
@@ -250,7 +253,8 @@ class LocationService {
   async getNearbyTrainers(radius = 10) {
     try {
       const location = await this.getCurrentLocation();
-      const token = localStorage.getItem('token');
+      const currentUser = SessionManager.getCurrentUser();
+      const token = currentUser?.token;
       
       if (!token) {
         throw new Error('Authentication required');
@@ -352,7 +356,8 @@ class LocationService {
   async getLocalEvents(radius = 15) {
     try {
       const location = await this.getCurrentLocation();
-      const token = localStorage.getItem('token');
+      const currentUser = SessionManager.getCurrentUser();
+      const token = currentUser?.token;
       
       if (!token) {
         throw new Error('Authentication required');
@@ -465,7 +470,8 @@ class LocationService {
   // Get gyms by city name
   async getGymsByCity(city, state = 'Kerala') {
     try {
-      const token = localStorage.getItem('token');
+      const currentUser = SessionManager.getCurrentUser();
+      const token = currentUser?.token;
       
       if (!token) {
         throw new Error('Authentication required');
@@ -513,7 +519,8 @@ class LocationService {
   // Get trainers by city name
   async getTrainersByCity(city, state = 'Kerala') {
     try {
-      const token = localStorage.getItem('token');
+      const currentUser = SessionManager.getCurrentUser();
+      const token = currentUser?.token;
       
       if (!token) {
         throw new Error('Authentication required');
@@ -553,7 +560,8 @@ class LocationService {
   // Get events by city name
   async getEventsByCity(city, state = 'Kerala') {
     try {
-      const token = localStorage.getItem('token');
+      const currentUser = SessionManager.getCurrentUser();
+      const token = currentUser?.token;
       
       if (!token) {
         throw new Error('Authentication required');
