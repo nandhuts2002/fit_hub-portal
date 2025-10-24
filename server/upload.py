@@ -29,31 +29,41 @@ def create_upload_folder(folder_path):
 def upload_image():
     """Upload an image file to Cloudinary"""
     try:
+        print("Upload endpoint called")
         # Check if file is present
         if 'image' not in request.files:
+            print("No image file in request")
             return jsonify({'ok': False, 'error': 'No image file provided'}), 400
         
         file = request.files['image']
+        print(f"File received: {file.filename}")
         folder = request.form.get('folder', 'community')
+        print(f"Folder: {folder}")
         
         # Check if file is selected
         if file.filename == '':
+            print("Empty filename")
             return jsonify({'ok': False, 'error': 'No file selected'}), 400
         
         # Check file type
         if not allowed_file(file.filename):
+            print(f"Invalid file type: {file.filename}")
             return jsonify({'ok': False, 'error': 'Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WebP'}), 400
         
         # Check file size
         file.seek(0, os.SEEK_END)
         file_size = file.tell()
         file.seek(0)
+        print(f"File size: {file_size}")
         
         if file_size > MAX_FILE_SIZE:
+            print("File too large")
             return jsonify({'ok': False, 'error': 'File too large. Maximum size: 5MB'}), 400
         
         # Upload to Cloudinary
+        print("Uploading to Cloudinary...")
         upload_result = upload_image_to_cloudinary(file, folder)
+        print(f"Upload result: {upload_result}")
         
         return jsonify({
             'ok': True,
@@ -64,7 +74,10 @@ def upload_image():
         })
         
     except ImportError as e:
+        print(f"Cloudinary import error: {str(e)}")
         return jsonify({'ok': False, 'error': 'Cloudinary package not installed. Please check server configuration.'}), 500
     except Exception as e:
-        print(f"Upload error: {str(e)}")  # Log the error for debugging
+        print(f"Upload error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'ok': False, 'error': f'Upload failed: {str(e)}'}), 500

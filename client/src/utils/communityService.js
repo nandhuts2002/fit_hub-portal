@@ -81,9 +81,15 @@ export async function addComment(postId, payload) {
 export async function uploadImage(file) {
   const form = new FormData();
   form.append('image', file);
-  const { data } = await axios.post(`${API_BASE}/community/upload-image`, form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  
+  // Get current user and token
+  const user = SessionManager.getCurrentUser?.() || {};
+  const headers = {
+    'Content-Type': 'multipart/form-data',
+    ...(user?.token ? { Authorization: `Bearer ${user.token}` } : {})
+  };
+  
+  const { data } = await axios.post(`${API_BASE}/community/upload-image`, form, { headers });
   if (!data.ok) throw new Error(data.error || 'Failed to upload image');
   // Return absolute URL for immediate display
   const url = data.url.startsWith('http') ? data.url : `${API_BASE}${data.url}`;
@@ -323,7 +329,15 @@ export async function createStory({ file, user }) {
     // upload media first, then create story
     const form = new FormData();
     form.append('image', file);
-    const up = await axios.post(`${API_BASE}/community/upload-image`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
+    
+    // Get current user and token
+    const currentUser = SessionManager.getCurrentUser?.() || {};
+    const uploadHeaders = {
+      'Content-Type': 'multipart/form-data',
+      ...(currentUser?.token ? { Authorization: `Bearer ${currentUser.token}` } : {})
+    };
+    
+    const up = await axios.post(`${API_BASE}/community/upload-image`, form, { headers: uploadHeaders });
     const url = up.data?.url?.startsWith('http') ? up.data.url : `${API_BASE}${up.data?.url || ''}`;
     const { data } = await axios.post(`${API_BASE}/community/stories`, { mediaUrl: url, user });
     if (!data.ok) throw new Error(data.error || 'Failed to create story');
@@ -335,7 +349,15 @@ export async function createStory({ file, user }) {
       try {
         const form = new FormData();
         form.append('image', file);
-        const up = await axios.post(`${API_BASE}/community/upload-image`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
+        
+        // Get current user and token
+        const currentUser = SessionManager.getCurrentUser?.() || {};
+        const uploadHeaders = {
+          'Content-Type': 'multipart/form-data',
+          ...(currentUser?.token ? { Authorization: `Bearer ${currentUser.token}` } : {})
+        };
+        
+        const up = await axios.post(`${API_BASE}/community/upload-image`, form, { headers: uploadHeaders });
         mediaUrl = up.data?.url?.startsWith('http') ? up.data.url : `${API_BASE}${up.data?.url || ''}`;
       } catch {
         // Convert to base64 data URL for persistence across reloads
