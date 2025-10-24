@@ -8,6 +8,9 @@
         // This script should only redirect truly unknown paths, not React Router paths
         
         const path = window.location.pathname;
+        const search = window.location.search;
+        
+        console.log('404.html triggered for path:', path, 'search:', search);
         
         // List of known static asset paths that should return real 404s
         const staticAssetPaths = ['/assets/', '/images/', '/static/'];
@@ -34,7 +37,13 @@
             path === reactPath || path.startsWith(reactPath)
         );
         
-        console.log('404.html check:', { path, isStaticAsset, isAssetFile, isReactRouterPath });
+        console.log('404.html analysis:', { 
+            path, 
+            isStaticAsset, 
+            isAssetFile, 
+            isReactRouterPath,
+            hasQueryParams: !!search
+        });
         
         if (isStaticAsset || isAssetFile) {
             // For real static asset 404s, we don't redirect
@@ -45,10 +54,26 @@
             // But only if it looks like a React Router path
             if (isReactRouterPath) {
                 console.log('React Router path detected, redirecting to index.html for SPA handling');
+                // Store the full URL including query parameters
                 sessionStorage.setItem('redirect', window.location.pathname + window.location.search + window.location.hash);
                 window.location.href = '/';
             } else {
-                // For truly unknown paths, we might want to show a real 404 or redirect to home
+                // Special case: if we're on index.html with a 'from' parameter, redirect to that path
+                if (path === '/index.html' && search.includes('from=')) {
+                    const params = new URLSearchParams(search);
+                    const from = params.get('from');
+                    if (from) {
+                        try {
+                            const decodedFrom = decodeURIComponent(from);
+                            console.log('Redirecting from index.html to:', decodedFrom);
+                            window.location.replace(decodedFrom);
+                            return;
+                        } catch (e) {
+                            console.error('Error decoding redirect path:', e);
+                        }
+                    }
+                }
+                // For truly unknown paths, redirect to home
                 console.log('Unknown path, redirecting to home:', path);
                 window.location.href = '/';
             }
