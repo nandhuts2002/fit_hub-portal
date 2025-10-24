@@ -50,6 +50,22 @@
             console.log('Static asset not found, showing real 404 for:', path);
             // Do nothing, let the browser show a real 404
         } else {
+            // Special case: if we're on index.html with a 'from' parameter, redirect to that path
+            if (path === '/index.html' && search.includes('from=')) {
+                const params = new URLSearchParams(search);
+                const from = params.get('from');
+                if (from) {
+                    try {
+                        const decodedFrom = decodeURIComponent(from);
+                        console.log('Redirecting from index.html to:', decodedFrom);
+                        window.location.replace(decodedFrom);
+                        return;
+                    } catch (e) {
+                        console.error('Error decoding redirect path:', e);
+                    }
+                }
+            }
+            
             // For all other paths (including React Router routes), redirect to index.html
             // But only if it looks like a React Router path
             if (isReactRouterPath) {
@@ -58,21 +74,6 @@
                 sessionStorage.setItem('redirect', window.location.pathname + window.location.search + window.location.hash);
                 window.location.href = '/';
             } else {
-                // Special case: if we're on index.html with a 'from' parameter, redirect to that path
-                if (path === '/index.html' && search.includes('from=')) {
-                    const params = new URLSearchParams(search);
-                    const from = params.get('from');
-                    if (from) {
-                        try {
-                            const decodedFrom = decodeURIComponent(from);
-                            console.log('Redirecting from index.html to:', decodedFrom);
-                            window.location.replace(decodedFrom);
-                            return;
-                        } catch (e) {
-                            console.error('Error decoding redirect path:', e);
-                        }
-                    }
-                }
                 // For truly unknown paths, redirect to home
                 console.log('Unknown path, redirecting to home:', path);
                 window.location.href = '/';
