@@ -7,11 +7,13 @@ class SessionManager {
    */
   static setSession(userData) {
     try {
+      console.log('SessionManager.setSession called with:', userData);
       const sessionData = {
         ...userData,
         timestamp: Date.now()
       };
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(sessionData));
+      console.log('Session successfully set');
     } catch (error) {
       console.error('Failed to set session:', error);
     }
@@ -24,6 +26,7 @@ class SessionManager {
   static getSession() {
     try {
       const sessionStr = localStorage.getItem(this.STORAGE_KEY);
+      console.log('SessionManager.getSession - raw session:', sessionStr);
       
       if (!sessionStr) return null;
       
@@ -34,6 +37,7 @@ class SessionManager {
       const oneDay = 24 * 60 * 60 * 1000;
       
       if (now - session.timestamp > oneDay) {
+        console.log('Session expired, clearing...');
         this.clearSession();
         return null;
       }
@@ -50,7 +54,9 @@ class SessionManager {
    * @returns {Object|null} User data or null if not authenticated
    */
   static getCurrentUser() {
-    return this.getSession();
+    const session = this.getSession();
+    console.log('SessionManager.getCurrentUser - session:', session);
+    return session;
   }
 
   /**
@@ -82,12 +88,20 @@ class SessionManager {
           localStorage.removeItem('userRole');
           return true;
         }
+        console.log('SessionManager.isAuthenticated - no valid session found');
         return false;
       }
       
       // Validate session has required fields
       const isValid = !!(session.token && session.name && session.email);
-      console.log('SessionManager.isAuthenticated - validation result:', isValid, { hasToken: !!session.token, hasName: !!session.name, hasEmail: !!session.email });
+      console.log('SessionManager.isAuthenticated - validation result:', isValid, { 
+        hasToken: !!session.token, 
+        hasName: !!session.name, 
+        hasEmail: !!session.email,
+        token: session.token ? 'present' : 'missing',
+        name: session.name ? 'present' : 'missing',
+        email: session.email ? 'present' : 'missing'
+      });
       return isValid;
     } catch (error) {
       console.error('Authentication check failed:', error);
@@ -100,6 +114,7 @@ class SessionManager {
    */
   static clearSession() {
     try {
+      console.log('SessionManager.clearSession called');
       localStorage.removeItem(this.STORAGE_KEY);
       
       // Also clear legacy items if they exist
@@ -118,6 +133,7 @@ class SessionManager {
    * @returns {string} Redirect path
    */
   static getRedirectPath(role) {
+    console.log('SessionManager.getRedirectPath called with role:', role);
     switch (role) {
       case 'admin':
         return '/admin-home';

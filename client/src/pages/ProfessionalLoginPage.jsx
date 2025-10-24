@@ -89,15 +89,30 @@ const ProfessionalLoginPage = () => {
       const fromQuery = params.get('from');
       console.log('Login successful, checking redirect sources:', { fromState, fromQuery });
       
-      const decodedFromQuery = fromQuery ? decodeURIComponent(fromQuery) : undefined;
-      const safeFrom = decodedFromQuery && decodedFromQuery.startsWith('/') ? decodedFromQuery : undefined;
-      const defaultPath = SessionManager.getRedirectPath(res.data.user.role || 'user');
-      const isHomeLike = (p) => !p || p === '/' || p === '/home' || p === '/index';
-      const candidate = safeFrom && safeFrom !== '/login' ? safeFrom : (fromState && fromState !== '/login' ? fromState : undefined);
-      const target = candidate && !isHomeLike(candidate) ? candidate : defaultPath;
+      // Prefer state over query parameter
+      let redirectPath = fromState || fromQuery;
       
-      console.log('Redirecting to:', target);
-      navigate(target, { replace: true });
+      if (redirectPath) {
+        try {
+          // Decode if it's a query parameter
+          if (fromQuery) {
+            redirectPath = decodeURIComponent(redirectPath);
+          }
+          // Validate that it's a relative path
+          if (redirectPath.startsWith('/')) {
+            console.log('Redirecting to protected path:', redirectPath);
+            navigate(redirectPath, { replace: true });
+            return;
+          }
+        } catch (decodeError) {
+          console.error('Error decoding redirect path:', decodeError);
+        }
+      }
+      
+      // Fallback to role-based redirect
+      const defaultPath = SessionManager.getRedirectPath(res.data.user.role || 'user');
+      console.log('Redirecting to default path:', defaultPath);
+      navigate(defaultPath, { replace: true });
     } catch (err) {
       setErrors({ submit: err?.response?.data?.msg || 'Invalid credentials. Please try again.' });
     } finally {
@@ -134,15 +149,30 @@ const ProfessionalLoginPage = () => {
         const fromQuery = params.get('from');
         console.log('Google login successful, checking redirect sources:', { fromState, fromQuery });
         
-        const decodedFromQuery = fromQuery ? decodeURIComponent(fromQuery) : undefined;
-        const safeFrom = decodedFromQuery && decodedFromQuery.startsWith('/') ? decodedFromQuery : undefined;
-        const redirectPath = SessionManager.getRedirectPath(response.data.user.role || 'user');
-        const isHomeLike = (p) => !p || p === '/' || p === '/home' || p === '/index';
-        const candidate = safeFrom && safeFrom !== '/login' ? safeFrom : (fromState && fromState !== '/login' ? fromState : undefined);
-        const target = candidate && !isHomeLike(candidate) ? candidate : redirectPath;
+        // Prefer state over query parameter
+        let redirectPath = fromState || fromQuery;
         
-        console.log('Redirecting to:', target);
-        navigate(target, { replace: true });
+        if (redirectPath) {
+          try {
+            // Decode if it's a query parameter
+            if (fromQuery) {
+              redirectPath = decodeURIComponent(redirectPath);
+            }
+            // Validate that it's a relative path
+            if (redirectPath.startsWith('/')) {
+              console.log('Redirecting to protected path:', redirectPath);
+              navigate(redirectPath, { replace: true });
+              return;
+            }
+          } catch (decodeError) {
+            console.error('Error decoding redirect path:', decodeError);
+          }
+        }
+        
+        // Fallback to role-based redirect
+        const defaultPath = SessionManager.getRedirectPath(response.data.user.role || 'user');
+        console.log('Redirecting to default path:', defaultPath);
+        navigate(defaultPath, { replace: true });
       } catch (backendError) {
         SessionManager.setSession({
           token: 'google-temp-token',
@@ -283,7 +313,7 @@ const ProfessionalLoginPage = () => {
                   >
                     {showPassword ? (
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.542 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                       </svg>
                     ) : (
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

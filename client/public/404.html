@@ -4,8 +4,9 @@
     <meta charset="utf-8" />
     <title>Redirecting...</title>
     <script>
-        // This is a SPA (Single Page Application), so all routes should go to index.html
-        // except for static assets like images, CSS, JS files
+        // For Render with serve -s, we need to be more careful about redirects
+        // This script should only redirect truly unknown paths, not React Router paths
+        
         const path = window.location.pathname;
         
         // List of known static asset paths that should return real 404s
@@ -19,13 +20,38 @@
         // Also check file extensions that indicate static assets
         const isAssetFile = /\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|json|xml|pdf|zip|mp4|webm|ogg)$/i.test(path);
         
+        // List of known React Router paths that should be handled by the SPA
+        const reactRouterPaths = [
+            '/', '/login', '/signup', '/forgot-password', '/reset-password',
+            '/user-home', '/admin-home', '/trainer-home', '/tutorials', '/workouts',
+            '/queries', '/shop', '/wishlist', '/cart', '/community', '/community-posts',
+            '/orders', '/location-features', '/exercise-database', '/yoga-poses',
+            '/services', '/profile', '/u/', '/p/', '/trainer/', '/shop/', '/services/'
+        ];
+        
+        // Check if this is a React Router path
+        const isReactRouterPath = reactRouterPaths.some(reactPath => 
+            path === reactPath || path.startsWith(reactPath)
+        );
+        
+        console.log('404.html check:', { path, isStaticAsset, isAssetFile, isReactRouterPath });
+        
         if (isStaticAsset || isAssetFile) {
             // For real static asset 404s, we don't redirect
             console.log('Static asset not found, showing real 404 for:', path);
+            // Do nothing, let the browser show a real 404
         } else {
             // For all other paths (including React Router routes), redirect to index.html
-            sessionStorage.setItem('redirect', window.location.pathname + window.location.search + window.location.hash);
-            window.location.href = '/';
+            // But only if it looks like a React Router path
+            if (isReactRouterPath) {
+                console.log('React Router path detected, redirecting to index.html for SPA handling');
+                sessionStorage.setItem('redirect', window.location.pathname + window.location.search + window.location.hash);
+                window.location.href = '/';
+            } else {
+                // For truly unknown paths, we might want to show a real 404 or redirect to home
+                console.log('Unknown path, redirecting to home:', path);
+                window.location.href = '/';
+            }
         }
     </script>
 </head>
