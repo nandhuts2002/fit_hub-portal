@@ -5,7 +5,7 @@ import SessionManager from './sessionManager';
 // IMPORTANT: This should be set in Render environment variables
 // Example: REACT_APP_API_BASE_URL=https://your-vercel-backend.vercel.app
 // Ensure no trailing slash
-const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || 'https://fit-hub-portal-1.onrender.com').replace(/\/$/, '');
+const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || 'https://fit-hub-portal-1.vercel.app').replace(/\/$/, '');
 
 // Debug log to verify the API base URL
 console.log('API Base URL:', API_BASE_URL);

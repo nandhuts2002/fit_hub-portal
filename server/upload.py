@@ -29,7 +29,9 @@ def create_upload_folder(folder_path):
 def upload_image():
     """Upload an image file to Cloudinary"""
     try:
-        print("Upload endpoint called")
+        print("Main upload endpoint called")
+        print(f"Vercel environment: {os.getenv('VERCEL')}")
+        
         # Check if file is present
         if 'image' not in request.files:
             print("No image file in request")
@@ -37,6 +39,7 @@ def upload_image():
         
         file = request.files['image']
         print(f"File received: {file.filename}")
+        print(f"File content type: {file.content_type}")
         folder = request.form.get('folder', 'community')
         print(f"Folder: {folder}")
         

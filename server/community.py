@@ -335,38 +335,74 @@ ALLOWED_IMAGE_EXT = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 @community_bp.route('/upload-image', methods=['POST'])
 @jwt_required()
 def upload_image():
-    if 'image' not in request.files:
-        return jsonify({'ok': False, 'error': 'No image provided'}), 400
-    
-    image_file = request.files['image']
-    if image_file.filename == '':
-        return jsonify({'ok': False, 'error': 'Empty filename'}), 400
-    
     try:
-        # Validate file
-        from upload import allowed_file
-        if not allowed_file(image_file.filename):
-            return jsonify({'ok': False, 'error': 'Invalid file type'}), 400
+        print("Community upload endpoint called")
+        print(f"Vercel environment: {os.getenv('VERCEL')}")
         
-        # Use Cloudinary for image upload
-        from cloudinary_config import upload_image_to_cloudinary
+        # Debug: Check if required modules are available
+        try:
+            import cloudinary
+            import cloudinary.uploader
+            print("Cloudinary modules imported successfully")
+        except ImportError as e:
+            print(f"Cloudinary import error: {str(e)}")
+            return jsonify({'ok': False, 'error': f'Cloudinary package not available: {str(e)}'}), 500
         
-        # Upload to Cloudinary
-        upload_result = upload_image_to_cloudinary(image_file, 'community')
-        url = upload_result['url']
+        if 'image' not in request.files:
+            print("No image file in request")
+            return jsonify({'ok': False, 'error': 'No image provided'}), 400
         
-        return jsonify({
-            'ok': True, 
-            'url': url,
-            'public_id': upload_result['public_id'],
-            'format': upload_result['format']
-        })
-    except ImportError as e:
-        print(f"Cloudinary import error: {e}")
-        return jsonify({'ok': False, 'error': 'Cloudinary package not installed'}), 500
+        image_file = request.files['image']
+        print(f"File received: {image_file.filename}")
+        print(f"File content type: {image_file.content_type}")
+        print(f"File size: {len(image_file.read()) if hasattr(image_file, 'read') else 'Unknown'}")
+        image_file.seek(0)  # Reset file pointer after reading
+        
+        if image_file.filename == '':
+            print("Empty filename")
+            return jsonify({'ok': False, 'error': 'Empty filename'}), 400
+        
+        try:
+            # Validate file
+            from upload import allowed_file
+            if not allowed_file(image_file.filename):
+                print(f"Invalid file type: {image_file.filename}")
+                return jsonify({'ok': False, 'error': 'Invalid file type'}), 400
+        except Exception as e:
+            print(f"Error validating file: {str(e)}")
+            return jsonify({'ok': False, 'error': f'File validation failed: {str(e)}'}), 500
+        
+        try:
+            # Use Cloudinary for image upload
+            from cloudinary_config import upload_image_to_cloudinary
+            
+            # Upload to Cloudinary
+            print("Uploading to Cloudinary...")
+            upload_result = upload_image_to_cloudinary(image_file, 'community')
+            print(f"Upload result: {upload_result}")
+            
+            url = upload_result['url']
+            
+            return jsonify({
+                'ok': True, 
+                'url': url,
+                'public_id': upload_result['public_id'],
+                'format': upload_result['format']
+            })
+        except ImportError as e:
+            print(f"Cloudinary import error: {str(e)}")
+            return jsonify({'ok': False, 'error': 'Cloudinary package not installed'}), 500
+        except Exception as e:
+            print(f"Error uploading image to Cloudinary: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'ok': False, 'error': f'Image upload failed: {str(e)}'}), 500
+            
     except Exception as e:
-        print(f"Error uploading image to Cloudinary: {e}")
-        return jsonify({'ok': False, 'error': f'Image upload failed: {str(e)}'}), 500
+        print(f"Unexpected error in upload endpoint: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'ok': False, 'error': f'Unexpected error: {str(e)}'}), 500
 
 
 # Typing indicator endpoints (simple stateless broadcast)

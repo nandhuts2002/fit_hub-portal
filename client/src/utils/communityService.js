@@ -79,6 +79,8 @@ export async function addComment(postId, payload) {
 }
 
 export async function uploadImage(file) {
+  console.log('Uploading image to community endpoint', file);
+  
   const form = new FormData();
   form.append('image', file);
   
@@ -89,11 +91,20 @@ export async function uploadImage(file) {
     ...(user?.token ? { Authorization: `Bearer ${user.token}` } : {})
   };
   
-  const { data } = await axios.post(`${API_BASE}/community/upload-image`, form, { headers });
-  if (!data.ok) throw new Error(data.error || 'Failed to upload image');
-  // Return absolute URL for immediate display
-  const url = data.url.startsWith('http') ? data.url : `${API_BASE}${data.url}`;
-  return url;
+  console.log('Upload headers:', headers);
+  
+  try {
+    const { data } = await axios.post(`${API_BASE}/community/upload-image`, form, { headers });
+    console.log('Upload response:', data);
+    
+    if (!data.ok) throw new Error(data.error || 'Failed to upload image');
+    // Return absolute URL for immediate display
+    const url = data.url.startsWith('http') ? data.url : `${API_BASE}${data.url}`;
+    return url;
+  } catch (error) {
+    console.error('Upload error:', error);
+    throw error;
+  }
 }
 
 export async function deletePost(postId, token) {
