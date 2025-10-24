@@ -23,6 +23,8 @@ const ProfessionalLoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  console.log('LoginPage mounted with location:', location);
+
   // Redirect authenticated users away from login page
   useEffect(() => {
     if (SessionManager.isAuthenticated()) {
@@ -81,15 +83,20 @@ const ProfessionalLoginPage = () => {
         avatar: res.data.user.avatar || res.data.user.photoURL || ''
       });
 
+      // Handle redirect after successful login
       const fromState = location.state?.from;
       const params = new URLSearchParams(location.search);
       const fromQuery = params.get('from');
+      console.log('Login successful, checking redirect sources:', { fromState, fromQuery });
+      
       const decodedFromQuery = fromQuery ? decodeURIComponent(fromQuery) : undefined;
       const safeFrom = decodedFromQuery && decodedFromQuery.startsWith('/') ? decodedFromQuery : undefined;
       const defaultPath = SessionManager.getRedirectPath(res.data.user.role || 'user');
       const isHomeLike = (p) => !p || p === '/' || p === '/home' || p === '/index';
       const candidate = safeFrom && safeFrom !== '/login' ? safeFrom : (fromState && fromState !== '/login' ? fromState : undefined);
       const target = candidate && !isHomeLike(candidate) ? candidate : defaultPath;
+      
+      console.log('Redirecting to:', target);
       navigate(target, { replace: true });
     } catch (err) {
       setErrors({ submit: err?.response?.data?.msg || 'Invalid credentials. Please try again.' });
@@ -121,15 +128,20 @@ const ProfessionalLoginPage = () => {
           avatar: response.data.user.avatar || response.data.user.photoURL || user.photoURL || ''
         });
 
+        // Handle redirect after successful login
         const fromState = location.state?.from;
         const params = new URLSearchParams(location.search);
         const fromQuery = params.get('from');
+        console.log('Google login successful, checking redirect sources:', { fromState, fromQuery });
+        
         const decodedFromQuery = fromQuery ? decodeURIComponent(fromQuery) : undefined;
         const safeFrom = decodedFromQuery && decodedFromQuery.startsWith('/') ? decodedFromQuery : undefined;
         const redirectPath = SessionManager.getRedirectPath(response.data.user.role || 'user');
         const isHomeLike = (p) => !p || p === '/' || p === '/home' || p === '/index';
         const candidate = safeFrom && safeFrom !== '/login' ? safeFrom : (fromState && fromState !== '/login' ? fromState : undefined);
         const target = candidate && !isHomeLike(candidate) ? candidate : redirectPath;
+        
+        console.log('Redirecting to:', target);
         navigate(target, { replace: true });
       } catch (backendError) {
         SessionManager.setSession({
@@ -141,6 +153,7 @@ const ProfessionalLoginPage = () => {
         });
         const from = location.state?.from;
         const target = from && from !== '/login' ? from : '/user-home';
+        console.log('Google login fallback redirect to:', target);
         navigate(target, { replace: true });
       }
     } catch (err) {
@@ -165,6 +178,7 @@ const ProfessionalLoginPage = () => {
     const decodedFromQuery = fromQuery ? decodeURIComponent(fromQuery) : undefined;
     const safeFrom = decodedFromQuery && decodedFromQuery.startsWith('/') ? decodedFromQuery : undefined;
     const target = safeFrom || fromState || '/';
+    console.log('Back to home clicked, redirecting to:', target);
     navigate(target, { replace: true });
   };
 

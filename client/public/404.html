@@ -4,9 +4,29 @@
     <meta charset="utf-8" />
     <title>Redirecting...</title>
     <script>
-        // Redirect all 404s to index.html for client-side routing
-        sessionStorage.setItem('redirect', window.location.pathname + window.location.search + window.location.hash);
-        window.location.href = '/';
+        // This is a SPA (Single Page Application), so all routes should go to index.html
+        // except for static assets like images, CSS, JS files
+        const path = window.location.pathname;
+        
+        // List of known static asset paths that should return real 404s
+        const staticAssetPaths = ['/assets/', '/images/', '/static/'];
+        
+        // Check if this is a request for a static asset
+        const isStaticAsset = staticAssetPaths.some(staticPath => 
+            path.startsWith(staticPath)
+        );
+        
+        // Also check file extensions that indicate static assets
+        const isAssetFile = /\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|json|xml|pdf|zip|mp4|webm|ogg)$/i.test(path);
+        
+        if (isStaticAsset || isAssetFile) {
+            // For real static asset 404s, we don't redirect
+            console.log('Static asset not found, showing real 404 for:', path);
+        } else {
+            // For all other paths (including React Router routes), redirect to index.html
+            sessionStorage.setItem('redirect', window.location.pathname + window.location.search + window.location.hash);
+            window.location.href = '/';
+        }
     </script>
 </head>
 <body>

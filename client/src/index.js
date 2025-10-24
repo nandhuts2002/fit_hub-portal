@@ -72,6 +72,7 @@ const checkAuthAndRedirect = () => {
       const hash = window.location.hash || '';
       const from = encodeURIComponent(`${path}${search}${hash}`);
       window.location.replace(`/login?from=${from}`);
+      return; // Important: stop execution after redirect
     }
   } catch (err) {
     console.error('Auth check error:', err);
@@ -79,7 +80,11 @@ const checkAuthAndRedirect = () => {
 };
 
 // Check authentication on page load
-checkAuthAndRedirect();
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', checkAuthAndRedirect);
+} else {
+  checkAuthAndRedirect();
+}
 
 // Ensure auth is re-validated on back/forward cache restores
 window.addEventListener('pageshow', (event) => {
@@ -103,4 +108,3 @@ window.addEventListener('pageshow', (event) => {
 window.addEventListener('popstate', () => {
   setTimeout(checkAuthAndRedirect, 50);
 });
-

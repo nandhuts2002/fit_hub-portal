@@ -18,7 +18,11 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
   // If not authenticated, redirect to login with current location
   if (!isAuthenticated) {
     console.log('Not authenticated, redirecting to login');
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+    // We need to preserve the search parameters as well
+    const searchParams = new URLSearchParams(location.search);
+    const from = encodeURIComponent(location.pathname + location.search + location.hash);
+    console.log('Redirecting to login with from parameter:', from);
+    return <Navigate to={`/login?from=${from}`} replace />;
   }
 
   // Medical acknowledgement gate for first-time users
@@ -35,15 +39,19 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
     const needsAck = !ack?.accepted || ageDays > DAYS_VALID;
     if (role === 'user' && needsAck && !isMedicalPage) {
       const next = encodeURIComponent(location.pathname + (location.search || ''));
+      console.log('Medical acknowledgement required, redirecting to medical check');
       return <Navigate to={`/services/medical-check?next=${next}`} replace />;
     }
-  } catch {}
+  } catch (error) {
+    console.error('Error in medical acknowledgement check:', error);
+  }
 
   // If specific role is required and user doesn't have it
   if (requiredRole && (!currentUser || currentUser.role !== requiredRole)) {
     console.log('Role mismatch, redirecting to appropriate dashboard');
     // Redirect to appropriate dashboard based on user's actual role
     const redirectPath = SessionManager.getRedirectPath(currentUser?.role);
+    console.log('Redirecting to:', redirectPath);
     return <Navigate to={redirectPath} replace />;
   }
 

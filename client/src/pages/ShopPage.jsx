@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import api from "../utils/api";
 import SessionManager from "../utils/sessionManager";
 import { motion, AnimatePresence } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   ShoppingCart,
   ShoppingBag,
@@ -159,6 +159,9 @@ const categories = [
 
 const ShopPage = () => {
   const navigate = useNavigate();
+  const location = useLocation(); // Add this to track location changes
+  
+  console.log('ShopPage mounted with location:', location);
   const cartBtnRef = useRef(null);
   const [flyAnim, setFlyAnim] = useState(null); // {start, end, key}
   const [cart, setCart] = useState(() => {
@@ -316,9 +319,13 @@ const ShopPage = () => {
           console.log('No products found, initializing sample data...');
           const currentUser = SessionManager.getCurrentUser();
           if (currentUser?.token) {
-            await api.post('/shop/api/init-shop-data', {}, {
-              headers: { Authorization: `Bearer ${currentUser.token}` }
-            });
+            try {
+              await api.post('/shop/api/init-shop-data', {}, {
+                headers: { Authorization: `Bearer ${currentUser.token}` }
+              });
+            } catch (initError) {
+              console.error('Error initializing shop data:', initError);
+            }
           }
           
           // Reload products after initialization
@@ -851,6 +858,13 @@ const ShopPage = () => {
       { enableHighAccuracy: true, timeout: 10000 }
     );
   };
+
+  // Add debug logging to track when the component mounts and any redirects
+  useEffect(() => {
+    console.log('ShopPage mounted at path:', location.pathname);
+    console.log('Current user:', SessionManager.getCurrentUser());
+    console.log('Is authenticated:', SessionManager.isAuthenticated());
+  }, []); // Empty dependency array to run only once on mount
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
