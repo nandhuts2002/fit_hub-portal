@@ -34,21 +34,10 @@ FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
 VERCEL_FRONTEND_URL = os.getenv('VERCEL_FRONTEND_URL', 'https://fit-hub-portal-2.vercel.app')
 VERCEL_BACKEND_URL = os.getenv('VERCEL_URL', 'https://fit-hub-portal-1.vercel.app')
 
-# CORS configuration - allow all Render subdomains and local development
+# CORS configuration - allow all origins for development and production
 CORS(app, 
     resources={r"/*": {
-        "origins": [
-            FRONTEND_URL,                          # Production frontend from env
-            "http://localhost:3000",               # Local development
-            "http://localhost:3001",               # Local development (alternative port)
-            "http://localhost:5000",               # Local backend testing
-            "https://fit-hub-portal-2.onrender.com",  # Frontend deployment
-            "https://fit-hub-portal-1.onrender.com",  # Backend deployment (for testing)
-            "https://fit-hub-portal-2.vercel.app",    # Vercel frontend deployment
-            "https://fit-hub-portal-1.vercel.app",    # Vercel backend deployment
-            VERCEL_FRONTEND_URL,                   # Dynamic Vercel frontend URL
-            VERCEL_BACKEND_URL                     # Dynamic Vercel backend URL
-        ],
+        "origins": "*",  # Allow all origins for now
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"],
         "supports_credentials": True
