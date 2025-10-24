@@ -75,16 +75,25 @@ const RecommendationsSection = ({ onProductClick }) => {
   }, [isLoggedIn]);
 
   const loadRecommendations = async () => {
+    // Only load recommendations if user is logged in
+    if (!isLoggedIn) {
+      return;
+    }
+    
     setLoading(true);
     setError('');
     
     try {
+      console.log('Loading recommendations with profile:', userProfile);
       const response = await api.post('/api/recommendations', userProfile);
+      console.log('Recommendations response:', response.data);
       
       if (response.data.success) {
         setRecommendations(response.data.recommendations);
       } else {
         setError(response.data.error || 'Failed to load recommendations');
+        // Show fallback recommendations when backend returns an error
+        setRecommendations(getFallbackRecommendations(userProfile));
       }
     } catch (err) {
       console.error('Error loading recommendations:', err);
@@ -96,6 +105,8 @@ const RecommendationsSection = ({ onProductClick }) => {
         setRecommendations(getFallbackRecommendations(userProfile));
       } else {
         setError('Unable to load recommendations. Please try again.');
+        // Show fallback recommendations when there's an error
+        setRecommendations(getFallbackRecommendations(userProfile));
       }
     } finally {
       setLoading(false);
@@ -127,22 +138,10 @@ const RecommendationsSection = ({ onProductClick }) => {
     return 'Fair Match';
   };
 
+  // Don't render anything if user is not logged in
+  // The parent component should handle showing login prompt
   if (!isLoggedIn) {
-    return (
-      <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-6 mb-8">
-        <div className="text-center">
-          <Sparkles className="w-12 h-12 text-blue-500 mx-auto mb-4" />
-          <h3 className="text-xl font-bold text-gray-900 mb-2">Get Personalized Recommendations</h3>
-          <p className="text-gray-600 mb-4">Sign in to get AI-powered product recommendations based on your fitness goals!</p>
-          <button 
-            onClick={() => window.location.href = '/login'}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-medium transition-colors"
-          >
-            Sign In for Recommendations
-          </button>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (

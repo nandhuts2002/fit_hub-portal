@@ -13,7 +13,26 @@ const redirect = sessionStorage.getItem('redirect');
 if (redirect) {
   console.log('Restoring URL from 404 redirect:', redirect);
   sessionStorage.removeItem('redirect');
-  window.history.replaceState(null, '', redirect);
+  // Use window.location.replace instead of history.replaceState for more reliable redirect
+  window.location.replace(redirect);
+} else {
+  // Check if we're on index.html with query parameters and redirect appropriately
+  if (window.location.pathname === '/index.html') {
+    const params = new URLSearchParams(window.location.search);
+    const from = params.get('from');
+    if (from) {
+      try {
+        const decodedFrom = decodeURIComponent(from);
+        console.log('Redirecting from index.html to:', decodedFrom);
+        // Remove the query parameter and redirect to the proper path
+        window.location.replace(decodedFrom);
+      } catch (e) {
+        console.error('Error decoding redirect path:', e);
+        // Fallback to home
+        window.location.replace('/');
+      }
+    }
+  }
 }
 
 // Check if root element exists
