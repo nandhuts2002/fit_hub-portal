@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ToastProvider } from './contexts/ToastContext';
 
 // ✅ Import all actual components
@@ -40,12 +40,20 @@ import ProductDetailsPage from './pages/ProductDetailsPage';
 import ProfilePage from './pages/ProfilePage';
 // If you want a dedicated page for Plate Analyzer later, we can add it similarly.
 
+// Debug component to track current route
+const RouteDebugger = () => {
+  const location = useLocation();
+  console.log('Current route:', location.pathname, 'Search:', location.search);
+  return null;
+};
+
 function App() {
   console.log('App component rendering...');
 
   return (
     <ToastProvider>
       <Router>
+        <RouteDebugger />
         <Routes>
         {/* Main homepage - Premium Yoga Design */}
         <Route path="/" element={<YogaIndexPage />} />
@@ -231,7 +239,7 @@ function App() {
         <Route path="/userhome" element={<Navigate to="/user-home" replace />} />
         <Route path="/adminhome" element={<Navigate to="/admin-home" replace />} />
         
-        {/* Catch all route - redirect to home */}
+        {/* Catch all route - redirect to home (only for truly unknown routes) */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>

@@ -60,11 +60,13 @@ class SessionManager {
   static isAuthenticated() {
     try {
       const session = this.getSession();
+      console.log('SessionManager.isAuthenticated - session:', session);
       
       // Legacy check for older session format
       if (!session) {
         const legacyToken = localStorage.getItem('token');
         const legacyUserName = localStorage.getItem('userName');
+        console.log('SessionManager.isAuthenticated - legacy check:', { legacyToken: !!legacyToken, legacyUserName: !!legacyUserName });
         
         if (legacyToken && legacyUserName) {
           // Migrate legacy session
@@ -84,7 +86,9 @@ class SessionManager {
       }
       
       // Validate session has required fields
-      return !!(session.token && session.name && session.email);
+      const isValid = !!(session.token && session.name && session.email);
+      console.log('SessionManager.isAuthenticated - validation result:', isValid, { hasToken: !!session.token, hasName: !!session.name, hasEmail: !!session.email });
+      return isValid;
     } catch (error) {
       console.error('Authentication check failed:', error);
       return false;

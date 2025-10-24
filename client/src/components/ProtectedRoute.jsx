@@ -18,10 +18,12 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
   // If not authenticated, redirect to login with current location
   if (!isAuthenticated) {
     console.log('Not authenticated, redirecting to login');
+    console.log('Current location:', location);
     // We need to preserve the search parameters as well
     const searchParams = new URLSearchParams(location.search);
     const from = encodeURIComponent(location.pathname + location.search + location.hash);
     console.log('Redirecting to login with from parameter:', from);
+    console.log('Full redirect URL:', `/login?from=${from}`);
     return <Navigate to={`/login?from=${from}`} replace />;
   }
 
