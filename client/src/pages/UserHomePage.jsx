@@ -716,7 +716,7 @@ const UserHomePage = () => {
                       Change Profile Photo
                     </button>
                     <button
-                      onClick={() => { setMenuOpen(false); navigate("/user-home"); }}
+                      onClick={() => { setMenuOpen(false); navigate("/profile"); }}
                       className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
                     >
                       <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1"><UserIcon className="w-4 h-4" /></span>
