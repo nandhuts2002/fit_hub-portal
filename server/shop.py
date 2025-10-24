@@ -1831,13 +1831,16 @@ def get_notifications(user_email):
     try:
         identity = get_jwt_identity()
         current_user_email = _get_email_from_identity(identity)
-        if not current_user_email or current_user_email != user_email:
-            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-
+        
         # URL decode the email parameter in case it's encoded
         import urllib.parse
         decoded_email = urllib.parse.unquote(user_email)
-        print(f"Fetching notifications for user: {decoded_email}")
+        print(f"Fetching notifications - Requested email: {user_email}, Decoded: {decoded_email}, Current user: {current_user_email}")
+
+        # Check authorization - compare decoded email with current user email (case insensitive)
+        if not current_user_email or current_user_email.lower() != decoded_email.lower():
+            print(f"Authorization failed - Current user: {current_user_email}, Requested: {decoded_email}")
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
         # Synthesize notifications from recent order updates as a simple, zero-DB model demo
         orders = list(orders_collection.find({'user_email': decoded_email}).sort('updated_at', -1))
