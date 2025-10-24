@@ -98,8 +98,9 @@ const ProfessionalLoginPage = () => {
           if (fromQuery) {
             redirectPath = decodeURIComponent(redirectPath);
           }
-          // Validate that it's a relative path
-          if (redirectPath.startsWith('/')) {
+          // Validate that it's a relative path and not the index page
+          // If user came from index page, redirect to their dashboard instead
+          if (redirectPath.startsWith('/') && redirectPath !== '/') {
             console.log('Redirecting to protected path:', redirectPath);
             navigate(redirectPath, { replace: true });
             return;
@@ -158,8 +159,9 @@ const ProfessionalLoginPage = () => {
             if (fromQuery) {
               redirectPath = decodeURIComponent(redirectPath);
             }
-            // Validate that it's a relative path
-            if (redirectPath.startsWith('/')) {
+            // Validate that it's a relative path and not the index page
+            // If user came from index page, redirect to their dashboard instead
+            if (redirectPath.startsWith('/') && redirectPath !== '/') {
               console.log('Redirecting to protected path:', redirectPath);
               navigate(redirectPath, { replace: true });
               return;

@@ -135,7 +135,7 @@ const YogaIndexPage = () => {
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => navigate('/login', { state: { from: '/' } })}
+                    onClick={() => navigate('/login', { state: { from: '/user-home' } })}
                     className="group w-full sm:w-auto inline-flex items-center justify-center gap-3 px-6 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-400 hover:from-orange-600 hover:to-amber-500 text-black font-semibold shadow-lg shadow-orange-900/30 focus:outline-none focus:ring-2 focus:ring-orange-300"
                   >
                     Start Your Journey
