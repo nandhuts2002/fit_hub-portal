@@ -40,6 +40,7 @@ CORS(app,
         "origins": [
             FRONTEND_URL,                          # Production frontend from env
             "http://localhost:3000",               # Local development
+            "http://localhost:3001",               # Local development (alternative port)
             "http://localhost:5000",               # Local backend testing
             "https://fit-hub-portal-2.onrender.com",  # Frontend deployment
             "https://fit-hub-portal-1.onrender.com",  # Backend deployment (for testing)

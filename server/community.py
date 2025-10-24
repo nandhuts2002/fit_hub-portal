@@ -333,6 +333,7 @@ ALLOWED_IMAGE_EXT = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
 
 @community_bp.route('/upload-image', methods=['POST'])
+@jwt_required()
 def upload_image():
     if 'image' not in request.files:
         return jsonify({'ok': False, 'error': 'No image provided'}), 400
