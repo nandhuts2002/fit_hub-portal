@@ -15,6 +15,16 @@ except ImportError:
 
 community_bp = Blueprint('community', __name__)
 
+# Add explicit OPTIONS handler for CORS preflight requests
+@community_bp.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        response = jsonify()
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add('Access-Control-Allow-Headers', "*")
+        response.headers.add('Access-Control-Allow-Methods', "*")
+        return response
+
 ROOT_DIR = _path.dirname(__file__)
 DATA_FILE = _path.join(ROOT_DIR, 'community_posts.json')
 STORY_FILE = _path.join(ROOT_DIR, 'community_stories.json')
@@ -136,6 +146,8 @@ def create_post():
         image_file = request.files.get('image')
         
         if image_file and image_file.filename:
+            # Try Cloudinary first
+            cloudinary_success = False
             try:
                 # Validate file
                 if not allowed_file(image_file.filename):
@@ -148,44 +160,30 @@ def create_post():
                 upload_result = upload_image_to_cloudinary(image_file, 'community/posts')
                 image_url = upload_result['url']
                 print(f"Image uploaded to Cloudinary: {image_url}")
+                cloudinary_success = True
             except ImportError as e:
                 print(f"Cloudinary import error: {e}")
-                # On Vercel, Cloudinary is required
-                if os.getenv('VERCEL'):
-                    return jsonify({'ok': False, 'error': 'Cloudinary package not installed'}), 500
-                # In local development, fallback to local storage
-                else:
-                    try:
-                        filename = secure_filename(image_file.filename)
-                        if not filename:
-                            filename = f"post_image_{int(time.time())}.jpg"
-                        
-                        filepath = _path.join(UPLOAD_DIR, filename)
-                        image_file.save(filepath)
-                        image_url = f"/uploads/community/{filename}"
-                        print(f"Image saved locally: {image_url}")
-                    except Exception as local_e:
-                        print(f"Local upload also failed: {local_e}")
-                        return jsonify({'ok': False, 'error': f'Image upload failed: {str(e)}'}), 500
             except Exception as e:
                 print(f"Error uploading image to Cloudinary: {e}")
-                # On Vercel, Cloudinary is required
-                if os.getenv('VERCEL'):
-                    return jsonify({'ok': False, 'error': f'Image upload failed: {str(e)}'}), 500
-                # In local development, fallback to local storage
-                else:
-                    try:
-                        filename = secure_filename(image_file.filename)
-                        if not filename:
-                            filename = f"post_image_{int(time.time())}.jpg"
-                        
-                        filepath = _path.join(UPLOAD_DIR, filename)
-                        image_file.save(filepath)
-                        image_url = f"/uploads/community/{filename}"
-                        print(f"Image saved locally: {image_url}")
-                    except Exception as local_e:
-                        print(f"Local upload also failed: {local_e}")
-                        return jsonify({'ok': False, 'error': f'Image upload failed: {str(e)}'}), 500
+            
+            # Fallback to local storage if Cloudinary fails
+            if not cloudinary_success:
+                try:
+                    filename = secure_filename(image_file.filename)
+                    if not filename:
+                        filename = f"post_image_{int(time.time())}.jpg"
+                    
+                    # Save locally - create directory if it doesn't exist
+                    os.makedirs(UPLOAD_DIR, exist_ok=True)
+                    filepath = _path.join(UPLOAD_DIR, filename)
+                    # Reset file pointer to beginning
+                    image_file.seek(0)
+                    image_file.save(filepath)
+                    image_url = f"/uploads/community/{filename}"
+                    print(f"Image saved locally: {image_url}")
+                except Exception as local_e:
+                    print(f"Local upload also failed: {local_e}")
+                    return jsonify({'ok': False, 'error': f'Image upload failed: {str(local_e)}'}), 500
     else:
         # Handle JSON data
         payload = request.get_json(silent=True) or {}
@@ -194,9 +192,17 @@ def create_post():
     
     # Derive user from JWT to ensure ownership works for delete
     ident = get_jwt_identity() or {}
-    user_email = str(ident.get('email') or '').strip().lower()
-    user_name = ident.get('name') or ident.get('firstName') or ident.get('email') or 'Member'
-    user_avatar = ident.get('avatar') or ''
+    
+    # Handle case where ident is a string (email) vs dict
+    if isinstance(ident, str):
+        user_email = ident.strip().lower()
+        user_name = ident.split('@')[0] if '@' in ident else ident
+        user_avatar = ''
+    else:
+        # Original dictionary handling
+        user_email = str(ident.get('email') or '').strip().lower()
+        user_name = ident.get('name') or ident.get('firstName') or ident.get('email') or 'Member'
+        user_avatar = ident.get('avatar') or ''
     
     if not text and not image_url:
         return jsonify({'ok': False, 'error': 'Post must have text or image'}), 400
@@ -248,7 +254,13 @@ def create_post():
 @jwt_required()
 def delete_post(post_id):
     identity = get_jwt_identity() or {}
-    requester_email = (identity.get('email') or '').strip().lower()
+    
+    # Handle case where identity is a string (email) vs dict
+    if isinstance(identity, str):
+        requester_email = identity.strip().lower()
+    else:
+        requester_email = (identity.get('email') or '').strip().lower()
+        
     if not requester_email:
         return jsonify({'ok': False, 'error': 'Unauthorized'}), 401
     posts = _load_posts()
@@ -384,15 +396,6 @@ def upload_image():
             print(f"JWT authentication error: {str(e)}")
             return jsonify({'ok': False, 'error': 'Authentication failed'}), 401
         
-        # Debug: Check if required modules are available
-        try:
-            import cloudinary
-            import cloudinary.uploader
-            print("Cloudinary modules imported successfully")
-        except ImportError as e:
-            print(f"Cloudinary import error: {str(e)}")
-            return jsonify({'ok': False, 'error': f'Cloudinary package not available: {str(e)}'}), 500
-        
         if 'image' not in request.files:
             print("No image file in request")
             return jsonify({'ok': False, 'error': 'No image provided'}), 400
@@ -425,6 +428,7 @@ def upload_image():
             print(f"File too large: {file_size} bytes")
             return jsonify({'ok': False, 'error': 'File too large. Maximum size: 5MB'}), 400
         
+        # Try Cloudinary first
         try:
             # Use Cloudinary for image upload
             from cloudinary_config import upload_image_to_cloudinary
@@ -444,12 +448,34 @@ def upload_image():
             })
         except ImportError as e:
             print(f"Cloudinary import error: {str(e)}")
-            return jsonify({'ok': False, 'error': 'Cloudinary package not installed'}), 500
         except Exception as e:
             print(f"Error uploading image to Cloudinary: {str(e)}")
             import traceback
             traceback.print_exc()
-            return jsonify({'ok': False, 'error': f'Image upload failed: {str(e)}'}), 500
+        
+        # Fallback to local storage if Cloudinary fails
+        try:
+            filename = secure_filename(image_file.filename or '')
+            if not filename:
+                filename = f"uploaded_image_{int(time.time())}.jpg"
+            
+            # Save locally - create directory if it doesn't exist
+            os.makedirs(UPLOAD_DIR, exist_ok=True)
+            filepath = _path.join(UPLOAD_DIR, filename)
+            # Reset file pointer to beginning
+            image_file.seek(0)
+            image_file.save(filepath)
+            local_url = f"/uploads/community/{filename}"
+            print(f"Image saved locally: {local_url}")
+            
+            return jsonify({
+                'ok': True,
+                'url': local_url,
+                'message': 'Image saved locally due to Cloudinary unavailability'
+            })
+        except Exception as local_e:
+            print(f"Local upload also failed: {local_e}")
+            return jsonify({'ok': False, 'error': f'Image upload failed: {str(local_e)}'}), 500
             
     except Exception as e:
         print(f"Unexpected error in upload endpoint: {str(e)}")

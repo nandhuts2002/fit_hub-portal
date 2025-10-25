@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 import os
 import uuid
+import time
 from werkzeug.utils import secure_filename
 try:
     from cloudinary_config import upload_image_to_cloudinary
@@ -34,7 +35,7 @@ def create_upload_folder(folder_path):
 @upload_bp.route('/upload/image', methods=['POST'])
 @jwt_required()
 def upload_image():
-    """Upload an image file to Cloudinary"""
+    """Upload an image file to Cloudinary with local fallback"""
     try:
         print("Main upload endpoint called")
         print(f"Vercel environment: {os.getenv('VERCEL')}")
@@ -73,22 +74,55 @@ def upload_image():
             print("File too large")
             return jsonify({'ok': False, 'error': 'File too large. Maximum size: 5MB'}), 400
         
-        # Upload to Cloudinary
-        print("Uploading to Cloudinary...")
-        upload_result = upload_image_to_cloudinary(file, folder)
-        print(f"Upload result: {upload_result}")
+        # Try Cloudinary first
+        try:
+            # Upload to Cloudinary
+            print("Uploading to Cloudinary...")
+            upload_result = upload_image_to_cloudinary(file, folder)
+            print(f"Upload result: {upload_result}")
+            
+            return jsonify({
+                'ok': True,
+                'url': upload_result['url'],
+                'public_id': upload_result['public_id'],
+                'format': upload_result['format'],
+                'size': file_size
+            })
+        except ImportError as e:
+            print(f"Cloudinary import error: {str(e)}")
+        except Exception as e:
+            print(f"Cloudinary upload error: {str(e)}")
+            import traceback
+            traceback.print_exc()
         
-        return jsonify({
-            'ok': True,
-            'url': upload_result['url'],
-            'public_id': upload_result['public_id'],
-            'format': upload_result['format'],
-            'size': file_size
-        })
+        # Fallback to local storage if Cloudinary fails
+        try:
+            filename = secure_filename(file.filename or f"uploaded_{int(time.time())}.jpg")
+            if not filename:
+                filename = f"uploaded_{int(time.time())}.jpg"
+            
+            # Ensure upload directory exists
+            upload_path = os.path.join(UPLOAD_FOLDER, folder)
+            os.makedirs(upload_path, exist_ok=True)
+            
+            # Save file locally
+            filepath = os.path.join(upload_path, filename)
+            # Reset file pointer to beginning
+            file.seek(0)
+            file.save(filepath)
+            local_url = f"/uploads/{folder}/{filename}"
+            print(f"Image saved locally: {local_url}")
+            
+            return jsonify({
+                'ok': True,
+                'url': local_url,
+                'message': 'Image saved locally due to Cloudinary unavailability',
+                'size': file_size
+            })
+        except Exception as local_e:
+            print(f"Local upload also failed: {local_e}")
+            return jsonify({'ok': False, 'error': f'Upload failed: {str(local_e)}'}), 500
         
-    except ImportError as e:
-        print(f"Cloudinary import error: {str(e)}")
-        return jsonify({'ok': False, 'error': 'Cloudinary package not installed. Please check server configuration.'}), 500
     except Exception as e:
         print(f"Upload error: {str(e)}")
         import traceback

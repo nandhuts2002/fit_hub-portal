@@ -98,6 +98,16 @@ app.register_blueprint(ai_bp)
 app.register_blueprint(exercise_gifs_bp)
 app.register_blueprint(upload_bp)
 
+# Add explicit handling for OPTIONS requests (CORS preflight)
+@app.before_request
+def handle_options():
+    if request.method == "OPTIONS":
+        response = jsonify()
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add('Access-Control-Allow-Headers', "*")
+        response.headers.add('Access-Control-Allow-Methods', "*")
+        return response
+
 # Health check and Cloudinary test endpoint
 @app.route('/')
 def health_check():
