@@ -128,11 +128,12 @@ def list_posts():
 @jwt_required()
 def create_post():
     # Handle both form data (for file uploads) and JSON
+    image_url = ''
+    
     if request.content_type.startswith('multipart/form-data'):
         # Handle file upload with Cloudinary
         text = request.form.get('text', '').strip()
         image_file = request.files.get('image')
-        image_url = ''
         
         if image_file and image_file.filename:
             try:
@@ -146,12 +147,30 @@ def create_post():
                 # Upload to Cloudinary
                 upload_result = upload_image_to_cloudinary(image_file, 'community/posts')
                 image_url = upload_result['url']
+                print(f"Image uploaded to Cloudinary: {image_url}")
             except ImportError as e:
                 print(f"Cloudinary import error: {e}")
                 return jsonify({'ok': False, 'error': 'Cloudinary package not installed'}), 500
             except Exception as e:
                 print(f"Error uploading image to Cloudinary: {e}")
-                return jsonify({'ok': False, 'error': f'Image upload failed: {str(e)}'}), 500
+                # Fallback to local upload if Cloudinary fails
+                try:
+                    filename = secure_filename(image_file.filename)
+                    if not filename:
+                        filename = f"post_image_{int(time.time())}.jpg"
+                    
+                    # Only save locally if not on Vercel
+                    if not os.getenv('VERCEL'):
+                        filepath = _path.join(UPLOAD_DIR, filename)
+                        image_file.save(filepath)
+                        image_url = f"/uploads/community/{filename}"
+                        print(f"Image saved locally: {image_url}")
+                    else:
+                        # On Vercel, we must use Cloudinary
+                        return jsonify({'ok': False, 'error': f'Image upload failed: {str(e)}'}), 500
+                except Exception as local_e:
+                    print(f"Local upload also failed: {local_e}")
+                    return jsonify({'ok': False, 'error': f'Image upload failed: {str(e)}'}), 500
     else:
         # Handle JSON data
         payload = request.get_json(silent=True) or {}

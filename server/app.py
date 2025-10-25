@@ -101,10 +101,24 @@ app.register_blueprint(upload_bp)
 # Root route for health check
 @app.route('/')
 def health_check():
+    # Test Cloudinary configuration
+    cloudinary_status = "Unknown"
+    try:
+        import cloudinary
+        config = cloudinary.config()
+        if config.cloud_name and config.api_key:
+            cloudinary_status = "Configured"
+        else:
+            cloudinary_status = "Not configured properly"
+    except Exception as e:
+        cloudinary_status = f"Error: {str(e)}"
+    
     return jsonify({
         'status': 'OK',
         'message': 'Fit-Hub Portal Backend is running!',
-        'timestamp': datetime.utcnow().isoformat()
+        'timestamp': datetime.utcnow().isoformat(),
+        'cloudinary_status': cloudinary_status,
+        'cloudinary_cloud_name': os.getenv('CLOUDINARY_CLOUD_NAME', 'Not set')
     })
 
 # Serve uploaded files

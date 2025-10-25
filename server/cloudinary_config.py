@@ -34,6 +34,9 @@ def upload_image_to_cloudinary(file, folder='community'):
         if not config.api_secret:
             raise Exception("Cloudinary api_secret is not set. Check CLOUDINARY_API_SECRET environment variable.")
         
+        # Reset file pointer to beginning
+        file.seek(0)
+        
         # Upload file to Cloudinary
         print("Starting Cloudinary upload...")
         result = cloudinary.uploader.upload(
