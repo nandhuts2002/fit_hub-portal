@@ -4,6 +4,7 @@ import axios from 'axios';
 import SessionManager from '../utils/sessionManager';
 import AdminProductManagement from '../components/AdminProductManagement';
 import LocationAdminPanel from '../components/LocationAdminPanel';
+import EventBookingsAdmin from '../components/EventBookingsAdmin';
 import BookingManagement from '../components/BookingManagement';
 import api from '../utils/api';
 // import MusicAdminPanel from '../components/MusicAdminPanel';
@@ -2894,6 +2895,7 @@ const AdminHomePage = () => {
                 {activeTab === 'settings' && '⚙️ Settings'}
                 {activeTab === 'music' && '🎵 Music'}
                 {activeTab === 'location' && '📍 Location'}
+                {activeTab === 'event-bookings' && '🎫 Event Bookings'}
                 {activeTab === 'bookings' && '📋 Bookings'}
               </span>
             </div>
@@ -3115,6 +3117,17 @@ const AdminHomePage = () => {
 
               <div
                 className="nav-card"
+                onClick={() => handleTabChange('event-bookings')}
+              >
+                <div className="text-3xl mb-3">🎫</div>
+                <div>
+                  <h3 className="text-lg font-semibold text-secondary-900 mb-1">Event Bookings</h3>
+                  <p className="text-sm text-secondary-600">Manage event registrations</p>
+                </div>
+              </div>
+
+              <div
+                className="nav-card"
                 onClick={() => { handleTabChange('orders'); fetchOrders(); }}
               >
                 <div className="text-3xl mb-3">📦</div>
@@ -3162,6 +3175,7 @@ const AdminHomePage = () => {
         {activeTab === 'products' && <AdminProductManagement />}
         {activeTab === 'music' && <MusicAdminPanel />}
         {activeTab === 'location' && <LocationAdminPanel />}
+        {activeTab === 'event-bookings' && <EventBookingsAdmin />}
         {activeTab === 'bookings' && <BookingManagement />}
         {activeTab === 'orders' && renderOrders()}
         {activeTab === 'analytics' && renderAnalytics()}

@@ -148,7 +148,9 @@ const LocationFeaturesPage = () => {
   };
 
   const getWeatherIcon = (condition) => {
-    switch (condition) {
+    if (!condition) return <Cloud className="w-6 h-6 text-gray-500" />;
+    
+    switch (condition.toLowerCase()) {
       case 'sunny': return <Sun className="w-6 h-6 text-yellow-500" />;
       case 'cloudy': return <Cloud className="w-6 h-6 text-gray-500" />;
       case 'rainy': return <CloudRain className="w-6 h-6 text-blue-500" />;
@@ -157,18 +159,18 @@ const LocationFeaturesPage = () => {
   };
 
   const filteredGyms = nearbyGyms.filter(gym => 
-    gym.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    gym.address.toLowerCase().includes(searchTerm.toLowerCase())
+    (gym.name && gym.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (gym.address && gym.address.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const filteredTrainers = nearbyTrainers.filter(trainer => 
-    trainer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    trainer.specialization.toLowerCase().includes(searchTerm.toLowerCase())
+    (trainer.name && trainer.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (trainer.specialization && trainer.specialization.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const filteredEvents = localEvents.filter(event => 
-    event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    event.type.toLowerCase().includes(searchTerm.toLowerCase())
+    (event.title && event.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (event.type && event.type.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   if (loading) {
@@ -257,25 +259,25 @@ const LocationFeaturesPage = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="flex items-center gap-3">
                 <Thermometer className="w-5 h-5 text-red-500" />
-                <span className="text-gray-600">Temperature: {weatherData.weather?.temperature}°C</span>
+                <span className="text-gray-600">Temperature: {weatherData?.weather?.temperature || 'N/A'}°C</span>
               </div>
               <div className="flex items-center gap-3">
                 <Wind className="w-5 h-5 text-blue-500" />
-                <span className="text-gray-600">Wind: {weatherData.weather?.windSpeed} km/h</span>
+                <span className="text-gray-600">Wind: {weatherData?.weather?.windSpeed || 'N/A'} km/h</span>
               </div>
               <div className="flex items-center gap-3">
                 <Cloud className="w-5 h-5 text-gray-500" />
-                <span className="text-gray-600">Humidity: {weatherData.weather?.humidity}%</span>
+                <span className="text-gray-600">Humidity: {weatherData?.weather?.humidity || 'N/A'}%</span>
               </div>
             </div>
             <div className="mt-4">
               <h4 className="font-medium text-gray-900 mb-2">Recommended Activities:</h4>
               <div className="flex flex-wrap gap-2">
-                {weatherData.suggestions.map((suggestion, index) => (
+                {(weatherData?.suggestions || []).map((suggestion, index) => (
                   <div key={index} className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-sm text-gray-700 mb-1">{suggestion.reason}</p>
+                    <p className="text-sm text-gray-700 mb-1">{suggestion.reason || 'No reason provided'}</p>
                     <div className="flex flex-wrap gap-1">
-                      {suggestion.activities.map((activity, idx) => (
+                      {(suggestion.activities || []).map((activity, idx) => (
                         <span key={idx} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
                           {activity}
                         </span>
@@ -391,34 +393,34 @@ const LocationFeaturesPage = () => {
                     >
                       <div className="flex items-start justify-between mb-4">
                         <div>
-                          <h3 className="text-lg font-semibold text-gray-900">{gym.name}</h3>
-                          <p className="text-gray-600 text-sm">{gym.address}</p>
+                          <h3 className="text-lg font-semibold text-gray-900">{gym.name || 'Unnamed Gym'}</h3>
+                          <p className="text-gray-600 text-sm">{gym.address || 'Address not available'}</p>
                         </div>
                         <div className="flex items-center gap-1">
                           <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                          <span className="text-sm font-medium">{gym.rating}</span>
+                          <span className="text-sm font-medium">{gym.rating || 'N/A'}</span>
                         </div>
                       </div>
                       
                       <div className="space-y-2 mb-4">
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <Navigation className="w-4 h-4" />
-                          <span>{locationService.formatDistance(gym.distance)}</span>
+                          <span>{gym.distance ? locationService.formatDistance(gym.distance) : 'Distance unknown'}</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <Clock className="w-4 h-4" />
-                          <span>{gym.open_hours || gym.openHours}</span>
+                          <span>{gym.open_hours || gym.openHours || 'Hours not specified'}</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <DollarSign className="w-4 h-4" />
-                          <span>{gym.price}</span>
+                          <span>{gym.price || 'Price not specified'}</span>
                         </div>
                       </div>
 
                       <div className="mb-4">
                         <p className="text-sm text-gray-600 mb-2">Facilities:</p>
                         <div className="flex flex-wrap gap-1">
-                          {gym.facilities.map((facility, index) => (
+                          {(gym.facilities || []).map((facility, index) => (
                             <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
                               {facility}
                             </span>
@@ -504,34 +506,34 @@ const LocationFeaturesPage = () => {
                     >
                       <div className="flex items-start justify-between mb-4">
                         <div>
-                          <h3 className="text-lg font-semibold text-gray-900">{trainer.name}</h3>
-                          <p className="text-gray-600 text-sm">{trainer.specialization}</p>
+                          <h3 className="text-lg font-semibold text-gray-900">{trainer.name || 'Unnamed Trainer'}</h3>
+                          <p className="text-gray-600 text-sm">{trainer.specialization || 'Specialization not specified'}</p>
                         </div>
                         <div className="flex items-center gap-1">
                           <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                          <span className="text-sm font-medium">{trainer.rating}</span>
+                          <span className="text-sm font-medium">{trainer.rating || 'N/A'}</span>
                         </div>
                       </div>
                       
                       <div className="space-y-2 mb-4">
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <Navigation className="w-4 h-4" />
-                          <span>{locationService.formatDistance(trainer.distance)}</span>
+                          <span>{trainer.distance ? locationService.formatDistance(trainer.distance) : 'Distance unknown'}</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <Clock className="w-4 h-4" />
-                          <span>{trainer.experience}</span>
+                          <span>{trainer.experience || 'Experience not specified'}</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <DollarSign className="w-4 h-4" />
-                          <span>{trainer.price}</span>
+                          <span>{trainer.price || 'Price not specified'}</span>
                         </div>
                       </div>
 
                       <div className="mb-4">
                         <p className="text-sm text-gray-600 mb-2">Certifications:</p>
                         <div className="flex flex-wrap gap-1">
-                          {trainer.certifications.map((cert, index) => (
+                          {(trainer.certifications || []).map((cert, index) => (
                             <span key={index} className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
                               {cert}
                             </span>
@@ -580,38 +582,38 @@ const LocationFeaturesPage = () => {
                     >
                       <div className="flex items-start justify-between mb-4">
                         <div>
-                          <h3 className="text-lg font-semibold text-gray-900">{event.title}</h3>
-                          <p className="text-gray-600 text-sm">{event.location}</p>
+                          <h3 className="text-lg font-semibold text-gray-900">{event.title || 'Untitled Event'}</h3>
+                          <p className="text-gray-600 text-sm">{event.location || 'Location not specified'}</p>
                         </div>
                         <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                          {event.type}
+                          {event.type || 'Type not specified'}
                         </span>
                       </div>
                       
                       <div className="space-y-2 mb-4">
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <Calendar className="w-4 h-4" />
-                          <span>{event.date.toLocaleDateString()}</span>
+                          <span>{event.date ? new Date(event.date).toLocaleDateString() : 'Date not specified'}</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <Clock className="w-4 h-4" />
-                          <span>{event.time}</span>
+                          <span>{event.time || 'Time not specified'}</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <Navigation className="w-4 h-4" />
-                          <span>{locationService.formatDistance(event.distance)}</span>
+                          <span>{event.distance ? locationService.formatDistance(event.distance) : 'Distance unknown'}</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <Users className="w-4 h-4" />
-                          <span>{event.participants}/{event.max_participants || event.maxParticipants} participants</span>
+                          <span>{(event.participants || 0)}/{event.max_participants || event.maxParticipants || 'N/A'} participants</span>
                         </div>
                       </div>
 
                       <div className="mb-4">
-                        <p className="text-sm text-gray-600 mb-2">Organized by: {event.organizer}</p>
+                        <p className="text-sm text-gray-600 mb-2">Organized by: {event.organizer || 'Organizer not specified'}</p>
                         <div className="flex items-center gap-2">
                           <DollarSign className="w-4 h-4 text-green-600" />
-                          <span className="text-sm font-medium text-green-600">{event.price}</span>
+                          <span className="text-sm font-medium text-green-600">{event.price || 'Price not specified'}</span>
                         </div>
                       </div>
 

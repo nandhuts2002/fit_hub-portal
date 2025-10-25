@@ -46,6 +46,7 @@ events_collection = db['events']      # Local fitness events
 # Booking and membership collections
 event_bookings_collection = db['event_bookings']    # Event bookings with payment details
 gym_memberships_collection = db['gym_memberships']  # Gym memberships with payment details
+trainer_bookings_collection = db['trainer_bookings']  # Trainer session bookings with payment details
 
 # Community/Profile features
 # Stores community posts for profile grids (mirrors REST community posts)

@@ -26,7 +26,22 @@ from server.socketio_instance import socketio
 load_dotenv(dotenv_path=_path.join(_path.dirname(__file__), '.env'), override=True)
 
 app = Flask(__name__)
-CORS(app)
+
+# Configure CORS for production and development
+# Get frontend URL from environment variable
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+VERCEL_FRONTEND_URL = os.getenv('VERCEL_FRONTEND_URL', 'https://fit-hub-portal-2.vercel.app')
+VERCEL_BACKEND_URL = os.getenv('VERCEL_URL', 'https://fit-hub-portal-1.vercel.app')
+
+# CORS configuration - allow all origins for development and production
+CORS(app, 
+    resources={r"/*": {
+        "origins": "*",  # Allow all origins for now
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"],
+        "supports_credentials": True
+    }}
+)
 
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET')
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')

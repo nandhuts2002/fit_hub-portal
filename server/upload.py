@@ -3,7 +3,10 @@ from flask_jwt_extended import jwt_required
 import os
 import uuid
 from werkzeug.utils import secure_filename
-from cloudinary_config import upload_image_to_cloudinary
+try:
+    from cloudinary_config import upload_image_to_cloudinary
+except ImportError:
+    from server.cloudinary_config import upload_image_to_cloudinary
 from dotenv import load_dotenv
 
 # Load environment variables

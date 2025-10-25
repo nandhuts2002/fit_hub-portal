@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, url_for
+from flask import Blueprint, request, jsonify, url_for, make_response
 from flask import Blueprint, request, jsonify
 from models import users_collection
 from flask_bcrypt import Bcrypt
@@ -195,8 +195,11 @@ def check_email_exists():
         print(f"❌ Error checking email existence: {str(e)}")
         return jsonify({'exists': False, 'msg': 'Error checking email availability'}), 500
 
-@auth_bp.route('/login', methods=['POST'])
+@auth_bp.route('/login', methods=['POST', 'OPTIONS'])
 def login():
+    # Handle preflight OPTIONS request
+    if request.method == 'OPTIONS':
+        return jsonify({'success': True}), 200
     data = request.json
     email = data.get('email')
     password = data.get('password')
@@ -211,12 +214,22 @@ def login():
     
     if not user:
         print(f"   ❌ No user found with email '{email}'")
-        return jsonify({'msg': 'Invalid credentials'}), 401
+        response = make_response(jsonify({'msg': 'Invalid credentials'}), 401)
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        return response
     
     # Block login if email not verified (default True for legacy accounts)
     if user.get('role') != 'trainer':
         if user.get('verified') is False:
-            return jsonify({'msg': 'Email not verified. Please verify via the signup OTP.'}), 403
+            response = make_response(jsonify({'msg': 'Email not verified. Please verify via the signup OTP.'}), 403)
+            response.headers['Access-Control-Allow-Origin'] = '*'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            return response
 
     # Check if user has a password (Google users might not have one)
     if user.get('password'):
@@ -225,10 +238,20 @@ def login():
         
         if not password_valid:
             print(f"   ❌ Password verification failed")
-            return jsonify({'msg': 'Invalid credentials'}), 401
+            response = make_response(jsonify({'msg': 'Invalid credentials'}), 401)
+            response.headers['Access-Control-Allow-Origin'] = '*'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            return response
     else:
         print(f"   ❌ User has no password (Google user trying regular login)")
-        return jsonify({'msg': 'Invalid credentials'}), 401
+        response = make_response(jsonify({'msg': 'Invalid credentials'}), 401)
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+        return response
 
     print(f"   ✅ Login successful for {email} with role: {user.get('role', 'user')}")
     
@@ -255,11 +278,19 @@ def login():
         'id': str(user['_id'])
     }
     
-    return jsonify({
+    response = make_response(jsonify({
         'token': token,
         'user': user_data,
         'msg': 'Login successful'
-    }), 200
+    }), 200)
+    
+    # Add CORS headers
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    
+    return response
 
 # --- Signup with OTP (Two-step) ---
 @auth_bp.route('/signup-init', methods=['POST'])

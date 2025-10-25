@@ -380,11 +380,14 @@ class LocationService {
       
       if (data.success) {
         console.log('Successfully fetched events:', data.events.length);
-        // Convert date strings back to Date objects
-        return data.events.map(event => ({
-          ...event,
-          date: new Date(event.date)
-        }));
+        // Convert date strings back to Date objects and filter out past events
+        const now = new Date();
+        return data.events
+          .map(event => ({
+            ...event,
+            date: new Date(event.date)
+          }))
+          .filter(event => event.date >= now); // Only show future events
       } else {
         throw new Error(data.message || 'Failed to fetch events');
       }
@@ -584,11 +587,14 @@ class LocationService {
       
       if (data.success) {
         console.log(`Successfully fetched ${data.events.length} events for ${city}, ${state}`);
-        // Convert date strings back to Date objects
-        return data.events.map(event => ({
-          ...event,
-          date: new Date(event.date)
-        }));
+        // Convert date strings back to Date objects and filter out past events
+        const now = new Date();
+        return data.events
+          .map(event => ({
+            ...event,
+            date: new Date(event.date)
+          }))
+          .filter(event => event.date >= now); // Only show future events
       } else {
         throw new Error(data.message || 'Failed to fetch events');
       }

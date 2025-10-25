@@ -3,7 +3,7 @@ import SessionManager from './sessionManager';
 
 class PaymentService {
   constructor() {
-    this.apiBaseUrl = 'http://localhost:5000';
+    this.apiBaseUrl = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
   }
 
   // Create Razorpay order for event booking

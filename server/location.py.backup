@@ -4,10 +4,6 @@ from models import gyms_collection, trainers_collection, events_collection, user
 from bson import ObjectId
 from datetime import datetime, timedelta
 import math
-import requests
-import os
-import hmac
-import hashlib
 from geocoding_service import geocoding_service
 
 location_bp = Blueprint('location', __name__)
@@ -228,12 +224,8 @@ def get_local_events():
         if user_lat == 0 or user_lon == 0:
             return jsonify({'success': False, 'message': 'Location coordinates required'}), 400
         
-        # Get all events from database (only active and future events)
-        current_time = datetime.utcnow()
-        events = list(events_collection.find({
-            'status': 'active',
-            'date': {'$gte': current_time}  # Only events on or after current time
-        }))
+        # Get all events from database
+        events = list(events_collection.find({'status': 'active'}))
         
         local_events = []
         for event in events:
@@ -935,12 +927,8 @@ def get_events_by_city():
         
         print(f"Getting events for city: {city}, state: {state}")
         
-        # Search for events by city/state in location or city field (only future events)
-        current_time = datetime.utcnow()
-        query = {
-            'status': 'active',
-            'date': {'$gte': current_time}  # Only events on or after current time
-        }
+        # Search for events by city/state in location or city field
+        query = {'status': 'active'}
         
         if city:
             # Search for city name in the location or city field
@@ -989,54 +977,6 @@ def get_events_by_city():
         print(f"Error getting events by city: {str(e)}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
-@location_bp.route('/cleanup-ended-events', methods=['POST'])
-@jwt_required()
-def cleanup_ended_events():
-    """Remove events that have already ended (admin only)"""
-    try:
-        identity = get_jwt_identity()
-        
-        if not identity:
-            return jsonify({'success': False, 'message': 'Authentication required'}), 403
-        
-        # Check if user is admin
-        if isinstance(identity, dict):
-            user_role = identity.get('role')
-        else:
-            user = users_collection.find_one({'email': identity})
-            user_role = user.get('role') if user else None
-        
-        if user_role != 'admin':
-            return jsonify({'success': False, 'message': 'Admin access required'}), 403
-        
-        # Find and remove events that have ended
-        current_time = datetime.utcnow()
-        ended_events = list(events_collection.find({
-            'date': {'$lt': current_time}  # Events before current time
-        }))
-        
-        if ended_events:
-            # Delete ended events
-            result = events_collection.delete_many({
-                'date': {'$lt': current_time}
-            })
-            
-            return jsonify({
-                'success': True,
-                'message': f'Removed {result.deleted_count} ended events',
-                'deleted_count': result.deleted_count
-            })
-        else:
-            return jsonify({
-                'success': True,
-                'message': 'No ended events found to remove',
-                'deleted_count': 0
-            })
-        
-    except Exception as e:
-        print(f"Error cleaning up ended events: {str(e)}")
-        return jsonify({'success': False, 'message': str(e)}), 500
-
 # Event Booking Endpoints (keeping only the original ones)
 @location_bp.route('/event-bookings', methods=['POST'])
 
@@ -1083,16 +1023,6 @@ def create_event_booking():
         if existing_booking:
             return jsonify({'success': False, 'message': 'You are already registered for this event'}), 400
         
-        # Check event capacity
-        current_participants = event_bookings_collection.count_documents({
-            'event_id': event_id,
-            'status': {'$in': ['confirmed', 'pending_admin']}
-        })
-        
-        max_participants = event.get('max_participants', 0)
-        if max_participants > 0 and current_participants >= max_participants:
-            return jsonify({'success': False, 'message': 'Event is fully booked. No more participants can be accepted.'}), 400
-        
         # Create booking data
         user_data = data.get('user_data', {})
         
@@ -1105,11 +1035,6 @@ def create_event_booking():
             'user_data': user_data,
             'status': 'pending_admin',  # Pending admin approval
             'amount': event.get('price', 'Free'),
-            'capacity_info': {
-                'current_participants': current_participants + 1,
-                'max_participants': max_participants,
-                'spots_remaining': max_participants - (current_participants + 1) if max_participants > 0 else 'unlimited'
-            },
             'created_at': datetime.utcnow(),
             'updated_at': datetime.utcnow()
         }
@@ -1128,6 +1053,57 @@ def create_event_booking():
         print(f"Error creating event booking: {str(e)}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
+@location_bp.route('/admin/event-bookings', methods=['GET'])
+@jwt_required()
+def get_event_bookings():
+    """Get all event bookings (admin only)"""
+    try:
+        identity = get_jwt_identity()
+        
+        if not identity:
+            return jsonify({'success': False, 'message': 'Authentication required'}), 403
+        
+        # Check if user is admin
+        if isinstance(identity, dict):
+            user_role = identity.get('role')
+        else:
+            user = users_collection.find_one({'email': identity})
+            user_role = user.get('role') if user else None
+        
+        if user_role != 'admin':
+            return jsonify({'success': False, 'message': 'Admin access required'}), 403
+        
+        # Get all event bookings
+        bookings = list(event_bookings_collection.find({}).sort('created_at', -1))
+        
+        # Format bookings and include event details
+        formatted_bookings = []
+        for booking in bookings:
+            # Get event details
+            event = events_collection.find_one({'_id': booking['event_id']}) if 'event_id' in booking else None
+            
+            booking['_id'] = str(booking['_id'])
+            booking['event_id'] = str(booking['event_id']) if 'event_id' in booking else None
+            
+            # Add event details if available
+            if event:
+                booking['event_details'] = {
+                    'title': event.get('title', ''),
+                    'date': event.get('date', ''),
+                    'location': event.get('location', ''),
+                    'price': event.get('price', 'Free')
+                }
+            
+            formatted_bookings.append(booking)
+        
+        return jsonify({
+            'success': True,
+            'bookings': formatted_bookings
+        })
+        
+    except Exception as e:
+        print(f"Error getting event bookings: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @location_bp.route('/admin/event-bookings/<booking_id>/status', methods=['PUT'])
 @jwt_required()
@@ -1211,12 +1187,14 @@ def create_event_payment_order():
             return jsonify({'success': False, 'message': 'Event not found'}), 404
         
         # Create Razorpay order
+        import requests
+        import os
+        
         razorpay_key_id = os.getenv('RAZORPAY_KEY_ID')
         razorpay_key_secret = os.getenv('RAZORPAY_KEY_SECRET')
         
         if not razorpay_key_id or not razorpay_key_secret:
-            print(f"Razorpay configuration missing: KEY_ID={'SET' if razorpay_key_id else 'NOT SET'}, KEY_SECRET={'SET' if razorpay_key_secret else 'NOT SET'}")
-            return jsonify({'success': False, 'message': 'Payment gateway not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.'}), 500
+            return jsonify({'success': False, 'message': 'Payment gateway not configured'}), 500
         
         # Create order in Razorpay
         order_data = {
@@ -1226,7 +1204,7 @@ def create_event_payment_order():
             'notes': {
                 'event_id': str(event_id),
                 'event_title': event.get('title', ''),
-                'user_email': identity if isinstance(identity, str) else identity.get('email', '')
+                'user_email': identity.get('email') if isinstance(identity, dict) else identity
             }
         }
         
@@ -1280,12 +1258,14 @@ def create_gym_payment_order():
             return jsonify({'success': False, 'message': 'Gym not found'}), 404
         
         # Create Razorpay order
+        import requests
+        import os
+        
         razorpay_key_id = os.getenv('RAZORPAY_KEY_ID')
         razorpay_key_secret = os.getenv('RAZORPAY_KEY_SECRET')
         
         if not razorpay_key_id or not razorpay_key_secret:
-            print(f"Razorpay configuration missing: KEY_ID={'SET' if razorpay_key_id else 'NOT SET'}, KEY_SECRET={'SET' if razorpay_key_secret else 'NOT SET'}")
-            return jsonify({'success': False, 'message': 'Payment gateway not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.'}), 500
+            return jsonify({'success': False, 'message': 'Payment gateway not configured'}), 500
         
         # Create order in Razorpay
         order_data = {
@@ -1296,7 +1276,7 @@ def create_gym_payment_order():
                 'gym_id': str(gym_id),
                 'gym_name': gym.get('name', ''),
                 'membership_type': membership_type,
-                'user_email': identity if isinstance(identity, str) else identity.get('email', '')
+                'user_email': identity.get('email') if isinstance(identity, dict) else identity
             }
         }
         
@@ -1344,6 +1324,10 @@ def verify_payment():
             return jsonify({'success': False, 'message': 'Missing payment details'}), 400
         
         # Verify signature
+        import hmac
+        import hashlib
+        import os
+        
         razorpay_key_secret = os.getenv('RAZORPAY_KEY_SECRET')
         if not razorpay_key_secret:
             return jsonify({'success': False, 'message': 'Payment gateway not configured'}), 500
@@ -1359,50 +1343,18 @@ def verify_payment():
             return jsonify({'success': False, 'message': 'Invalid payment signature'}), 400
         
         # Payment verified - create booking/membership record
-        user_email = identity if isinstance(identity, str) else identity.get('email', '')
+        user_email = identity.get('email') if isinstance(identity, dict) else identity
         
         if event_id:
-            # Check if user is already registered for this event
-            existing_booking = event_bookings_collection.find_one({
-                'event_id': ObjectId(event_id),
-                'user_email': user_email
-            })
-            
-            if existing_booking:
-                return jsonify({'success': False, 'message': 'You are already registered for this event'}), 400
-            
-            # Get event details for capacity checking
-            event = events_collection.find_one({'_id': ObjectId(event_id)})
-            if not event:
-                return jsonify({'success': False, 'message': 'Event not found'}), 404
-            
-            # Check event capacity
-            current_participants = event_bookings_collection.count_documents({
-                'event_id': ObjectId(event_id),
-                'status': {'$in': ['confirmed', 'pending_admin']}
-            })
-            
-            max_participants = event.get('max_participants', 0)
-            if max_participants > 0 and current_participants >= max_participants:
-                return jsonify({'success': False, 'message': 'Event is fully booked. No more participants can be accepted.'}), 400
-            
             # Event booking
             booking_data = {
                 'event_id': ObjectId(event_id),
-                'event_title': event.get('title', ''),
-                'event_date': event.get('date', ''),
-                'event_location': event.get('location', ''),
                 'user_email': user_email,
                 'user_data': user_data,
                 'payment_id': razorpay_payment_id,
                 'order_id': razorpay_order_id,
                 'amount': data.get('amount', 0),
                 'status': 'confirmed',
-                'capacity_info': {
-                    'current_participants': current_participants + 1,
-                    'max_participants': max_participants,
-                    'spots_remaining': max_participants - (current_participants + 1) if max_participants > 0 else 'unlimited'
-                },
                 'created_at': datetime.utcnow()
             }
             
@@ -1444,6 +1396,54 @@ def verify_payment():
         print(f"Error verifying payment: {str(e)}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
+# Admin endpoints for managing bookings
+@location_bp.route('/admin/event-bookings', methods=['GET'])
+@jwt_required()
+def get_event_bookings():
+    """Get all event bookings (admin only)"""
+    try:
+        identity = get_jwt_identity()
+        
+        if not identity:
+            return jsonify({'success': False, 'message': 'Authentication required'}), 403
+        
+        # Check if user is admin
+        if isinstance(identity, dict):
+            user_role = identity.get('role')
+        else:
+            user = users_collection.find_one({'email': identity})
+            user_role = user.get('role') if user else None
+        
+        if user_role != 'admin':
+            return jsonify({'success': False, 'message': 'Admin access required'}), 403
+        
+        # Get all event bookings with event details
+        bookings = list(event_bookings_collection.find({}).sort('created_at', -1))
+        
+        # Enrich bookings with event details
+        enriched_bookings = []
+        for booking in bookings:
+            event = events_collection.find_one({'_id': booking['event_id']})
+            if event:
+                booking['event_details'] = {
+                    'title': event.get('title', 'Unknown Event'),
+                    'location': event.get('location', 'Unknown Location'),
+                    'date': event.get('date'),
+                    'time': event.get('time', 'Unknown Time'),
+                    'type': event.get('type', 'Unknown Type')
+                }
+            booking['_id'] = str(booking['_id'])
+            booking['event_id'] = str(booking['event_id'])
+            enriched_bookings.append(booking)
+        
+        return jsonify({
+            'success': True,
+            'bookings': enriched_bookings
+        })
+        
+    except Exception as e:
+        print(f"Error getting event bookings: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @location_bp.route('/admin/gym-memberships', methods=['GET'])
 @jwt_required()
@@ -1492,6 +1492,50 @@ def get_gym_memberships():
         print(f"Error getting gym memberships: {str(e)}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
+@location_bp.route('/admin/event-bookings/<booking_id>/status', methods=['PUT'])
+@jwt_required()
+def update_event_booking_status():
+    """Update event booking status (admin only)"""
+    try:
+        identity = get_jwt_identity()
+        
+        if not identity:
+            return jsonify({'success': False, 'message': 'Authentication required'}), 403
+        
+        # Check if user is admin
+        if isinstance(identity, dict):
+            user_role = identity.get('role')
+        else:
+            user = users_collection.find_one({'email': identity})
+            user_role = user.get('role') if user else None
+        
+        if user_role != 'admin':
+            return jsonify({'success': False, 'message': 'Admin access required'}), 403
+        
+        data = request.json
+        booking_id = request.view_args['booking_id']
+        new_status = data.get('status')
+        
+        if not new_status:
+            return jsonify({'success': False, 'message': 'Status is required'}), 400
+        
+        # Update booking status
+        result = event_bookings_collection.update_one(
+            {'_id': ObjectId(booking_id)},
+            {'$set': {'status': new_status, 'updated_at': datetime.utcnow()}}
+        )
+        
+        if result.modified_count == 0:
+            return jsonify({'success': False, 'message': 'Booking not found'}), 404
+        
+        return jsonify({
+            'success': True,
+            'message': f'Booking status updated to {new_status}'
+        })
+        
+    except Exception as e:
+        print(f"Error updating booking status: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @location_bp.route('/admin/gym-memberships/<membership_id>/status', methods=['PUT'])
 @jwt_required()
@@ -1537,6 +1581,72 @@ def update_gym_membership_status():
     except Exception as e:
         print(f"Error updating membership status: {str(e)}")
 
+# Event Booking Endpoints
+@location_bp.route('/event-bookings', methods=['POST'])
+@jwt_required()
+def create_event_booking():
+    """Create a booking for an event (pending admin approval)"""
+    try:
+        identity = get_jwt_identity()
+        
+        if not identity:
+            return jsonify({'success': False, 'message': 'Authentication required'}), 403
+        
+        data = request.json
+        required_fields = ['event_id', 'user_data']
+        
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'success': False, 'message': f'{field} is required'}), 400
+        
+        # Check if event exists and is active
+        event = events_collection.find_one({
+            '_id': ObjectId(data['event_id']), 
+            'status': 'active'
+        })
+        
+        if not event:
+            return jsonify({'success': False, 'message': 'Event not found or not active'}), 404
+        
+        # Check if user is already registered for this event
+        user_email = identity if isinstance(identity, str) else identity.get('email')
+        existing_booking = event_bookings_collection.find_one({
+            'event_id': ObjectId(data['event_id']),
+            'user_email': user_email
+        })
+        
+        if existing_booking:
+            return jsonify({'success': False, 'message': 'You are already registered for this event'}), 400
+        
+        # Create booking data
+        user_data = data.get('user_data', {})
+        
+        booking_data = {
+            'event_id': ObjectId(data['event_id']),
+            'event_title': event.get('title', ''),
+            'event_date': event.get('date', ''),
+            'event_location': event.get('location', ''),
+            'user_email': user_email,
+            'user_data': user_data,
+            'status': 'pending_admin',  # Pending admin approval
+            'amount': event.get('price', 'Free'),
+            'created_at': datetime.utcnow(),
+            'updated_at': datetime.utcnow()
+        }
+        
+        # Store in event bookings collection
+        result = event_bookings_collection.insert_one(booking_data)
+        booking_data['_id'] = str(result.inserted_id)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Event booking request submitted successfully. Awaiting admin approval.',
+            'booking': booking_data
+        }), 201
+        
+    except Exception as e:
+        print(f"Error creating event booking: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 @location_bp.route('/admin/event-bookings', methods=['GET'])
 @jwt_required()

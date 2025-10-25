@@ -8,7 +8,10 @@ from os import path as _path
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import community_posts_collection, follows_collection
 from socketio_instance import socketio
-from upload import allowed_file
+try:
+    from server.upload import allowed_file
+except ImportError:
+    from upload import allowed_file
 
 community_bp = Blueprint('community', __name__)
 
@@ -134,7 +137,6 @@ def create_post():
         if image_file and image_file.filename:
             try:
                 # Validate file
-                from upload import allowed_file
                 if not allowed_file(image_file.filename):
                     return jsonify({'ok': False, 'error': 'Invalid file type'}), 400
                 
@@ -377,7 +379,6 @@ def upload_image():
         
         try:
             # Validate file
-            from upload import allowed_file
             if not allowed_file(image_file.filename):
                 print(f"Invalid file type: {image_file.filename}")
                 return jsonify({'ok': False, 'error': 'Invalid file type'}), 400

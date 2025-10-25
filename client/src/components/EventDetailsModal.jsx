@@ -23,11 +23,108 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
     specialRequirements: ''
   });
   const [isJoining, setIsJoining] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
+  const [isValidating, setIsValidating] = useState(false);
 
   if (!isOpen || !event) return null;
 
+  // Form validation
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!joinForm.name.trim()) {
+      errors.name = 'Name is required';
+    } else if (joinForm.name.trim().length < 2) {
+      errors.name = 'Name must be at least 2 characters';
+    }
+    
+    if (!joinForm.email.trim()) {
+      errors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(joinForm.email)) {
+      errors.email = 'Please enter a valid email address';
+    }
+    
+    if (!joinForm.phone.trim()) {
+      errors.phone = 'Phone number is required';
+    } else if (!/^[6-9]\d{9}$/.test(joinForm.phone.replace(/\D/g, ''))) {
+      errors.phone = 'Please enter a valid 10-digit Indian phone number';
+    }
+    
+    if (!joinForm.emergencyContact.trim()) {
+      errors.emergencyContact = 'Emergency contact is required';
+    } else if (!/^[6-9]\d{9}$/.test(joinForm.emergencyContact.replace(/\D/g, ''))) {
+      errors.emergencyContact = 'Please enter a valid 10-digit Indian phone number';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Add to calendar function
+  const addToCalendar = () => {
+    if (!event.date || !event.time) {
+      alert('Event date and time are required to add to calendar');
+      return;
+    }
+
+    const eventDate = new Date(`${event.date}T${event.time}`);
+    const endDate = new Date(eventDate.getTime() + 2 * 60 * 60 * 1000); // 2 hours duration
+    
+    const calendarData = {
+      title: event.title,
+      start: eventDate.toISOString(),
+      end: endDate.toISOString(),
+      location: event.location,
+      description: event.description || `Join us for ${event.title} at ${event.location}`,
+      url: window.location.href
+    };
+
+    // Create Google Calendar URL
+    const googleCalendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(calendarData.title)}&dates=${eventDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z/${endDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z&details=${encodeURIComponent(calendarData.description)}&location=${encodeURIComponent(calendarData.location)}`;
+    
+    // Create ICS file for other calendar apps
+    const icsContent = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//FitHub//Event//EN
+BEGIN:VEVENT
+UID:${event._id}@fithub.com
+DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z
+DTSTART:${eventDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z
+DTEND:${endDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z
+SUMMARY:${calendarData.title}
+DESCRIPTION:${calendarData.description}
+LOCATION:${calendarData.location}
+END:VEVENT
+END:VCALENDAR`;
+
+    // Show options to user
+    const userChoice = confirm('Choose calendar option:\nOK for Google Calendar\nCancel for download ICS file');
+    
+    if (userChoice) {
+      window.open(googleCalendarUrl, '_blank');
+    } else {
+      const blob = new Blob([icsContent], { type: 'text/calendar' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${event.title.replace(/[^a-zA-Z0-9]/g, '_')}.ics`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+  };
+
   const handleJoinEvent = async (e) => {
     e.preventDefault();
+    setIsValidating(true);
+    
+    // Validate form first
+    if (!validateForm()) {
+      setIsValidating(false);
+      return;
+    }
+    
     setIsJoining(true);
 
     try {
@@ -35,20 +132,37 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
       const isFree = event.price === 'Free' || event.price === '0' || !event.price;
       
       if (isFree) {
-        // Free event - just join
-        alert('Successfully joined the free event! You will receive confirmation details via email.');
-        setShowJoinForm(false);
-        setJoinForm({ name: '', phone: '', email: '', emergencyContact: '', specialRequirements: '' });
+        // Free event - create booking directly
+        const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000'}/location/api/event-bookings`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${JSON.parse(localStorage.getItem('user') || '{}').token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            event_id: event._id,
+            user_data: joinForm,
+            status: 'confirmed'
+          })
+        });
+
+        if (response.ok) {
+          alert('Successfully joined the free event! You will receive confirmation details via email.');
+          setShowJoinForm(false);
+          setJoinForm({ name: '', phone: '', email: '', emergencyContact: '', specialRequirements: '' });
+          onClose(); // Close modal after successful join
+        } else {
+          throw new Error('Failed to join event');
+        }
       } else {
         // Paid event - process payment
         const amount = paymentService.parseAmount(event.price);
         if (amount > 0) {
+          // Ensure Razorpay is loaded
+          await paymentService.ensureRazorpayLoaded();
+          
           // Create payment order
-          const userData = paymentService.getUserData();
-          const paymentOrder = await paymentService.createEventPaymentOrder(event, {
-            ...userData,
-            ...joinForm
-          });
+          const paymentOrder = await paymentService.createEventPaymentOrder(event, joinForm);
 
           // Open Razorpay checkout
           const options = {
@@ -84,6 +198,7 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
           alert('Payment successful! You have joined the event. Confirmation details will be sent to your email.');
           setShowJoinForm(false);
           setJoinForm({ name: '', phone: '', email: '', emergencyContact: '', specialRequirements: '' });
+          onClose(); // Close modal after successful payment
         }
       }
     } catch (error) {
@@ -91,6 +206,7 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
       alert(`Error joining event: ${error.message}`);
     } finally {
       setIsJoining(false);
+      setIsValidating(false);
     }
   };
 
@@ -197,6 +313,11 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
                     <p className="font-medium">Participants</p>
                     <p className="text-gray-600">
                       {event.participants || 0} / {event.max_participants || event.maxParticipants || 'Unlimited'}
+                      {event.max_participants && event.max_participants > 0 && (
+                        <span className="ml-2 text-sm text-blue-600">
+                          ({event.max_participants - (event.participants || 0)} spots remaining)
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -319,39 +440,79 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
                 <h3 className="text-lg font-semibold mb-4">Join This Event</h3>
                 <form onSubmit={handleJoinEvent} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <input
+                        type="text"
+                        placeholder="Full Name"
+                        value={joinForm.name}
+                        onChange={(e) => {
+                          setJoinForm({...joinForm, name: e.target.value});
+                          if (formErrors.name) {
+                            setFormErrors({...formErrors, name: ''});
+                          }
+                        }}
+                        className={`border rounded-lg px-3 py-2 w-full ${formErrors.name ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}`}
+                        required
+                      />
+                      {formErrors.name && (
+                        <p className="text-red-500 text-sm mt-1">{formErrors.name}</p>
+                      )}
+                    </div>
+                    <div>
+                      <input
+                        type="tel"
+                        placeholder="Phone Number"
+                        value={joinForm.phone}
+                        onChange={(e) => {
+                          setJoinForm({...joinForm, phone: e.target.value});
+                          if (formErrors.phone) {
+                            setFormErrors({...formErrors, phone: ''});
+                          }
+                        }}
+                        className={`border rounded-lg px-3 py-2 w-full ${formErrors.phone ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}`}
+                        required
+                      />
+                      {formErrors.phone && (
+                        <p className="text-red-500 text-sm mt-1">{formErrors.phone}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div>
                     <input
-                      type="text"
-                      placeholder="Full Name"
-                      value={joinForm.name}
-                      onChange={(e) => setJoinForm({...joinForm, name: e.target.value})}
-                      className="border rounded-lg px-3 py-2"
+                      type="email"
+                      placeholder="Email Address"
+                      value={joinForm.email}
+                      onChange={(e) => {
+                        setJoinForm({...joinForm, email: e.target.value});
+                        if (formErrors.email) {
+                          setFormErrors({...formErrors, email: ''});
+                        }
+                      }}
+                      className={`border rounded-lg px-3 py-2 w-full ${formErrors.email ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}`}
                       required
                     />
+                    {formErrors.email && (
+                      <p className="text-red-500 text-sm mt-1">{formErrors.email}</p>
+                    )}
+                  </div>
+                  <div>
                     <input
                       type="tel"
-                      placeholder="Phone Number"
-                      value={joinForm.phone}
-                      onChange={(e) => setJoinForm({...joinForm, phone: e.target.value})}
-                      className="border rounded-lg px-3 py-2"
+                      placeholder="Emergency Contact Number"
+                      value={joinForm.emergencyContact}
+                      onChange={(e) => {
+                        setJoinForm({...joinForm, emergencyContact: e.target.value});
+                        if (formErrors.emergencyContact) {
+                          setFormErrors({...formErrors, emergencyContact: ''});
+                        }
+                      }}
+                      className={`border rounded-lg px-3 py-2 w-full ${formErrors.emergencyContact ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}`}
                       required
                     />
+                    {formErrors.emergencyContact && (
+                      <p className="text-red-500 text-sm mt-1">{formErrors.emergencyContact}</p>
+                    )}
                   </div>
-                  <input
-                    type="email"
-                    placeholder="Email Address"
-                    value={joinForm.email}
-                    onChange={(e) => setJoinForm({...joinForm, email: e.target.value})}
-                    className="border rounded-lg px-3 py-2 w-full"
-                    required
-                  />
-                  <input
-                    type="tel"
-                    placeholder="Emergency Contact Number"
-                    value={joinForm.emergencyContact}
-                    onChange={(e) => setJoinForm({...joinForm, emergencyContact: e.target.value})}
-                    className="border rounded-lg px-3 py-2 w-full"
-                    required
-                  />
                   <textarea
                     placeholder="Any special requirements or medical conditions we should know about?"
                     value={joinForm.specialRequirements}
@@ -361,10 +522,10 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
                   <div className="flex gap-3">
                     <button
                       type="submit"
-                      disabled={isJoining}
+                      disabled={isJoining || isValidating}
                       className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                     >
-                      {isJoining ? 'Processing...' : `Join Event ${event.price !== 'Free' ? `- ${event.price}` : '(Free)'}`}
+                      {isValidating ? 'Validating...' : isJoining ? 'Processing...' : `Join Event ${event.price !== 'Free' ? `- ${event.price}` : '(Free)'}`}
                     </button>
                     <button
                       type="button"
@@ -384,12 +545,20 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowJoinForm(!showJoinForm)}
-                className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                disabled={event.max_participants && event.max_participants > 0 && (event.participants || 0) >= event.max_participants}
+                className={`flex-1 py-3 px-6 rounded-lg transition-colors font-medium ${
+                  event.max_participants && event.max_participants > 0 && (event.participants || 0) >= event.max_participants
+                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}
               >
-                {showJoinForm ? 'Cancel' : 'Join This Event'}
+                {event.max_participants && event.max_participants > 0 && (event.participants || 0) >= event.max_participants
+                  ? 'Event Fully Booked'
+                  : showJoinForm ? 'Cancel' : 'Join This Event'
+                }
               </button>
               <button
-                onClick={() => {/* Add to calendar functionality */}}
+                onClick={addToCalendar}
                 className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
               >
                 <Calendar className="w-4 h-4 inline mr-2" />

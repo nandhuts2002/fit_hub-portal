@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import SessionManager from '../utils/sessionManager';
 import api from '../utils/api';
+import LocationSelector from './LocationSelector';
 
 const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://fit-hub-portal-1.onrender.com';
 
@@ -296,6 +297,40 @@ const LocationAdminPanel = () => {
     }
   };
 
+  const handleCleanupEndedEvents = async () => {
+    if (!window.confirm('Are you sure you want to remove all ended events? This action cannot be undone.')) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const currentUser = SessionManager.getCurrentUser();
+      const token = currentUser?.token;
+
+      const response = await api.post('/location/cleanup-ended-events', {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (response.data.success) {
+        setMessage({ 
+          type: 'success', 
+          text: `Successfully removed ${response.data.deleted_count} ended events!` 
+        });
+        loadData(); // Reload the events list
+      } else {
+        setMessage({ type: 'error', text: response.data.message || 'Failed to cleanup events' });
+      }
+    } catch (error) {
+      console.error('Error cleaning up events:', error);
+      setMessage({ 
+        type: 'error', 
+        text: error.response?.data?.message || 'Failed to cleanup events' 
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this item?')) return;
     
@@ -410,21 +445,22 @@ const LocationAdminPanel = () => {
               className="border rounded px-3 py-2"
               required
             />
-            <input
-              type="text"
-              placeholder="City"
-              value={gymForm.city}
-              onChange={(e) => setGymForm({...gymForm, city: e.target.value})}
-              className="border rounded px-3 py-2"
-              required
-            />
-            <input
-              type="text"
-              placeholder="State"
-              value={gymForm.state}
-              onChange={(e) => setGymForm({...gymForm, state: e.target.value})}
-              className="border rounded px-3 py-2"
-              required
+            <LocationSelector
+              selectedLocation={gymForm.city ? `${gymForm.city}, ${gymForm.state}` : ''}
+              onLocationChange={(location) => {
+                if (location) {
+                  const parts = location.split(', ');
+                  setGymForm({
+                    ...gymForm, 
+                    city: parts[0] || '', 
+                    state: parts[1] || 'Kerala'
+                  });
+                } else {
+                  setGymForm({...gymForm, city: '', state: 'Kerala'});
+                }
+              }}
+              placeholder="Select District/Place"
+              className="col-span-2"
             />
             <input
               type="text"
@@ -694,21 +730,22 @@ const LocationAdminPanel = () => {
               className="border rounded px-3 py-2"
               required
             />
-            <input
-              type="text"
-              placeholder="City"
-              value={eventForm.city}
-              onChange={(e) => setEventForm({...eventForm, city: e.target.value})}
-              className="border rounded px-3 py-2"
-              required
-            />
-            <input
-              type="text"
-              placeholder="State"
-              value={eventForm.state}
-              onChange={(e) => setEventForm({...eventForm, state: e.target.value})}
-              className="border rounded px-3 py-2"
-              required
+            <LocationSelector
+              selectedLocation={eventForm.city ? `${eventForm.city}, ${eventForm.state}` : ''}
+              onLocationChange={(location) => {
+                if (location) {
+                  const parts = location.split(', ');
+                  setEventForm({
+                    ...eventForm, 
+                    city: parts[0] || '', 
+                    state: parts[1] || 'Kerala'
+                  });
+                } else {
+                  setEventForm({...eventForm, city: '', state: 'Kerala'});
+                }
+              }}
+              placeholder="Select District/Place"
+              className="col-span-2"
             />
             <input
               type="date"
@@ -926,6 +963,22 @@ const LocationAdminPanel = () => {
           />
         </div>
       </div>
+
+      {/* Events Cleanup Button */}
+      {activeTab === 'events' && (
+        <div className="mb-6">
+          <button
+            onClick={handleCleanupEndedEvents}
+            disabled={loading}
+            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? 'Cleaning up...' : '🗑️ Remove Ended Events'}
+          </button>
+          <p className="text-sm text-gray-500 mt-2">
+            This will permanently remove all events that have already ended.
+          </p>
+        </div>
+      )}
 
       {/* Form Modal */}
       <AnimatePresence>
