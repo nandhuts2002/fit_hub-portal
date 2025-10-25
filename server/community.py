@@ -150,27 +150,42 @@ def create_post():
                 print(f"Image uploaded to Cloudinary: {image_url}")
             except ImportError as e:
                 print(f"Cloudinary import error: {e}")
-                return jsonify({'ok': False, 'error': 'Cloudinary package not installed'}), 500
-            except Exception as e:
-                print(f"Error uploading image to Cloudinary: {e}")
-                # Fallback to local upload if Cloudinary fails
-                try:
-                    filename = secure_filename(image_file.filename)
-                    if not filename:
-                        filename = f"post_image_{int(time.time())}.jpg"
-                    
-                    # Only save locally if not on Vercel
-                    if not os.getenv('VERCEL'):
+                # On Vercel, Cloudinary is required
+                if os.getenv('VERCEL'):
+                    return jsonify({'ok': False, 'error': 'Cloudinary package not installed'}), 500
+                # In local development, fallback to local storage
+                else:
+                    try:
+                        filename = secure_filename(image_file.filename)
+                        if not filename:
+                            filename = f"post_image_{int(time.time())}.jpg"
+                        
                         filepath = _path.join(UPLOAD_DIR, filename)
                         image_file.save(filepath)
                         image_url = f"/uploads/community/{filename}"
                         print(f"Image saved locally: {image_url}")
-                    else:
-                        # On Vercel, we must use Cloudinary
+                    except Exception as local_e:
+                        print(f"Local upload also failed: {local_e}")
                         return jsonify({'ok': False, 'error': f'Image upload failed: {str(e)}'}), 500
-                except Exception as local_e:
-                    print(f"Local upload also failed: {local_e}")
+            except Exception as e:
+                print(f"Error uploading image to Cloudinary: {e}")
+                # On Vercel, Cloudinary is required
+                if os.getenv('VERCEL'):
                     return jsonify({'ok': False, 'error': f'Image upload failed: {str(e)}'}), 500
+                # In local development, fallback to local storage
+                else:
+                    try:
+                        filename = secure_filename(image_file.filename)
+                        if not filename:
+                            filename = f"post_image_{int(time.time())}.jpg"
+                        
+                        filepath = _path.join(UPLOAD_DIR, filename)
+                        image_file.save(filepath)
+                        image_url = f"/uploads/community/{filename}"
+                        print(f"Image saved locally: {image_url}")
+                    except Exception as local_e:
+                        print(f"Local upload also failed: {local_e}")
+                        return jsonify({'ok': False, 'error': f'Image upload failed: {str(e)}'}), 500
     else:
         # Handle JSON data
         payload = request.get_json(silent=True) or {}

@@ -98,7 +98,7 @@ app.register_blueprint(ai_bp)
 app.register_blueprint(exercise_gifs_bp)
 app.register_blueprint(upload_bp)
 
-# Root route for health check
+# Health check and Cloudinary test endpoint
 @app.route('/')
 def health_check():
     # Test Cloudinary configuration
@@ -118,8 +118,63 @@ def health_check():
         'message': 'Fit-Hub Portal Backend is running!',
         'timestamp': datetime.utcnow().isoformat(),
         'cloudinary_status': cloudinary_status,
-        'cloudinary_cloud_name': os.getenv('CLOUDINARY_CLOUD_NAME', 'Not set')
+        'cloudinary_cloud_name': os.getenv('CLOUDINARY_CLOUD_NAME', 'Not set'),
+        'vercel_env': os.getenv('VERCEL', 'Not set')
     })
+
+# Add a test endpoint for Cloudinary
+@app.route('/test-cloudinary')
+def test_cloudinary():
+    try:
+        import cloudinary
+        import cloudinary.uploader
+        
+        # Check configuration
+        config = cloudinary.config()
+        if not config.cloud_name or not config.api_key or not config.api_secret:
+            return jsonify({
+                'status': 'error',
+                'message': 'Cloudinary not properly configured',
+                'cloud_name': config.cloud_name,
+                'api_key': config.api_key,
+                'api_secret_set': bool(config.api_secret)
+            })
+        
+        # Try to upload a simple test image
+        # We'll create a small test image in memory
+        import base64
+        from io import BytesIO
+        from PIL import Image
+        
+        # Create a simple 1x1 pixel image
+        image = Image.new('RGB', (1, 1), color='red')
+        buffer = BytesIO()
+        image.save(buffer, format='PNG')
+        buffer.seek(0)
+        
+        # Upload to Cloudinary
+        result = cloudinary.uploader.upload(
+            buffer,
+            folder='test',
+            public_id='health_check_test',
+            overwrite=True
+        )
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Cloudinary is working correctly',
+            'cloud_name': config.cloud_name,
+            'upload_result': {
+                'url': result['secure_url'],
+                'public_id': result['public_id']
+            }
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Cloudinary test failed: {str(e)}',
+            'error_type': type(e).__name__
+        })
 
 # Serve uploaded files
 UPLOAD_DIR = _path.join(_path.dirname(__file__), 'uploads')
