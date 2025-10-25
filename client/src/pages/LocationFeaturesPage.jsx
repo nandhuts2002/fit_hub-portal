@@ -24,6 +24,66 @@ import GymDetailsModal from '../components/GymDetailsModal';
 import EventDetailsModal from '../components/EventDetailsModal';
 import SessionManager from '../utils/sessionManager';
 
+// District and city data structure
+const DISTRICTS_AND_CITIES = {
+  'Kottayam': [
+    'Kanjirappally', 'Kottayam', 'Pala', 'Changanassery', 'Vaikom', 'Erattupetta', 
+    'Mundakayam', 'Kattappana', 'Kumily', 'Peermade', 'Thodupuzha', 'Idukki'
+  ],
+  'Ernakulam': [
+    'Kochi', 'Aluva', 'Kalamassery', 'Perumbavoor', 'Muvattupuzha', 'Kothamangalam',
+    'North Paravur', 'Angamaly', 'Kakkanad', 'Edappally', 'Fort Kochi', 'Mattancherry'
+  ],
+  'Thiruvananthapuram': [
+    'Thiruvananthapuram', 'Neyyattinkara', 'Attingal', 'Nedumangad', 'Varkala',
+    'Parassala', 'Kazhakuttam', 'Kovalam', 'Ponmudi', 'Kattakada'
+  ],
+  'Kozhikode': [
+    'Kozhikode', 'Vadakara', 'Koyilandy', 'Ramanattukara', 'Feroke', 'Mukkam',
+    'Koduvally', 'Balussery', 'Perambra', 'Thamarassery'
+  ],
+  'Kollam': [
+    'Kollam', 'Punalur', 'Karunagappally', 'Kottarakkara', 'Pathanapuram',
+    'Chavara', 'Kundara', 'Sasthamkotta', 'Chadayamangalam', 'Anchal'
+  ],
+  'Thrissur': [
+    'Thrissur', 'Guruvayur', 'Kodungallur', 'Irinjalakuda', 'Chalakudy',
+    'Wadakkancherry', 'Chavakkad', 'Mala', 'Kunnamkulam', 'Chelakkara'
+  ],
+  'Palakkad': [
+    'Palakkad', 'Ottapalam', 'Mannarkkad', 'Alathur', 'Chittur', 'Pattambi',
+    'Shoranur', 'Kozhinjampara', 'Malampuzha', 'Kollengode'
+  ],
+  'Kannur': [
+    'Kannur', 'Thalassery', 'Payyannur', 'Iritty', 'Koothuparamba', 'Mattannur',
+    'Peravoor', 'Sreekandapuram', 'Koothuparamba', 'Cherukunnu'
+  ],
+  'Kasaragod': [
+    'Kasaragod', 'Kanhangad', 'Manjeshwaram', 'Hosdurg', 'Vellarikundu',
+    'Cheruvathur', 'Kumbala', 'Nileshwaram', 'Uppala', 'Bedadka'
+  ],
+  'Malappuram': [
+    'Malappuram', 'Manjeri', 'Perinthalmanna', 'Tirur', 'Ponnani', 'Kottakkal',
+    'Tirurangadi', 'Nilambur', 'Wandoor', 'Kondotty'
+  ],
+  'Wayanad': [
+    'Kalpetta', 'Sultan Bathery', 'Mananthavady', 'Pulpally', 'Vythiri',
+    'Ambalavayal', 'Meppadi', 'Panamaram', 'Kambalakkad', 'Thirunelli'
+  ],
+  'Alappuzha': [
+    'Alappuzha', 'Cherthala', 'Mavelikkara', 'Chengannur', 'Kayamkulam',
+    'Haripad', 'Aroor', 'Kuttanad', 'Karthikappally', 'Thiruvalla'
+  ],
+  'Pathanamthitta': [
+    'Pathanamthitta', 'Adoor', 'Ranni', 'Kozhencherry', 'Mallappally',
+    'Pandalam', 'Konni', 'Thiruvalla', 'Aranmula', 'Elanthoor'
+  ],
+  'Idukki': [
+    'Painavu', 'Thodupuzha', 'Munnar', 'Devikulam', 'Udumbanchola',
+    'Idukki', 'Peerumade', 'Kattappana', 'Nedumkandam', 'Vagamon'
+  ]
+};
+
 const LocationFeaturesPage = () => {
   const [activeTab, setActiveTab] = useState('gyms');
   const [currentLocation, setCurrentLocation] = useState(null);
@@ -33,19 +93,74 @@ const LocationFeaturesPage = () => {
   const [weatherData, setWeatherData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [selectedCity, setSelectedCity] = useState('Kochi');
+  const [selectedDistrict, setSelectedDistrict] = useState('Kottayam');
+  const [selectedCity, setSelectedCity] = useState('Kanjirappally');
+  const [citySearchTerm, setCitySearchTerm] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
+  const [showCityDropdown, setShowCityDropdown] = useState(false);
   const [selectedGym, setSelectedGym] = useState(null);
   const [mapView, setMapView] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showGymModal, setShowGymModal] = useState(false);
   const [showEventModal, setShowEventModal] = useState(false);
 
+  // Get filtered cities based on search term
+  const getFilteredCities = () => {
+    const cities = DISTRICTS_AND_CITIES[selectedDistrict] || [];
+    if (!citySearchTerm) return cities;
+    return cities.filter(city => 
+      city.toLowerCase().includes(citySearchTerm.toLowerCase())
+    );
+  };
+
+  // Handle district change
+  const handleDistrictChange = (district) => {
+    setSelectedDistrict(district);
+    const cities = DISTRICTS_AND_CITIES[district] || [];
+    if (cities.length > 0) {
+      setSelectedCity(cities[0]);
+    }
+    setCitySearchTerm('');
+    setShowCityDropdown(false);
+  };
+
+  // Handle city selection
+  const handleCitySelect = (city) => {
+    setSelectedCity(city);
+    setCitySearchTerm(city);
+    setShowCityDropdown(false);
+  };
+
   // Load location and nearby data
   useEffect(() => {
     loadLocationData();
   }, []);
+
+  // Close city dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showCityDropdown && !event.target.closest('.city-dropdown-container')) {
+        setShowCityDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showCityDropdown]);
+
+  // Regenerate weather suggestions when gyms, trainers, or events change
+  useEffect(() => {
+    if (weatherData && (nearbyGyms.length > 0 || nearbyTrainers.length > 0 || localEvents.length > 0)) {
+      const dynamicSuggestions = generateDynamicSuggestions(weatherData, nearbyGyms, nearbyTrainers, localEvents);
+      setWeatherData(prev => ({
+        ...prev,
+        suggestions: dynamicSuggestions
+      }));
+    }
+  }, [nearbyGyms, nearbyTrainers, localEvents, selectedCity]);
 
   const loadLocationData = async () => {
     setLoading(true);
@@ -117,14 +232,141 @@ const LocationFeaturesPage = () => {
   const loadWeatherData = async () => {
     try {
       const weather = await locationService.getWeatherBasedSuggestions();
-      setWeatherData(weather);
+      
+      // Generate dynamic suggestions based on available data
+      const dynamicSuggestions = generateDynamicSuggestions(weather, nearbyGyms, nearbyTrainers, localEvents);
+      
+      setWeatherData({
+        ...weather,
+        suggestions: dynamicSuggestions
+      });
     } catch (err) {
       console.error('Error loading weather:', err);
     }
   };
 
+  // Generate dynamic suggestions based on available gyms, trainers, and events
+  const generateDynamicSuggestions = (weather, gyms, trainers, events) => {
+    const suggestions = [];
+    
+    // Get current time and day
+    const now = new Date();
+    const currentHour = now.getHours();
+    const isWeekend = now.getDay() === 0 || now.getDay() === 6;
+    
+    // Temperature-based suggestions
+    const temp = weather?.weather?.temperature || 25;
+    const condition = weather?.weather?.condition?.toLowerCase() || 'clear';
+    
+    if (temp > 30) {
+      suggestions.push({
+        reason: `It's hot (${temp}°C) - perfect for indoor workouts!`,
+        activities: [
+          ...(gyms.length > 0 ? [`Visit ${gyms[0].name}`, 'Air-conditioned gym workout'] : []),
+          ...(trainers.length > 0 ? [`Book with ${trainers[0].name}`] : []),
+          'Indoor yoga session',
+          'Swimming pool workout'
+        ].filter(Boolean)
+      });
+    } else if (temp < 20) {
+      suggestions.push({
+        reason: `Cool weather (${temp}°C) - great for outdoor activities!`,
+        activities: [
+          'Morning jog in the park',
+          'Outdoor yoga session',
+          'Cycling around the city',
+          ...(events.length > 0 ? [`Join ${events[0].title}`] : [])
+        ].filter(Boolean)
+      });
+    } else {
+      suggestions.push({
+        reason: `Perfect temperature (${temp}°C) - ideal for any workout!`,
+        activities: [
+          ...(gyms.length > 0 ? [`Visit ${gyms[0].name}`] : []),
+          ...(trainers.length > 0 ? [`Train with ${trainers[0].name}`] : []),
+          'Outdoor running',
+          'Mixed workout session'
+        ].filter(Boolean)
+      });
+    }
+    
+    // Time-based suggestions
+    if (currentHour >= 6 && currentHour <= 10) {
+      suggestions.push({
+        reason: 'Morning energy boost time!',
+        activities: [
+          'Morning yoga',
+          'Light cardio',
+          ...(gyms.length > 0 ? ['Early gym session'] : []),
+          'Fresh air walk'
+        ]
+      });
+    } else if (currentHour >= 17 && currentHour <= 20) {
+      suggestions.push({
+        reason: 'Evening workout time - perfect for stress relief!',
+        activities: [
+          ...(gyms.length > 0 ? ['Evening gym session'] : []),
+          ...(trainers.length > 0 ? ['Personal training session'] : []),
+          'Sunset jog',
+          'Group fitness class'
+        ]
+      });
+    }
+    
+    // Weather condition-based suggestions
+    if (condition.includes('rain') || condition.includes('storm')) {
+      suggestions.push({
+        reason: 'Rainy weather - stay indoors and stay active!',
+        activities: [
+          ...(gyms.length > 0 ? [`Indoor workout at ${gyms[0].name}`] : []),
+          ...(trainers.length > 0 ? [`Online session with ${trainers[0].name}`] : []),
+          'Home workout routine',
+          'Indoor cycling'
+        ].filter(Boolean)
+      });
+    } else if (condition.includes('sunny') || condition.includes('clear')) {
+      suggestions.push({
+        reason: 'Beautiful sunny day - get outside and move!',
+        activities: [
+          'Outdoor running',
+          'Park workout',
+          'Beach volleyball',
+          ...(events.length > 0 ? [`Join outdoor event: ${events[0].title}`] : [])
+        ].filter(Boolean)
+      });
+    }
+    
+    // Weekend-specific suggestions
+    if (isWeekend) {
+      suggestions.push({
+        reason: 'Weekend vibes - time for fun fitness activities!',
+        activities: [
+          ...(events.length > 0 ? [`Weekend event: ${events[0].title}`] : []),
+          'Family fitness activity',
+          'Hiking adventure',
+          'Recreational sports'
+        ].filter(Boolean)
+      });
+    }
+    
+    // Add location-specific suggestions if we have local data
+    if (gyms.length > 0 || trainers.length > 0 || events.length > 0) {
+      suggestions.push({
+        reason: `Local opportunities in ${selectedCity} - make the most of what's available!`,
+        activities: [
+          ...(gyms.length > 0 ? [`Check out ${gyms.slice(0, 2).map(g => g.name).join(' or ')}`] : []),
+          ...(trainers.length > 0 ? [`Connect with ${trainers.slice(0, 2).map(t => t.name).join(' or ')}`] : []),
+          ...(events.length > 0 ? [`Join ${events[0].title}`] : [])
+        ].filter(Boolean)
+      });
+    }
+    
+    return suggestions.slice(0, 3); // Limit to 3 suggestions
+  };
+
   const handleCityChange = async (newCity) => {
     setSelectedCity(newCity);
+    setCitySearchTerm(newCity);
     setLoading(true);
     setError(null);
     
@@ -230,7 +472,7 @@ const LocationFeaturesPage = () => {
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <MapPin className="w-4 h-4" />
-                <span>City: {selectedCity}</span>
+                <span>District: {selectedDistrict} | City: {selectedCity}</span>
               </div>
               <button
                 onClick={loadLocationData}
@@ -250,40 +492,94 @@ const LocationFeaturesPage = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-white rounded-xl shadow-lg p-6 border border-gray-200"
+            className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 rounded-2xl p-6 border border-blue-100 shadow-xl"
           >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-semibold text-gray-900">Weather & Workout Suggestions</h3>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Cloud className="w-6 h-6 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-900">Weather & Workout Suggestions</h3>
+                  <p className="text-gray-600">
+                    {nearbyGyms.length > 0 || nearbyTrainers.length > 0 || localEvents.length > 0 
+                      ? `Perfect conditions for your fitness journey in ${selectedCity}`
+                      : 'Perfect conditions for your fitness journey'
+                    }
+                  </p>
+                  {(nearbyGyms.length > 0 || nearbyTrainers.length > 0 || localEvents.length > 0) && (
+                    <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                      {nearbyGyms.length > 0 && <span>🏋️ {nearbyGyms.length} gyms nearby</span>}
+                      {nearbyTrainers.length > 0 && <span>👨‍💼 {nearbyTrainers.length} trainers available</span>}
+                      {localEvents.length > 0 && <span>📅 {localEvents.length} events happening</span>}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="w-20 h-20 bg-gradient-to-br from-yellow-100 to-orange-100 rounded-full flex items-center justify-center shadow-lg">
               {getWeatherIcon(weatherData.weather?.condition)}
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="flex items-center gap-3">
-                <Thermometer className="w-5 h-5 text-red-500" />
-                <span className="text-gray-600">Temperature: {weatherData?.weather?.temperature || 'N/A'}°C</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Wind className="w-5 h-5 text-blue-500" />
-                <span className="text-gray-600">Wind: {weatherData?.weather?.windSpeed || 'N/A'} km/h</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <Cloud className="w-5 h-5 text-gray-500" />
-                <span className="text-gray-600">Humidity: {weatherData?.weather?.humidity || 'N/A'}%</span>
               </div>
             </div>
-            <div className="mt-4">
-              <h4 className="font-medium text-gray-900 mb-2">Recommended Activities:</h4>
-              <div className="flex flex-wrap gap-2">
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+              <div className="flex items-center gap-4 p-4 bg-white/60 rounded-xl">
+                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                  <Thermometer className="w-5 h-5 text-red-600" />
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600 font-medium">Temperature</div>
+                  <div className="text-xl font-bold text-gray-900">{weatherData?.weather?.temperature || 'N/A'}°C</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 p-4 bg-white/60 rounded-xl">
+                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Wind className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600 font-medium">Wind Speed</div>
+                  <div className="text-xl font-bold text-gray-900">{weatherData?.weather?.windSpeed || 'N/A'} km/h</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 p-4 bg-white/60 rounded-xl">
+                <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
+                  <Cloud className="w-5 h-5 text-gray-600" />
+                </div>
+                <div>
+                  <div className="text-sm text-gray-600 font-medium">Humidity</div>
+                  <div className="text-xl font-bold text-gray-900">{weatherData?.weather?.humidity || 'N/A'}%</div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white/40 rounded-xl p-6">
+              <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                Recommended Activities
+              </h4>
+              <div className="space-y-4">
                 {(weatherData?.suggestions || []).map((suggestion, index) => (
-                  <div key={index} className="bg-gray-50 rounded-lg p-3">
-                    <p className="text-sm text-gray-700 mb-1">{suggestion.reason || 'No reason provided'}</p>
-                    <div className="flex flex-wrap gap-1">
+                  <motion.div 
+                    key={index} 
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="bg-white/60 rounded-lg p-4"
+                  >
+                    <p className="text-gray-700 mb-3 font-medium">{suggestion.reason || 'No reason provided'}</p>
+                    <div className="flex flex-wrap gap-2">
                       {(suggestion.activities || []).map((activity, idx) => (
-                        <span key={idx} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                        <motion.span 
+                          key={idx} 
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ delay: idx * 0.05 }}
+                          className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-sm font-medium rounded-full shadow-sm hover:shadow-md transition-all duration-200"
+                        >
                           {activity}
-                        </span>
+                        </motion.span>
                       ))}
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             </div>
@@ -293,24 +589,36 @@ const LocationFeaturesPage = () => {
 
       {/* Navigation Tabs */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+        <div className="flex space-x-2 bg-gradient-to-r from-gray-50 to-gray-100 p-2 rounded-2xl shadow-sm">
           {[
-            { id: 'gyms', label: 'Nearby Gyms', icon: MapPin },
-            { id: 'trainers', label: 'Trainers', icon: Users },
-            { id: 'events', label: 'Events', icon: Calendar }
+            { id: 'gyms', label: 'Nearby Gyms', icon: MapPin, color: 'blue' },
+            { id: 'trainers', label: 'Trainers', icon: Users, color: 'green' },
+            { id: 'events', label: 'Events', icon: Calendar, color: 'purple' }
           ].map((tab) => (
-            <button
+            <motion.button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className={`flex-1 flex items-center justify-center gap-3 py-4 px-6 rounded-xl font-semibold transition-all duration-200 ${
                 activeTab === tab.id
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
+                  ? `bg-white text-${tab.color}-600 shadow-lg border-2 border-${tab.color}-200`
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
               }`}
             >
-              <tab.icon className="w-4 h-4" />
-              {tab.label}
-            </button>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                activeTab === tab.id 
+                  ? `bg-${tab.color}-100` 
+                  : 'bg-gray-200'
+              }`}>
+                <tab.icon className={`w-4 h-4 ${
+                  activeTab === tab.id 
+                    ? `text-${tab.color}-600` 
+                    : 'text-gray-500'
+                }`} />
+              </div>
+              <span className="hidden sm:block">{tab.label}</span>
+            </motion.button>
           ))}
         </div>
       </div>
@@ -332,32 +640,81 @@ const LocationFeaturesPage = () => {
               </div>
             </div>
             <div className="flex gap-4 items-center">
+              {/* District Selection */}
+              <div className="relative">
               <select
-                value={selectedCity}
-                onChange={(e) => handleCityChange(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="Kochi">Kochi</option>
-                <option value="Thiruvananthapuram">Thiruvananthapuram</option>
-                <option value="Calicut">Calicut</option>
-                <option value="Kollam">Kollam</option>
-                <option value="Kottayam">Kottayam</option>
-                <option value="Thrissur">Thrissur</option>
-                <option value="Palakkad">Palakkad</option>
-                <option value="Kannur">Kannur</option>
-                <option value="Kasargod">Kasargod</option>
-                <option value="Kattappana">Kattappana</option>
-                <option value="Mundakayam">Mundakayam</option>
-                <option value="Kanjirappally">Kanjirappally</option>
+                  value={selectedDistrict}
+                  onChange={(e) => handleDistrictChange(e.target.value)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 font-medium min-w-[140px]"
+                >
+                  {Object.keys(DISTRICTS_AND_CITIES).map(district => (
+                    <option key={district} value={district}>{district}</option>
+                  ))}
               </select>
+              </div>
+
+              {/* City Search Dropdown */}
+              <div className="relative city-dropdown-container">
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={citySearchTerm}
+                    onChange={(e) => {
+                      setCitySearchTerm(e.target.value);
+                      setShowCityDropdown(true);
+                    }}
+                    onFocus={() => setShowCityDropdown(true)}
+                    placeholder="Search city..."
+                    className="px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 min-w-[200px]"
+                  />
+                  <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                </div>
+                
+                {/* City Dropdown */}
+                {showCityDropdown && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
+                    {getFilteredCities().length > 0 ? (
+                      getFilteredCities().map(city => (
+                        <button
+                          key={city}
+                          onClick={() => handleCitySelect(city)}
+                          className={`w-full px-4 py-2 text-left hover:bg-blue-50 transition-colors ${
+                            city === selectedCity ? 'bg-blue-100 text-blue-900 font-medium' : 'text-gray-900'
+                          }`}
+                        >
+                          {city}
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-4 py-2 text-gray-500 text-sm">No cities found</div>
+                    )}
+                  </div>
+                )}
+              </div>
 
               <button
                 type="button"
                 onClick={() => setMapView(v => !v)}
-                className={`px-3 py-2 rounded-lg border ${mapView ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300'} hover:shadow-sm transition`}
+                className={`px-4 py-2 rounded-lg border font-medium transition-all ${
+                  mapView 
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
+                    : 'bg-white text-gray-700 border-gray-300 hover:shadow-sm'
+                }`}
                 title="Toggle Map View"
               >
-                {mapView ? 'Map View: On' : 'Map View: Off'}
+                <div className="flex items-center gap-2">
+                  {mapView ? (
+                    <>
+                      <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                      Map View: On
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                      Map View: Off
+                    </>
+                  )}
+                </div>
               </button>
             </div>
           </div>

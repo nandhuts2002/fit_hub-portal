@@ -69,8 +69,9 @@ def get_profile(identifier):
     except Exception:
         followers = follows_collection.count_documents({'following_email': email})
         following = follows_collection.count_documents({'follower_email': email})
-    data = _profile_public(p)
-    data.update({'counts': {'posts': posts_count, 'followers': followers, 'following': following}})
+    data = _profile_public(p) or {}
+    if data:
+        data.update({'counts': {'posts': posts_count, 'followers': followers, 'following': following}})
     return jsonify({'ok': True, 'data': data})
 
 
@@ -78,7 +79,13 @@ def get_profile(identifier):
 @jwt_required()
 def update_profile():
     ident = get_jwt_identity() or {}
-    email = _normalize_key(ident.get('email') or '')
+    
+    # Handle case where ident is a string (email) vs dict
+    if isinstance(ident, str):
+        email = _normalize_key(ident)
+    else:
+        email = _normalize_key(ident.get('email') or '')
+        
     if not email:
         return jsonify({'ok': False, 'error': 'Unauthorized'}), 401
     payload = request.get_json(silent=True) or {}
@@ -117,7 +124,13 @@ def update_profile():
 @jwt_required()
 def follow():
     ident = get_jwt_identity() or {}
-    follower = _normalize_key(ident.get('email') or '')
+    
+    # Handle case where ident is a string (email) vs dict
+    if isinstance(ident, str):
+        follower = _normalize_key(ident)
+    else:
+        follower = _normalize_key(ident.get('email') or '')
+        
     payload = request.get_json(silent=True) or {}
     target = _normalize_key(payload.get('target') or '')
     if not follower or not target or follower == target:
@@ -142,7 +155,13 @@ def follow():
 @jwt_required()
 def unfollow():
     ident = get_jwt_identity() or {}
-    follower = _normalize_key(ident.get('email') or '')
+    
+    # Handle case where ident is a string (email) vs dict
+    if isinstance(ident, str):
+        follower = _normalize_key(ident)
+    else:
+        follower = _normalize_key(ident.get('email') or '')
+        
     payload = request.get_json(silent=True) or {}
     target = _normalize_key(payload.get('target') or '')
     if not follower or not target:
@@ -176,7 +195,13 @@ def profile_posts(identifier):
 @jwt_required()
 def migrate_avatar_posts():
     ident = get_jwt_identity() or {}
-    email = _normalize_key(ident.get('email') or '')
+    
+    # Handle case where ident is a string (email) vs dict
+    if isinstance(ident, str):
+        email = _normalize_key(ident)
+    else:
+        email = _normalize_key(ident.get('email') or '')
+        
     if not email:
         return jsonify({'ok': False, 'error': 'Unauthorized'}), 401
     prof = user_profiles_collection.find_one({'email': email}) or {}

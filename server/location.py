@@ -9,8 +9,95 @@ import os
 import hmac
 import hashlib
 from geocoding_service import geocoding_service
+import uuid
+import qrcode
+import io
+import base64
 
 location_bp = Blueprint('location', __name__)
+
+def _razorpay_client_keys():
+    """Get Razorpay client keys - matches shop implementation"""
+    return {
+        'key_id': os.getenv('RAZORPAY_KEY_ID', ''),
+        'key_secret': os.getenv('RAZORPAY_KEY_SECRET', '')
+    }
+
+def generate_event_ticket(booking_data, booking_id, event):
+    """Generate a ticket for the event booking"""
+    try:
+        print(f'🎫 Generating ticket for booking: {booking_id}')
+        
+        # Generate unique ticket ID
+        ticket_id = f"TKT-{booking_id[:8].upper()}-{str(uuid.uuid4())[:8].upper()}"
+        
+        # Parse amount to handle string prices
+        amount = booking_data.get('amount', 0)
+        if isinstance(amount, str):
+            amount = float(amount.replace('₹', '').replace(',', ''))
+        
+        # Create ticket data
+        ticket_data = {
+            'ticket_id': ticket_id,
+            'booking_id': booking_id,
+            'event_title': event.get('title', ''),
+            'event_date': str(event.get('date', '')),
+            'event_time': event.get('time', ''),
+            'event_location': event.get('location', ''),
+            'participant_name': booking_data.get('user_data', {}).get('name', ''),
+            'participant_email': booking_data.get('user_email', ''),
+            'participant_phone': booking_data.get('user_data', {}).get('phone', ''),
+            'amount_paid': amount,
+            'payment_id': booking_data.get('payment_id', ''),
+            'order_id': booking_data.get('order_id', ''),
+            'status': 'confirmed',
+            'generated_at': datetime.utcnow().isoformat(),
+            'qr_code': generate_qr_code(ticket_id, booking_id)
+        }
+        
+        print(f'✅ Ticket generated: {ticket_id}')
+        return ticket_data
+        
+    except Exception as e:
+        print(f"❌ Error generating ticket: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {
+            'ticket_id': f"TKT-{booking_id[:8].upper()}-ERROR",
+            'error': str(e),
+            'generated_at': datetime.utcnow().isoformat()
+        }
+
+def generate_qr_code(ticket_id, booking_id):
+    """Generate QR code for the ticket"""
+    try:
+        print(f'🔲 Generating QR code for ticket: {ticket_id}')
+        
+        # Create QR code data
+        qr_data = f"FitHub Event Ticket\nTicket ID: {ticket_id}\nBooking ID: {booking_id}\nEvent: {ticket_id}"
+        
+        # Generate QR code
+        qr = qrcode.QRCode(version=1, box_size=10, border=5)
+        qr.add_data(qr_data)
+        qr.make(fit=True)
+        
+        # Create image
+        img = qr.make_image(fill_color="black", back_color="white")
+        
+        # Convert to base64
+        buffer = io.BytesIO()
+        img.save(buffer, format='PNG')
+        img_str = base64.b64encode(buffer.getvalue()).decode()
+        
+        qr_code_data = f"data:image/png;base64,{img_str}"
+        print(f'✅ QR code generated successfully')
+        return qr_code_data
+        
+    except Exception as e:
+        print(f"❌ Error generating QR code: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return None
 
 @location_bp.route('/geocode', methods=['POST'])
 @jwt_required()
@@ -1187,102 +1274,176 @@ def update_event_booking_status():
 @location_bp.route('/api/event-payment/create-order', methods=['POST'])
 @jwt_required()
 def create_event_payment_order():
-    """Create Razorpay order for event booking"""
+    """Create Razorpay order for event booking - matches shop implementation"""
     try:
-        identity = get_jwt_identity()
-        
-        if not identity:
-            return jsonify({'success': False, 'message': 'Authentication required'}), 403
-        
-        data = request.json
-        if not data:
-            return jsonify({'success': False, 'message': 'Request body is required'}), 400
-            
+        # Use the same key function as shop
+        keys = _razorpay_client_keys()
+        if not keys['key_id'] or not keys['key_secret']:
+            print('❌ Razorpay keys not configured')
+            return jsonify({'success': False, 'error': 'Razorpay not configured'}), 500
+
+        data = request.get_json() or {}
         event_id = data.get('event_id')
-        amount = float(data.get('amount', 0))
+        amount = int(float(data.get('amount', 0)) * 100)  # in paise
+        currency = data.get('currency', 'INR')
         user_data = data.get('user_data', {})
         
+        print(f'📋 Payment request - Event: {event_id}, Amount: {amount/100} INR')
+        
         if not event_id:
-            return jsonify({'success': False, 'message': 'Event ID is required'}), 400
+            return jsonify({'success': False, 'error': 'Event ID is required'}), 400
         
         if amount <= 0:
-            return jsonify({'success': False, 'message': 'Invalid amount'}), 400
+            return jsonify({'success': False, 'error': 'Invalid amount'}), 400
         
         # Validate and convert event_id to ObjectId
         try:
             event_object_id = ObjectId(event_id)
         except Exception as e:
-            return jsonify({'success': False, 'message': f'Invalid event ID format: {str(e)}'}), 400
+            print(f'❌ Invalid event ID format: {str(e)}')
+            return jsonify({'success': False, 'error': f'Invalid event ID format: {str(e)}'}), 400
         
         # Get event details
         event = events_collection.find_one({'_id': event_object_id})
         if not event:
-            return jsonify({'success': False, 'message': 'Event not found'}), 404
+            print(f'❌ Event not found: {event_id}')
+            return jsonify({'success': False, 'error': 'Event not found'}), 404
         
-        # Create Razorpay order
-        razorpay_key_id = os.getenv('RAZORPAY_KEY_ID')
-        razorpay_key_secret = os.getenv('RAZORPAY_KEY_SECRET')
+        # Create receipt - must be ≤40 chars for Razorpay
+        # Use shortened format: evt_<last8_of_id>_<timestamp_ms_mod>
+        short_id = str(event_id)[-8:]
+        timestamp_mod = int(datetime.now().timestamp() * 1000) % 1000000
+        receipt = f'evt_{short_id}_{timestamp_mod}'
         
-        if not razorpay_key_id or not razorpay_key_secret:
-            print(f"Razorpay configuration missing: KEY_ID={'SET' if razorpay_key_id else 'NOT SET'}, KEY_SECRET={'SET' if razorpay_key_secret else 'NOT SET'}")
-            return jsonify({'success': False, 'message': 'Payment gateway not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.'}), 500
+        print(f'📝 Creating Razorpay order with receipt: {receipt} (length: {len(receipt)})')
+        response = requests.post(
+            'https://api.razorpay.com/v1/orders',
+            auth=(keys['key_id'], keys['key_secret']),
+            json={
+                'amount': amount,
+                'currency': currency,
+                'receipt': receipt,
+                'payment_capture': 1,
+                'notes': {
+                    'event_id': str(event_id),
+                    'event_title': event.get('title', ''),
+                    'user_email': user_data.get('email', '')
+                }
+            },
+            timeout=10
+        )
         
-        # Create order in Razorpay
-        order_data = {
-            'amount': int(amount * 100),  # Convert to paise
-            'currency': 'INR',
-            'receipt': f'event_{event_id}_{int(datetime.now().timestamp())}',
-            'notes': {
-                'event_id': str(event_id),
-                'event_title': event.get('title', ''),
-                'user_email': identity if isinstance(identity, str) else identity.get('email', '')
-            }
-        }
+        print(f'✅ Razorpay response status: {response.status_code}')
         
-        try:
-            response = requests.post(
-                'https://api.razorpay.com/v1/orders',
-                auth=(razorpay_key_id, razorpay_key_secret),
-                json=order_data,
-                timeout=10
-            )
-            
-            # Log the response for debugging
-            print(f"Razorpay API response status: {response.status_code}")
-            print(f"Razorpay API response headers: {dict(response.headers)}")
-            
-            if response.status_code != 200:
-                error_text = response.text
-                print(f"Razorpay API error response: {error_text}")
-                return jsonify({
-                    'success': False, 
-                    'message': f'Failed to create payment order. Razorpay API returned status {response.status_code}',
-                    'razorpay_error': error_text
-                }), 500
-                
-            razorpay_order = response.json()
-        except requests.exceptions.RequestException as e:
-            print(f"Error connecting to Razorpay API: {str(e)}")
-            return jsonify({
-                'success': False, 
-                'message': f'Failed to connect to payment gateway: {str(e)}'
-            }), 500
-        except Exception as e:
-            print(f"Error processing Razorpay response: {str(e)}")
-            return jsonify({
-                'success': False, 
-                'message': f'Error processing payment gateway response: {str(e)}'
-            }), 500
+        if response.status_code != 200:
+            error_text = response.text
+            print(f'❌ Razorpay API error: {error_text}')
+            return jsonify({'success': False, 'error': f'Razorpay error: {error_text}'}), 500
         
-        return jsonify({
-            'success': True,
-            'key_id': razorpay_key_id,
-            'order': razorpay_order
-        })
-        
+        order = response.json()
+        print(f'✅ Order created: {order.get("id")}')
+        return jsonify({'success': True, 'key_id': keys['key_id'], 'order': order})
     except Exception as e:
-        print(f"Error creating event payment order: {str(e)}")
-        return jsonify({'success': False, 'message': str(e)}), 500
+        print(f'❌ Exception in create_event_payment_order: {str(e)}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# Event Payment Verification
+@location_bp.route('/api/event-payment/verify', methods=['POST'])
+@jwt_required()
+def verify_event_payment():
+    """Verify event payment signature - matches shop implementation"""
+    try:
+        print(f'🔐 Verifying event payment...')
+        
+        keys = _razorpay_client_keys()
+        if not keys['key_id'] or not keys['key_secret']:
+            print('❌ Razorpay keys not configured')
+            return jsonify({'success': False, 'error': 'Razorpay not configured'}), 500
+
+        payload = request.get_json() or {}
+        order_id = payload.get('razorpay_order_id')
+        payment_id = payload.get('razorpay_payment_id')
+        signature = payload.get('razorpay_signature')
+        event_id = payload.get('event_id')
+        user_data = payload.get('user_data', {})
+
+        print(f'📋 Payment data - Order: {order_id}, Payment: {payment_id}, Event: {event_id}')
+
+        if not all([order_id, payment_id, signature, event_id]):
+            print('❌ Missing required payment data')
+            return jsonify({'success': False, 'error': 'Missing required payment data'}), 400
+
+        # Verify signature
+        message = f"{order_id}|{payment_id}"
+        expected_signature = hmac.new(
+            keys['key_secret'].encode(),
+            message.encode(),
+            hashlib.sha256
+        ).hexdigest()
+
+        if not hmac.compare_digest(signature, expected_signature):
+            print('❌ Invalid payment signature')
+            return jsonify({'success': False, 'error': 'Invalid payment signature'}), 400
+
+        print('✅ Signature verified')
+
+        # Create event booking
+        try:
+            event_object_id = ObjectId(event_id)
+            event = events_collection.find_one({'_id': event_object_id})
+            if not event:
+                print(f'❌ Event not found: {event_id}')
+                return jsonify({'success': False, 'error': 'Event not found'}), 404
+
+            # Create booking record
+            booking_data = {
+                'event_id': event_object_id,
+                'user_email': user_data.get('email', ''),
+                'user_data': user_data,
+                'amount': event.get('price', 0),
+                'payment_id': payment_id,
+                'order_id': order_id,
+                'status': 'confirmed',
+                'created_at': datetime.utcnow(),
+                'payment_verified': True
+            }
+
+            # Insert booking
+            booking_result = event_bookings_collection.insert_one(booking_data)
+            booking_id = str(booking_result.inserted_id)
+            print(f'✅ Booking created: {booking_id}')
+
+            # Generate ticket
+            ticket_data = generate_event_ticket(booking_data, booking_id, event)
+            
+            # Save ticket to booking
+            event_bookings_collection.update_one(
+                {'_id': booking_result.inserted_id},
+                {'$set': {'ticket': ticket_data}}
+            )
+            print(f'✅ Ticket saved to booking')
+
+            print(f'✅ Payment verification complete, returning ticket')
+            return jsonify({
+                'success': True,
+                'message': 'Payment verified and booking confirmed',
+                'booking_id': booking_id,
+                'ticket': ticket_data
+            })
+
+        except Exception as e:
+            print(f'❌ Failed to create booking: {str(e)}')
+            import traceback
+            traceback.print_exc()
+            return jsonify({'success': False, 'error': f'Failed to create booking: {str(e)}'}), 500
+
+    except Exception as e:
+        print(f'❌ Exception in verify_event_payment: {str(e)}')
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @location_bp.route('/api/gym-payment/create-order', methods=['POST'])
 @jwt_required()
@@ -1320,13 +1481,10 @@ def create_gym_payment_order():
         if not gym:
             return jsonify({'success': False, 'message': 'Gym not found'}), 404
         
-        # Create Razorpay order
-        razorpay_key_id = os.getenv('RAZORPAY_KEY_ID')
-        razorpay_key_secret = os.getenv('RAZORPAY_KEY_SECRET')
-        
-        if not razorpay_key_id or not razorpay_key_secret:
-            print(f"Razorpay configuration missing: KEY_ID={'SET' if razorpay_key_id else 'NOT SET'}, KEY_SECRET={'SET' if razorpay_key_secret else 'NOT SET'}")
-            return jsonify({'success': False, 'message': 'Payment gateway not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.'}), 500
+        # Create Razorpay order - use same key function as shop and events
+        keys = _razorpay_client_keys()
+        if not keys['key_id'] or not keys['key_secret']:
+            return jsonify({'success': False, 'error': 'Razorpay not configured'}), 500
         
         # Create order in Razorpay
         order_data = {
@@ -1344,7 +1502,7 @@ def create_gym_payment_order():
         try:
             response = requests.post(
                 'https://api.razorpay.com/v1/orders',
-                auth=(razorpay_key_id, razorpay_key_secret),
+                auth=(keys['key_id'], keys['key_secret']),
                 json=order_data,
                 timeout=10
             )
@@ -1378,7 +1536,7 @@ def create_gym_payment_order():
         
         return jsonify({
             'success': True,
-            'key_id': razorpay_key_id,
+            'key_id': keys['key_id'],
             'order': razorpay_order
         })
         
@@ -1481,6 +1639,16 @@ def verify_payment():
             
             # Store in bookings collection
             result = event_bookings_collection.insert_one(booking_data)
+            booking_id = str(result.inserted_id)
+            
+            # Generate ticket
+            ticket_data = generate_event_ticket(booking_data, booking_id, event)
+            
+            # Update booking with ticket information
+            event_bookings_collection.update_one(
+                {'_id': result.inserted_id},
+                {'$set': {'ticket': ticket_data}}
+            )
             
             # Update event participants count
             events_collection.update_one(
@@ -1516,7 +1684,8 @@ def verify_payment():
             return jsonify({
                 'success': True,
                 'message': 'Payment verified and booking confirmed',
-                'booking_id': str(result.inserted_id)
+                'booking_id': str(result.inserted_id),
+                'ticket': ticket_data if event_id else None
             })
         else:
             return jsonify({
@@ -1526,6 +1695,100 @@ def verify_payment():
         
     except Exception as e:
         print(f"Error verifying payment: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@location_bp.route('/api/user-tickets', methods=['GET'])
+@jwt_required()
+def get_user_tickets():
+    """Get user's event tickets"""
+    try:
+        identity = get_jwt_identity()
+        print(f'📋 Getting tickets for identity: {identity}')
+        
+        if not identity:
+            print('❌ No identity found')
+            return jsonify({'success': False, 'message': 'Authentication required'}), 403
+        
+        user_email = identity if isinstance(identity, str) else identity.get('email', '')
+        print(f'📧 User email: {user_email}')
+        
+        # Get all bookings for debugging
+        all_bookings = list(event_bookings_collection.find({'user_email': user_email}))
+        print(f'📊 Total bookings for user: {len(all_bookings)}')
+        
+        for i, booking in enumerate(all_bookings):
+            print(f'  Booking {i}: status={booking.get("status")}, has_ticket={"ticket" in booking}')
+        
+        # Get user's confirmed event bookings with tickets
+        bookings = list(event_bookings_collection.find({
+            'user_email': user_email,
+            'status': 'confirmed',
+            'ticket': {'$exists': True}
+        }).sort('created_at', -1))
+        
+        print(f'✅ Found {len(bookings)} confirmed bookings with tickets')
+        
+        # Format tickets
+        tickets = []
+        for booking in bookings:
+            if 'ticket' in booking:
+                ticket = booking['ticket']
+                ticket['booking_id'] = str(booking['_id'])
+                ticket['event_id'] = str(booking['event_id'])
+                tickets.append(ticket)
+        
+        return jsonify({
+            'success': True,
+            'tickets': tickets
+        })
+        
+    except Exception as e:
+        print(f"❌ Error getting user tickets: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@location_bp.route('/api/ticket/<ticket_id>', methods=['GET'])
+@jwt_required()
+def get_ticket_details(ticket_id):
+    """Get specific ticket details"""
+    try:
+        identity = get_jwt_identity()
+        
+        if not identity:
+            return jsonify({'success': False, 'message': 'Authentication required'}), 403
+        
+        user_email = identity if isinstance(identity, str) else identity.get('email', '')
+        
+        # Find booking with ticket
+        booking = event_bookings_collection.find_one({
+            'user_email': user_email,
+            'ticket.ticket_id': ticket_id,
+            'status': 'confirmed'
+        })
+        
+        if not booking:
+            return jsonify({'success': False, 'message': 'Ticket not found'}), 404
+        
+        # Get event details
+        event = events_collection.find_one({'_id': booking['event_id']})
+        
+        ticket_data = booking.get('ticket', {})
+        ticket_data['event_details'] = {
+            'title': event.get('title', ''),
+            'date': event.get('date', ''),
+            'time': event.get('time', ''),
+            'location': event.get('location', ''),
+            'description': event.get('description', '')
+        } if event else None
+        
+        return jsonify({
+            'success': True,
+            'ticket': ticket_data
+        })
+        
+    except Exception as e:
+        print(f"Error getting ticket details: {str(e)}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
 

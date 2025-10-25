@@ -45,7 +45,14 @@ def get_challenges():
 def create_challenge():
     """Create a new fitness challenge (admin/trainer only)"""
     current_user = get_jwt_identity()
-    user_role = current_user.get('role', 'user')
+    
+    # Handle case where current_user is a string (email) vs dict
+    if isinstance(current_user, str):
+        user_role = 'user'  # Default role for string identity
+        user_email = current_user.strip().lower()
+    else:
+        user_role = current_user.get('role', 'user')
+        user_email = current_user.get('email')
     
     if user_role not in ['admin', 'trainer']:
         return jsonify({'ok': False, 'error': 'Only admins and trainers can create challenges'}), 403
@@ -62,7 +69,7 @@ def create_challenge():
         'goalValue': payload.get('goalValue', 0),
         'participants': [],
         'leaderboard': [],
-        'createdBy': current_user.get('email'),
+        'createdBy': user_email,
         'created_at': _now_ms(),
         'isActive': True
     }
@@ -87,7 +94,12 @@ def create_challenge():
 def join_challenge(challenge_id):
     """Join a fitness challenge"""
     current_user = get_jwt_identity()
-    user_email = _normalize_email(current_user.get('email'))
+    
+    # Handle case where current_user is a string (email) vs dict
+    if isinstance(current_user, str):
+        user_email = _normalize_email(current_user)
+    else:
+        user_email = _normalize_email(current_user.get('email'))
     
     print(f"[JOIN CHALLENGE] Challenge ID: {challenge_id}")
     print(f"[JOIN CHALLENGE] User email (normalized): {user_email}")
@@ -149,7 +161,12 @@ def join_challenge(challenge_id):
 def leave_challenge(challenge_id):
     """Leave a fitness challenge"""
     current_user = get_jwt_identity()
-    user_email = _normalize_email(current_user.get('email'))
+    
+    # Handle case where current_user is a string (email) vs dict
+    if isinstance(current_user, str):
+        user_email = _normalize_email(current_user)
+    else:
+        user_email = _normalize_email(current_user.get('email'))
     
     print(f"[LEAVE CHALLENGE] Challenge ID: {challenge_id}")
     print(f"[LEAVE CHALLENGE] User email (normalized): {user_email}")
@@ -564,7 +581,14 @@ def update_qa_session(session_id):
 def delete_qa_session(session_id):
     """Delete a Q&A session (host/admin only)"""
     current_user = get_jwt_identity()
-    user_role = current_user.get('role', 'user')
+    
+    # Handle case where current_user is a string (email) vs dict
+    if isinstance(current_user, str):
+        user_email = current_user.strip().lower()
+        user_role = 'user'  # Default role for string identity
+    else:
+        user_email = current_user.get('email')
+        user_role = current_user.get('role', 'user')
     
     try:
         # Check if user is the host or admin
@@ -572,7 +596,7 @@ def delete_qa_session(session_id):
         if not session:
             return jsonify({'ok': False, 'error': 'Session not found'}), 404
         
-        if session.get('hostId') != current_user.get('email') and user_role != 'admin':
+        if session.get('hostId') != user_email and user_role != 'admin':
             return jsonify({'ok': False, 'error': 'Only the session host or admin can delete sessions'}), 403
         
         qa_sessions_collection.delete_one({'id': session_id})
@@ -587,7 +611,15 @@ def delete_qa_session(session_id):
 def toggle_live_status(session_id):
     """Toggle live status of a Q&A session (host/admin only)"""
     current_user = get_jwt_identity()
-    user_role = current_user.get('role', 'user')
+    
+    # Handle case where current_user is a string (email) vs dict
+    if isinstance(current_user, str):
+        user_email = current_user.strip().lower()
+        user_role = 'user'  # Default role for string identity
+    else:
+        user_email = current_user.get('email')
+        user_role = current_user.get('role', 'user')
+        
     payload = request.get_json(silent=True) or {}
     
     try:
@@ -596,7 +628,7 @@ def toggle_live_status(session_id):
         if not session:
             return jsonify({'ok': False, 'error': 'Session not found'}), 404
         
-        if session.get('hostId') != current_user.get('email') and user_role != 'admin':
+        if session.get('hostId') != user_email and user_role != 'admin':
             return jsonify({'ok': False, 'error': 'Only the session host or admin can toggle live status'}), 403
         
         is_live = payload.get('isLive', False)
@@ -641,7 +673,12 @@ def get_spotlights():
 def get_pending_spotlights():
     """Get pending spotlights for admin review"""
     current_user = get_jwt_identity()
-    user_role = current_user.get('role', 'user')
+    
+    # Handle case where current_user is a string (email) vs dict
+    if isinstance(current_user, str):
+        user_role = 'user'  # Default role for string identity
+    else:
+        user_role = current_user.get('role', 'user')
     
     if user_role not in ['admin']:
         return jsonify({'ok': False, 'error': 'Admin access required'}), 403
@@ -665,14 +702,26 @@ def submit_spotlight():
     """Submit a transformation spotlight"""
     current_user = get_jwt_identity()
     payload = request.get_json(silent=True) or {}
-    user_email = current_user.get('email')
+    
+    # Handle case where current_user is a string (email) vs dict
+    if isinstance(current_user, str):
+        user_email = current_user.strip().lower()
+        # For string identity, we don't have name/avatar data directly
+        user_first_name = None
+        user_name_from_token = None
+        user_avatar = ''
+    else:
+        user_email = current_user.get('email')
+        user_first_name = current_user.get('firstName')
+        user_name_from_token = current_user.get('name')
+        user_avatar = current_user.get('avatar', '')
     
     # Get full user profile from database
     user_profile = user_profiles_collection.find_one({'email': user_email})
     
     # Determine user name and avatar
     user_name = 'User'  # Default fallback
-    user_avatar = ''    # Default fallback
+    user_avatar_final = ''    # Default fallback
     
     if user_profile:
         # Try to get name from profile
@@ -684,14 +733,15 @@ def submit_spotlight():
             user_name = user_profile.get('name')
         
         # Get avatar from profile
-        user_avatar = user_profile.get('avatar', '')
+        user_avatar_final = user_profile.get('avatar', '')
     else:
         # Fallback to JWT token data
-        if current_user.get('firstName'):
-            user_name = current_user.get('firstName')
-        elif current_user.get('name'):
-            user_name = current_user.get('name')
-        user_avatar = current_user.get('avatar', '')
+        if user_first_name:
+            user_name = user_first_name
+        elif user_name_from_token:
+            user_name = user_name_from_token
+        if user_avatar:
+            user_avatar_final = user_avatar
     
     # If still "User", create a better name from email
     if user_name == 'User' and user_email:
@@ -702,7 +752,7 @@ def submit_spotlight():
         'id': str(uuid.uuid4()),
         'userId': user_email,
         'userName': user_name,
-        'userAvatar': user_avatar,
+        'userAvatar': user_avatar_final,
         'title': payload.get('title', '').strip(),
         'beforeImage': payload.get('beforeImage', ''),
         'afterImage': payload.get('afterImage', ''),
@@ -728,7 +778,14 @@ def submit_spotlight():
 def approve_spotlight(spotlight_id):
     """Approve a spotlight (admin only)"""
     current_user = get_jwt_identity()
-    if current_user.get('role') != 'admin':
+    
+    # Handle case where current_user is a string (email) vs dict
+    if isinstance(current_user, str):
+        user_role = 'user'  # Default role for string identity
+    else:
+        user_role = current_user.get('role', 'user')
+    
+    if user_role != 'admin':
         return jsonify({'ok': False, 'error': 'Admin access required'}), 403
     
     try:
@@ -747,7 +804,14 @@ def approve_spotlight(spotlight_id):
 def feature_spotlight(spotlight_id):
     """Feature a spotlight (admin only)"""
     current_user = get_jwt_identity()
-    if current_user.get('role') != 'admin':
+    
+    # Handle case where current_user is a string (email) vs dict
+    if isinstance(current_user, str):
+        user_role = 'user'  # Default role for string identity
+    else:
+        user_role = current_user.get('role', 'user')
+    
+    if user_role != 'admin':
         return jsonify({'ok': False, 'error': 'Admin access required'}), 403
     
     try:
@@ -770,7 +834,13 @@ def feature_spotlight(spotlight_id):
 def vote_on_poll(post_id):
     """Vote on a poll in a post"""
     current_user = get_jwt_identity()
-    user_email = _normalize_email(current_user.get('email'))
+    
+    # Handle case where current_user is a string (email) vs dict
+    if isinstance(current_user, str):
+        user_email = _normalize_email(current_user)
+    else:
+        user_email = _normalize_email(current_user.get('email'))
+    
     payload = request.get_json(silent=True) or {}
     
     option_index = payload.get('optionIndex', 0)
@@ -817,7 +887,13 @@ def vote_on_poll(post_id):
 def react_to_post(post_id):
     """Add emoji reaction to a post"""
     current_user = get_jwt_identity()
-    user_email = _normalize_email(current_user.get('email'))
+    
+    # Handle case where current_user is a string (email) vs dict
+    if isinstance(current_user, str):
+        user_email = _normalize_email(current_user)
+    else:
+        user_email = _normalize_email(current_user.get('email'))
+    
     payload = request.get_json(silent=True) or {}
     
     emoji = payload.get('emoji', '👍')
@@ -853,6 +929,13 @@ def react_to_post(post_id):
 def tag_users_in_post(post_id):
     """Tag users in a post"""
     current_user = get_jwt_identity()
+    
+    # Handle case where current_user is a string (email) vs dict
+    if isinstance(current_user, str):
+        user_email = current_user.strip().lower()
+    else:
+        user_email = current_user.get('email')
+        
     payload = request.get_json(silent=True) or {}
     
     tagged_emails = payload.get('taggedUsers', [])
@@ -867,7 +950,7 @@ def tag_users_in_post(post_id):
         for email in tagged_emails:
             socketio.emit('user:tagged', {
                 'postId': post_id,
-                'taggedBy': current_user.get('email'),
+                'taggedBy': user_email,
                 'taggedUser': email
             }, namespace='/community')
         
@@ -885,7 +968,13 @@ def tag_users_in_post(post_id):
 def update_spotlight(spotlight_id):
     """Update a spotlight (owner only)"""
     current_user = get_jwt_identity()
-    user_email = current_user.get('email')
+    
+    # Handle case where current_user is a string (email) vs dict
+    if isinstance(current_user, str):
+        user_email = current_user.strip().lower()
+    else:
+        user_email = current_user.get('email')
+        
     payload = request.get_json(silent=True) or {}
     
     try:
@@ -920,8 +1009,14 @@ def update_spotlight(spotlight_id):
 def delete_spotlight(spotlight_id):
     """Delete a spotlight (owner only)"""
     current_user = get_jwt_identity()
-    user_email = current_user.get('email')
-    user_role = current_user.get('role', 'user')
+    
+    # Handle case where current_user is a string (email) vs dict
+    if isinstance(current_user, str):
+        user_email = current_user.strip().lower()
+        user_role = 'user'  # Default role for string identity
+    else:
+        user_email = current_user.get('email')
+        user_role = current_user.get('role', 'user')
     
     try:
         spotlight = spotlights_collection.find_one({'id': spotlight_id})

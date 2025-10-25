@@ -169,6 +169,8 @@ END:VCALENDAR`;
       } else {
         // Paid event - process payment
         const amount = paymentService.parseAmount(event.price);
+        console.log('Event price:', event.price);
+        console.log('Parsed amount:', amount);
         if (amount > 0) {
           // Ensure Razorpay is loaded
           await paymentService.ensureRazorpayLoaded();
@@ -199,7 +201,7 @@ END:VCALENDAR`;
           const paymentResponse = await paymentService.openRazorpayCheckout(options);
           
           // Verify payment
-          await paymentService.verifyPayment({
+          const verificationResult = await paymentService.verifyPayment({
             razorpay_order_id: paymentResponse.razorpay_order_id,
             razorpay_payment_id: paymentResponse.razorpay_payment_id,
             razorpay_signature: paymentResponse.razorpay_signature,
@@ -207,7 +209,15 @@ END:VCALENDAR`;
             user_data: joinForm
           });
 
-          alert('Payment successful! You have joined the event. Confirmation details will be sent to your email.');
+          // Show ticket if available
+          if (verificationResult.ticket) {
+            // Store ticket data for display
+            localStorage.setItem('latest_ticket', JSON.stringify(verificationResult.ticket));
+            alert('Payment successful! You have joined the event. Your ticket has been generated and saved to your account.');
+          } else {
+            alert('Payment successful! You have joined the event. Confirmation details will be sent to your email.');
+          }
+          
           setShowJoinForm(false);
           setJoinForm({ name: '', phone: '', email: '', emergencyContact: '', specialRequirements: '' });
           onClose(); // Close modal after successful payment
@@ -410,19 +420,19 @@ END:VCALENDAR`;
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {event.type === 'Yoga' && (
                   <>
-                    <div className="flex items-center gap-2">
+                    <div key="yoga-1" className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4 text-green-500" />
                       <span className="text-sm">Yoga mat</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div key="yoga-2" className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4 text-green-500" />
                       <span className="text-sm">Comfortable clothes</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div key="yoga-3" className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4 text-green-500" />
                       <span className="text-sm">Water bottle</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div key="yoga-4" className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4 text-green-500" />
                       <span className="text-sm">Towel</span>
                     </div>
@@ -430,19 +440,19 @@ END:VCALENDAR`;
                 )}
                 {event.type === 'Running' && (
                   <>
-                    <div className="flex items-center gap-2">
+                    <div key="running-1" className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4 text-green-500" />
                       <span className="text-sm">Running shoes</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div key="running-2" className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4 text-green-500" />
                       <span className="text-sm">Comfortable running clothes</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div key="running-3" className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4 text-green-500" />
                       <span className="text-sm">Water bottle</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div key="running-4" className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4 text-green-500" />
                       <span className="text-sm">Energy snacks</span>
                     </div>
@@ -450,19 +460,19 @@ END:VCALENDAR`;
                 )}
                 {event.type === 'Cycling' && (
                   <>
-                    <div className="flex items-center gap-2">
+                    <div key="cycling-1" className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4 text-green-500" />
                       <span className="text-sm">Bicycle</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div key="cycling-2" className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4 text-green-500" />
                       <span className="text-sm">Helmet</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div key="cycling-3" className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4 text-green-500" />
                       <span className="text-sm">Water bottle</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div key="cycling-4" className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4 text-green-500" />
                       <span className="text-sm">Repair kit</span>
                     </div>
@@ -471,15 +481,15 @@ END:VCALENDAR`;
                 {/* Default items for other event types */}
                 {!['Yoga', 'Running', 'Cycling'].includes(event.type) && (
                   <>
-                    <div className="flex items-center gap-2">
+                    <div key="default-1" className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4 text-green-500" />
                       <span className="text-sm">Comfortable clothes</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div key="default-2" className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4 text-green-500" />
                       <span className="text-sm">Water bottle</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div key="default-3" className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4 text-green-500" />
                       <span className="text-sm">Positive attitude</span>
                     </div>

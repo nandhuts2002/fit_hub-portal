@@ -36,7 +36,34 @@ def _save(payload: Dict[str, Any]):
 @live_bp.route('/sessions', methods=['GET'])
 def list_sessions():
     data = _load()
-    return jsonify({"ok": True, "data": data.get('sessions', [])})
+    all_sessions = data.get('sessions', [])
+    
+    # Filter out ended sessions and separate upcoming from ended
+    from datetime import datetime, timezone
+    
+    now = datetime.now(timezone.utc)
+    upcoming_sessions = []
+    ended_sessions = []
+    
+    for session in all_sessions:
+        try:
+            start_time = datetime.fromisoformat(session.get('startTime', '').replace('Z', '+00:00'))
+            end_time = start_time.replace(second=0, microsecond=0)  # Remove seconds/microseconds for comparison
+            
+            # Add duration to get end time
+            from datetime import timedelta
+            end_time = end_time + timedelta(minutes=int(session.get('duration', 60)))
+            
+            if end_time > now:
+                upcoming_sessions.append(session)
+            else:
+                ended_sessions.append(session)
+        except Exception:
+            # If there's an error parsing the date, include it in upcoming (safer default)
+            upcoming_sessions.append(session)
+    
+    # Return only upcoming sessions by default
+    return jsonify({"ok": True, "data": upcoming_sessions, "ended": ended_sessions})
 
 
 @live_bp.route('/config', methods=['GET'])

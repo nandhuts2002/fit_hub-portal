@@ -1,5 +1,6 @@
 // Payment service for event bookings and gym memberships
 import SessionManager from './sessionManager';
+import api from './api';
 
 class PaymentService {
   constructor() {
@@ -10,36 +11,56 @@ class PaymentService {
   async createEventPaymentOrder(eventData, userData) {
     try {
       const currentUser = SessionManager.getCurrentUser();
-      const token = currentUser?.token;
-      if (!token) {
-        throw new Error('Authentication required');
+      if (!currentUser?.token) {
+        throw new Error('Authentication required: Please log in again');
       }
 
-      const response = await fetch(`${this.apiBaseUrl}/location/api/event-payment/create-order`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          event_id: eventData._id,
-          event_title: eventData.title,
-          // Server converts amount to paise before creating the Razorpay order
-          amount: this.parseAmount(eventData.price),
-          currency: 'INR',
-          user_data: userData
-        })
+      const requestData = {
+        event_id: eventData._id,
+        event_title: eventData.title,
+        // Server converts amount to paise before creating the Razorpay order
+        amount: this.parseAmount(eventData.price),
+        currency: 'INR',
+        user_data: userData
+      };
+      
+      console.log('Payment request data:', requestData);
+      
+      // Explicitly pass the Authorization header like the shop does
+      const response = await api.post('/location/api/event-payment/create-order', requestData, {
+        headers: { Authorization: `Bearer ${currentUser.token}` }
       });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || errorData.error || `Failed to create payment order (${response.status})`);
+      
+      if (!response.data.success) {
+        throw new Error(response.data.error || 'Failed to create payment order');
       }
 
-      const data = await response.json();
-      return data;
+      return response.data;
     } catch (error) {
       console.error('Error creating payment order:', error);
+      
+      // Enhanced error logging
+      if (error.response) {
+        console.error('Response status:', error.response.status);
+        console.error('Response data:', error.response.data);
+        console.error('Response headers:', error.response.headers);
+      } else if (error.request) {
+        console.error('Request error:', error.request);
+      } else {
+        console.error('Error message:', error.message);
+      }
+      
+      // Provide more specific error messages
+      if (error.response?.status === 500) {
+        throw new Error('Server error: Payment gateway not configured or server error');
+      } else if (error.response?.status === 401) {
+        throw new Error('Authentication error: Please log in again');
+      } else if (error.response?.status === 404) {
+        throw new Error('Event not found');
+      } else if (error.code === 'ECONNREFUSED') {
+        throw new Error('Server not running: Please start the backend server');
+      }
+      
       throw error;
     }
   }
@@ -48,34 +69,26 @@ class PaymentService {
   async createGymPaymentOrder(gymData, userData, membershipType = 'monthly') {
     try {
       const currentUser = SessionManager.getCurrentUser();
-      const token = currentUser?.token;
-      if (!token) {
-        throw new Error('Authentication required');
+      if (!currentUser?.token) {
+        throw new Error('Authentication required: Please log in again');
       }
 
-      const response = await fetch(`${this.apiBaseUrl}/location/api/gym-payment/create-order`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          gym_id: gymData._id,
-          gym_name: gymData.name,
-          membership_type: membershipType,
-          amount: this.parseAmount(gymData.price),
-          currency: 'INR',
-          user_data: userData
-        })
+      const response = await api.post('/location/api/gym-payment/create-order', {
+        gym_id: gymData._id,
+        gym_name: gymData.name,
+        membership_type: membershipType,
+        amount: this.parseAmount(gymData.price),
+        currency: 'INR',
+        user_data: userData
+      }, {
+        headers: { Authorization: `Bearer ${currentUser.token}` }
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || errorData.error || `Failed to create payment order (${response.status})`);
+      if (!response.data.success) {
+        throw new Error(response.data.error || 'Failed to create payment order');
       }
 
-      const data = await response.json();
-      return data;
+      return response.data;
     } catch (error) {
       console.error('Error creating payment order:', error);
       throw error;
@@ -86,27 +99,19 @@ class PaymentService {
   async verifyPayment(paymentData) {
     try {
       const currentUser = SessionManager.getCurrentUser();
-      const token = currentUser?.token;
-      if (!token) {
-        throw new Error('Authentication required');
+      if (!currentUser?.token) {
+        throw new Error('Authentication required: Please log in again');
       }
 
-      const response = await fetch(`${this.apiBaseUrl}/location/api/payment/verify`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(paymentData)
+      const response = await api.post('/location/api/event-payment/verify', paymentData, {
+        headers: { Authorization: `Bearer ${currentUser.token}` }
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || errorData.error || 'Payment verification failed');
+      if (!response.data.success) {
+        throw new Error(response.data.error || 'Payment verification failed');
       }
 
-      const data = await response.json();
-      return data;
+      return response.data;
     } catch (error) {
       console.error('Error verifying payment:', error);
       throw error;

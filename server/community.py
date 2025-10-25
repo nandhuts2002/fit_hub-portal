@@ -196,13 +196,41 @@ def create_post():
     # Handle case where ident is a string (email) vs dict
     if isinstance(ident, str):
         user_email = ident.strip().lower()
-        user_name = ident.split('@')[0] if '@' in ident else ident
-        user_avatar = ''
     else:
-        # Original dictionary handling
         user_email = str(ident.get('email') or '').strip().lower()
-        user_name = ident.get('name') or ident.get('firstName') or ident.get('email') or 'Member'
-        user_avatar = ident.get('avatar') or ''
+    
+    # Get user's name and avatar from database for consistency
+    from models import users_collection, user_profiles_collection
+    
+    # Try to get user profile first (preferred source for avatar)
+    user_profile = user_profiles_collection.find_one({'email': user_email})
+    user_doc = users_collection.find_one({'email': user_email})
+    
+    # Determine user name
+    if user_profile and user_profile.get('displayName'):
+        user_name = user_profile.get('displayName')
+    elif user_doc:
+        if user_doc.get('firstName') and user_doc.get('lastName'):
+            user_name = f"{user_doc.get('firstName')} {user_doc.get('lastName')}"
+        elif user_doc.get('firstName'):
+            user_name = user_doc.get('firstName')
+        else:
+            user_name = user_doc.get('email', 'Member').split('@')[0]
+    else:
+        # Fallback to JWT identity data
+        if isinstance(ident, str):
+            user_name = ident.split('@')[0] if '@' in ident else ident
+        else:
+            user_name = ident.get('name') or ident.get('firstName') or ident.get('email') or 'Member'
+    
+    # Determine user avatar (prefer profile avatar, then user doc avatar)
+    user_avatar = ''
+    if user_profile and user_profile.get('avatar'):
+        user_avatar = user_profile.get('avatar')
+    elif user_doc and user_doc.get('avatar'):
+        user_avatar = user_doc.get('avatar')
+    elif not isinstance(ident, str) and ident.get('avatar'):
+        user_avatar = ident.get('avatar')
     
     if not text and not image_url:
         return jsonify({'ok': False, 'error': 'Post must have text or image'}), 400

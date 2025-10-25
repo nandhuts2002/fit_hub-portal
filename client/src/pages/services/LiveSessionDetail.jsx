@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { getSession, requestSeat, approveReservation, rejectReservation, markPaid, getRazorpayKey } from '../../utils/liveService';
 import paymentService from '../../utils/paymentService';
+import SessionManager from '../../utils/sessionManager';
 
 function formatWhen(iso) {
   if (!iso) return 'TBD';
@@ -22,9 +23,9 @@ export default function LiveSessionDetail() {
   const [error, setError] = useState('');
   const [item, setItem] = useState(null);
   const [reserved, setReserved] = useState(false);
-  const sessionObj = (() => { try { return JSON.parse(localStorage.getItem('session') || '{}'); } catch { return {}; } })();
+  const sessionObj = SessionManager.getCurrentUser() || {};
   const userRole = sessionObj?.role || sessionObj?.sub?.role || sessionObj?.user?.role;
-  const isTrainer = String(userRole || '').toLowerCase() === 'trainer';
+  const isTrainer = userRole === 'trainer' || String(userRole || '').toLowerCase() === 'trainer';
   const myEmail = (sessionObj?.email || sessionObj?.user?.email || '').trim();
   const myUserId = sessionObj?.id || sessionObj?._id || sessionObj?.userId || '';
 

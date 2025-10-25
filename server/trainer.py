@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity, get_jwt
 from models import tutorials_collection, queries_collection, users_collection, trainer_applications_collection, music_tracks_collection
-from datetime import datetime
+from datetime import datetime, timezone
 from bson import ObjectId
 import os
 
@@ -337,6 +337,32 @@ def get_trainer_stats():
             'status': {'$in': ['assigned', 'open']}
         })
         
+        # Get live session stats
+        try:
+            import json
+            import os
+            live_data_path = os.path.join(os.path.dirname(__file__), 'live_sessions.json')
+            if os.path.exists(live_data_path):
+                with open(live_data_path, 'r', encoding='utf-8') as f:
+                    live_data = json.load(f)
+                all_sessions = live_data.get('sessions', [])
+                trainer_sessions = [s for s in all_sessions if s.get('trainerId') == current_user]
+                total_live_sessions = len(trainer_sessions)
+                upcoming_sessions = len([s for s in trainer_sessions if s.get('startTime') and datetime.fromisoformat(s.get('startTime', '').replace('Z', '+00:00')) > datetime.now(timezone.utc)])
+                total_reservations = sum(len(s.get('reservations', [])) for s in trainer_sessions)
+                approved_reservations = sum(len([r for r in s.get('reservations', []) if r.get('status') == 'approved']) for s in trainer_sessions)
+            else:
+                total_live_sessions = 0
+                upcoming_sessions = 0
+                total_reservations = 0
+                approved_reservations = 0
+        except Exception as e:
+            print(f"Error loading live session stats: {e}")
+            total_live_sessions = 0
+            upcoming_sessions = 0
+            total_reservations = 0
+            approved_reservations = 0
+        
         stats = {
             'totalTutorials': total_tutorials,
             'publishedTutorials': published_tutorials,
@@ -345,7 +371,11 @@ def get_trainer_stats():
             'totalQueries': total_queries,
             'resolvedQueries': resolved_queries,
             'pendingQueries': pending_queries,
-            'responseRate': round((resolved_queries / total_queries * 100) if total_queries > 0 else 0, 1)
+            'responseRate': round((resolved_queries / total_queries * 100) if total_queries > 0 else 0, 1),
+            'totalLiveSessions': total_live_sessions,
+            'upcomingLiveSessions': upcoming_sessions,
+            'totalReservations': total_reservations,
+            'approvedReservations': approved_reservations
         }
         
         return jsonify({'stats': stats}), 200

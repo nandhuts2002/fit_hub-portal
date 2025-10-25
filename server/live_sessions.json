@@ -127,6 +127,63 @@
         }
       ],
       "createdAt": "2025-10-15T16:13:42.409958+00:00"
+    },
+    {
+      "id": "bee68f9114d84fe696f390e611374d3e",
+      "title": "fit hub yoga",
+      "description": "Reconnect your mind, body, and spirit in a calming, guided yoga flow. Perfect for beginners and seasoned yogis alike, this session will help you:\n\nRelease tension and stress\n\nImprove flexibility and balance\n\nBoost energy and focus\n\nCultivate mindfulness and inner peace\n\nGrab your mat, take a deep breath, and flow with us live!",
+      "trainerId": "nandhunandhuts@gmail.com",
+      "trainerName": "Nan Du",
+      "platform": "meet",
+      "meetingUrl": "https://meet.google.com/ppz-cgvz-sro",
+      "startTime": "2025-10-31T21:30:00.000Z",
+      "duration": 60,
+      "capacity": 50,
+      "price": 490.0,
+      "level": "all",
+      "style": "yoga",
+      "reservations": [
+        {
+          "email": "amymaria123@gmail.com",
+          "name": "amy mariya",
+          "requestedAt": "2025-10-25T16:53:32.659511+00:00",
+          "status": "approved",
+          "payStatus": "paid"
+        },
+        {
+          "email": "nandhunandhuts@gmail.com",
+          "name": "Nan Du",
+          "requestedAt": "2025-10-25T16:54:17.528231+00:00",
+          "status": "approved",
+          "payStatus": "unpaid"
+        }
+      ],
+      "createdAt": "2025-10-25T16:50:57.315978+00:00"
+    },
+    {
+      "id": "bcf2150d416d431cbf0fd06b9dd38ac3",
+      "title": "fit yoga",
+      "description": "join us ",
+      "trainerId": "trainer1234@gmail.com",
+      "trainerName": "TrainerA Ts",
+      "platform": "meet",
+      "meetingUrl": "https://meet.google.com/nfq-aupj-agd",
+      "startTime": "2025-10-25T17:42:00.000Z",
+      "duration": 60,
+      "capacity": 20,
+      "price": 180.0,
+      "level": "all",
+      "style": "yoga",
+      "reservations": [
+        {
+          "email": "amymaria123@gmail.com",
+          "name": "amy mariya",
+          "requestedAt": "2025-10-25T17:41:22.893807+00:00",
+          "status": "approved",
+          "payStatus": "unpaid"
+        }
+      ],
+      "createdAt": "2025-10-25T17:40:57.811288+00:00"
     }
   ]
 }

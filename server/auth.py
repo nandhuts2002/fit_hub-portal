@@ -833,7 +833,13 @@ def google_login():
 def upload_avatar_for_me():
     try:
         identity = get_jwt_identity() or {}
-        email = (identity.get('email') or '').strip().lower()
+        
+        # Handle case where identity is a string (email) vs dict
+        if isinstance(identity, str):
+            email = identity.strip().lower()
+        else:
+            email = (identity.get('email') or '').strip().lower()
+            
         if not email:
             return jsonify({'ok': False, 'error': 'Unauthorized'}), 401
 

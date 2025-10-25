@@ -38,6 +38,7 @@ import CalorieDetectorPage from './pages/services/CalorieDetectorPage';
 import ShopProfilePage from './pages/ShopProfilePage';
 import ProductDetailsPage from './pages/ProductDetailsPage';
 import ProfilePage from './pages/ProfilePage';
+import MyTicketsPage from './pages/MyTicketsPage';
 // If you want a dedicated page for Plate Analyzer later, we can add it similarly.
 
 // Debug component to track current route
@@ -165,6 +166,11 @@ function App() {
         <Route path="/orders/:id" element={
           <ProtectedRoute>
             <OrderSummaryPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/my-tickets" element={
+          <ProtectedRoute>
+            <MyTicketsPage />
           </ProtectedRoute>
         } />
         <Route path="/location-features" element={

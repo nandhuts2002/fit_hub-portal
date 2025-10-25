@@ -449,7 +449,7 @@ const OrderHistory = ({ isOpen, onClose }) => {
                       <h4 className="font-semibold text-gray-900 mb-3">Order Items</h4>
                       <div className="space-y-3">
                         {selectedOrder.items?.map((item, index) => (
-                          <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                          <div key={`${selectedOrder._id}-${index}-${item.product_id || item.id || index}`} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
                             <img
                               src={item.product_image || item.image || item.product?.image || '/placeholder-product.jpg'}
                               alt={item.product_name || item.name || item.product?.name || 'Product'}
