@@ -184,6 +184,23 @@
         }
       ],
       "createdAt": "2025-10-25T17:40:57.811288+00:00"
+    },
+    {
+      "id": "aedb8727999c47279ac195164d029fe4",
+      "title": "fit or what",
+      "description": "fitness is key",
+      "trainerId": "trainer1234@gmail.com",
+      "trainerName": "TrainerA Ts",
+      "platform": "meet",
+      "meetingUrl": "https://meet.google.com/rbo-nire-jmn",
+      "startTime": "2025-10-31T01:59:00.000Z",
+      "duration": 60,
+      "capacity": 20,
+      "price": 40.0,
+      "level": "all",
+      "style": "yoga",
+      "reservations": [],
+      "createdAt": "2025-10-25T19:59:49.331052+00:00"
     }
   ]
 }
