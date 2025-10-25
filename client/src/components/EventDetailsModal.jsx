@@ -225,7 +225,12 @@ END:VCALENDAR`;
       }
     } catch (error) {
       console.error('Error joining event:', error);
-      alert(`Error joining event: ${error.message}`);
+      // Provide a more user-friendly error message for event not found
+      if (error.message.includes('Event not found')) {
+        alert('This event is no longer available. It may have been removed or has already ended. Please refresh the page and try another event.');
+      } else {
+        alert(`Error joining event: ${error.message}`);
+      }
     } finally {
       setIsJoining(false);
       setIsValidating(false);

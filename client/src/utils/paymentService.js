@@ -56,7 +56,8 @@ class PaymentService {
       } else if (error.response?.status === 401) {
         throw new Error('Authentication error: Please log in again');
       } else if (error.response?.status === 404) {
-        throw new Error('Event not found');
+        // More descriptive error message for event not found
+        throw new Error('This event is no longer available. It may have been removed or has already ended. Please refresh the page and try another event.');
       } else if (error.code === 'ECONNREFUSED') {
         throw new Error('Server not running: Please start the backend server');
       }

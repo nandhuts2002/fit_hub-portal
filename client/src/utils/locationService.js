@@ -1,6 +1,9 @@
 // Location-based services for FitHub
 import SessionManager from './sessionManager';
 
+// Use the same API base URL logic as api.js
+const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000').replace(/\/$/, '');
+
 class LocationService {
   constructor() {
     this.currentLocation = null;
@@ -363,7 +366,7 @@ class LocationService {
         throw new Error('Authentication required');
       }
       
-      const response = await fetch(`http://localhost:5000/location/local-events?lat=${location.latitude}&lon=${location.longitude}&radius=${radius}`, {
+      const response = await fetch(`${API_BASE_URL}/location/local-events?lat=${location.latitude}&lon=${location.longitude}&radius=${radius}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -480,7 +483,7 @@ class LocationService {
         throw new Error('Authentication required');
       }
       
-      const response = await fetch(`http://localhost:5000/location/gyms-by-city?city=${encodeURIComponent(city)}&state=${encodeURIComponent(state)}`, {
+      const response = await fetch(`${API_BASE_URL}/location/gyms-by-city?city=${encodeURIComponent(city)}&state=${encodeURIComponent(state)}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -529,7 +532,7 @@ class LocationService {
         throw new Error('Authentication required');
       }
       
-      const response = await fetch(`http://localhost:5000/location/trainers-by-city?city=${encodeURIComponent(city)}&state=${encodeURIComponent(state)}`, {
+      const response = await fetch(`${API_BASE_URL}/location/trainers-by-city?city=${encodeURIComponent(city)}&state=${encodeURIComponent(state)}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -570,7 +573,7 @@ class LocationService {
         throw new Error('Authentication required');
       }
       
-      const response = await fetch(`http://localhost:5000/location/events-by-city?city=${encodeURIComponent(city)}&state=${encodeURIComponent(state)}`, {
+      const response = await fetch(`${API_BASE_URL}/location/events-by-city?city=${encodeURIComponent(city)}&state=${encodeURIComponent(state)}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
