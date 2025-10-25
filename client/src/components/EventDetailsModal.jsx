@@ -15,6 +15,7 @@ import paymentService from '../utils/paymentService';
 
 const EventDetailsModal = ({ event, isOpen, onClose }) => {
   const [showJoinForm, setShowJoinForm] = useState(false);
+  const [showCalendarOptions, setShowCalendarOptions] = useState(false);
   const [joinForm, setJoinForm] = useState({
     name: '',
     phone: '',
@@ -97,22 +98,33 @@ LOCATION:${calendarData.location}
 END:VEVENT
 END:VCALENDAR`;
 
-    // Show options to user
-    const userChoice = confirm('Choose calendar option:\nOK for Google Calendar\nCancel for download ICS file');
+    // Show calendar options modal instead of using confirm
+    setShowCalendarOptions(true);
     
-    if (userChoice) {
+    // Store calendar data for use in modal
+    window._calendarData = { googleCalendarUrl, icsContent, eventTitle: event.title };
+  };
+
+  const handleCalendarChoice = (choice) => {
+    setShowCalendarOptions(false);
+    const { googleCalendarUrl, icsContent, eventTitle } = window._calendarData || {};
+    
+    if (choice === 'google' && googleCalendarUrl) {
       window.open(googleCalendarUrl, '_blank');
-    } else {
+    } else if (choice === 'ics' && icsContent) {
       const blob = new Blob([icsContent], { type: 'text/calendar' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${event.title.replace(/[^a-zA-Z0-9]/g, '_')}.ics`;
+      link.download = `${eventTitle.replace(/[^a-zA-Z0-9]/g, '_')}.ics`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     }
+    
+    // Clean up
+    delete window._calendarData;
   };
 
   const handleJoinEvent = async (e) => {
@@ -242,6 +254,52 @@ END:VCALENDAR`;
 
   return (
     <AnimatePresence>
+      {/* Calendar Options Modal */}
+      <AnimatePresence>
+        {showCalendarOptions && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowCalendarOptions(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-xl p-6 max-w-md w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-gray-900">Add to Calendar</h3>
+                <button
+                  onClick={() => setShowCalendarOptions(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-gray-600 mb-6">Choose how you'd like to add this event to your calendar:</p>
+              <div className="space-y-3">
+                <button
+                  onClick={() => handleCalendarChoice('google')}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <span>Google Calendar</span>
+                </button>
+                <button
+                  onClick={() => handleCalendarChoice('ics')}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <span>Download ICS File</span>
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

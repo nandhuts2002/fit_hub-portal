@@ -1195,6 +1195,9 @@ def create_event_payment_order():
             return jsonify({'success': False, 'message': 'Authentication required'}), 403
         
         data = request.json
+        if not data:
+            return jsonify({'success': False, 'message': 'Request body is required'}), 400
+            
         event_id = data.get('event_id')
         amount = float(data.get('amount', 0))
         user_data = data.get('user_data', {})
@@ -1205,8 +1208,14 @@ def create_event_payment_order():
         if amount <= 0:
             return jsonify({'success': False, 'message': 'Invalid amount'}), 400
         
+        # Validate and convert event_id to ObjectId
+        try:
+            event_object_id = ObjectId(event_id)
+        except Exception as e:
+            return jsonify({'success': False, 'message': f'Invalid event ID format: {str(e)}'}), 400
+        
         # Get event details
-        event = events_collection.find_one({'_id': ObjectId(event_id)})
+        event = events_collection.find_one({'_id': event_object_id})
         if not event:
             return jsonify({'success': False, 'message': 'Event not found'}), 404
         
@@ -1230,17 +1239,40 @@ def create_event_payment_order():
             }
         }
         
-        response = requests.post(
-            'https://api.razorpay.com/v1/orders',
-            auth=(razorpay_key_id, razorpay_key_secret),
-            json=order_data,
-            timeout=10
-        )
-        
-        if response.status_code != 200:
-            return jsonify({'success': False, 'message': 'Failed to create payment order'}), 500
-        
-        razorpay_order = response.json()
+        try:
+            response = requests.post(
+                'https://api.razorpay.com/v1/orders',
+                auth=(razorpay_key_id, razorpay_key_secret),
+                json=order_data,
+                timeout=10
+            )
+            
+            # Log the response for debugging
+            print(f"Razorpay API response status: {response.status_code}")
+            print(f"Razorpay API response headers: {dict(response.headers)}")
+            
+            if response.status_code != 200:
+                error_text = response.text
+                print(f"Razorpay API error response: {error_text}")
+                return jsonify({
+                    'success': False, 
+                    'message': f'Failed to create payment order. Razorpay API returned status {response.status_code}',
+                    'razorpay_error': error_text
+                }), 500
+                
+            razorpay_order = response.json()
+        except requests.exceptions.RequestException as e:
+            print(f"Error connecting to Razorpay API: {str(e)}")
+            return jsonify({
+                'success': False, 
+                'message': f'Failed to connect to payment gateway: {str(e)}'
+            }), 500
+        except Exception as e:
+            print(f"Error processing Razorpay response: {str(e)}")
+            return jsonify({
+                'success': False, 
+                'message': f'Error processing payment gateway response: {str(e)}'
+            }), 500
         
         return jsonify({
             'success': True,
@@ -1263,6 +1295,9 @@ def create_gym_payment_order():
             return jsonify({'success': False, 'message': 'Authentication required'}), 403
         
         data = request.json
+        if not data:
+            return jsonify({'success': False, 'message': 'Request body is required'}), 400
+            
         gym_id = data.get('gym_id')
         amount = float(data.get('amount', 0))
         membership_type = data.get('membership_type', 'monthly')
@@ -1274,8 +1309,14 @@ def create_gym_payment_order():
         if amount <= 0:
             return jsonify({'success': False, 'message': 'Invalid amount'}), 400
         
+        # Validate and convert gym_id to ObjectId
+        try:
+            gym_object_id = ObjectId(gym_id)
+        except Exception as e:
+            return jsonify({'success': False, 'message': f'Invalid gym ID format: {str(e)}'}), 400
+        
         # Get gym details
-        gym = gyms_collection.find_one({'_id': ObjectId(gym_id)})
+        gym = gyms_collection.find_one({'_id': gym_object_id})
         if not gym:
             return jsonify({'success': False, 'message': 'Gym not found'}), 404
         
@@ -1300,17 +1341,40 @@ def create_gym_payment_order():
             }
         }
         
-        response = requests.post(
-            'https://api.razorpay.com/v1/orders',
-            auth=(razorpay_key_id, razorpay_key_secret),
-            json=order_data,
-            timeout=10
-        )
-        
-        if response.status_code != 200:
-            return jsonify({'success': False, 'message': 'Failed to create payment order'}), 500
-        
-        razorpay_order = response.json()
+        try:
+            response = requests.post(
+                'https://api.razorpay.com/v1/orders',
+                auth=(razorpay_key_id, razorpay_key_secret),
+                json=order_data,
+                timeout=10
+            )
+            
+            # Log the response for debugging
+            print(f"Razorpay API response status: {response.status_code}")
+            print(f"Razorpay API response headers: {dict(response.headers)}")
+            
+            if response.status_code != 200:
+                error_text = response.text
+                print(f"Razorpay API error response: {error_text}")
+                return jsonify({
+                    'success': False, 
+                    'message': f'Failed to create payment order. Razorpay API returned status {response.status_code}',
+                    'razorpay_error': error_text
+                }), 500
+                
+            razorpay_order = response.json()
+        except requests.exceptions.RequestException as e:
+            print(f"Error connecting to Razorpay API: {str(e)}")
+            return jsonify({
+                'success': False, 
+                'message': f'Failed to connect to payment gateway: {str(e)}'
+            }), 500
+        except Exception as e:
+            print(f"Error processing Razorpay response: {str(e)}")
+            return jsonify({
+                'success': False, 
+                'message': f'Error processing payment gateway response: {str(e)}'
+            }), 500
         
         return jsonify({
             'success': True,
@@ -1333,6 +1397,9 @@ def verify_payment():
             return jsonify({'success': False, 'message': 'Authentication required'}), 403
         
         data = request.json
+        if not data:
+            return jsonify({'success': False, 'message': 'Request body is required'}), 400
+            
         razorpay_order_id = data.get('razorpay_order_id')
         razorpay_payment_id = data.get('razorpay_payment_id')
         razorpay_signature = data.get('razorpay_signature')
@@ -1361,10 +1428,16 @@ def verify_payment():
         # Payment verified - create booking/membership record
         user_email = identity if isinstance(identity, str) else identity.get('email', '')
         
+        result = None
         if event_id:
             # Check if user is already registered for this event
+            try:
+                event_object_id = ObjectId(event_id)
+            except Exception as e:
+                return jsonify({'success': False, 'message': f'Invalid event ID format: {str(e)}'}), 400
+                
             existing_booking = event_bookings_collection.find_one({
-                'event_id': ObjectId(event_id),
+                'event_id': event_object_id,
                 'user_email': user_email
             })
             
@@ -1372,13 +1445,13 @@ def verify_payment():
                 return jsonify({'success': False, 'message': 'You are already registered for this event'}), 400
             
             # Get event details for capacity checking
-            event = events_collection.find_one({'_id': ObjectId(event_id)})
+            event = events_collection.find_one({'_id': event_object_id})
             if not event:
                 return jsonify({'success': False, 'message': 'Event not found'}), 404
             
             # Check event capacity
             current_participants = event_bookings_collection.count_documents({
-                'event_id': ObjectId(event_id),
+                'event_id': event_object_id,
                 'status': {'$in': ['confirmed', 'pending_admin']}
             })
             
@@ -1388,7 +1461,7 @@ def verify_payment():
             
             # Event booking
             booking_data = {
-                'event_id': ObjectId(event_id),
+                'event_id': event_object_id,
                 'event_title': event.get('title', ''),
                 'event_date': event.get('date', ''),
                 'event_location': event.get('location', ''),
@@ -1411,14 +1484,19 @@ def verify_payment():
             
             # Update event participants count
             events_collection.update_one(
-                {'_id': ObjectId(event_id)},
+                {'_id': event_object_id},
                 {'$inc': {'participants': 1}}
             )
             
         elif gym_id:
             # Gym membership
+            try:
+                gym_object_id = ObjectId(gym_id)
+            except Exception as e:
+                return jsonify({'success': False, 'message': f'Invalid gym ID format: {str(e)}'}), 400
+                
             membership_data = {
-                'gym_id': ObjectId(gym_id),
+                'gym_id': gym_object_id,
                 'user_email': user_email,
                 'user_data': user_data,
                 'payment_id': razorpay_payment_id,
@@ -1434,11 +1512,17 @@ def verify_payment():
             # Store in memberships collection
             result = gym_memberships_collection.insert_one(membership_data)
         
-        return jsonify({
-            'success': True,
-            'message': 'Payment verified and booking confirmed',
-            'booking_id': str(result.inserted_id)
-        })
+        if result:
+            return jsonify({
+                'success': True,
+                'message': 'Payment verified and booking confirmed',
+                'booking_id': str(result.inserted_id)
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'message': 'Payment verified'
+            })
         
     except Exception as e:
         print(f"Error verifying payment: {str(e)}")
