@@ -1061,7 +1061,12 @@ def delete_challenge(challenge_id):
 def like_spotlight(spotlight_id):
     """Like/unlike a spotlight"""
     current_user = get_jwt_identity()
-    user_email = current_user.get('email')
+    
+    # Handle case where current_user is a string (email) vs dict
+    if isinstance(current_user, str):
+        user_email = _normalize_email(current_user)
+    else:
+        user_email = _normalize_email(current_user.get('email'))
     
     try:
         spotlight = spotlights_collection.find_one({'id': spotlight_id})
@@ -1094,7 +1099,17 @@ def like_spotlight(spotlight_id):
 def add_spotlight_comment(spotlight_id):
     """Add a comment to a spotlight"""
     current_user = get_jwt_identity()
-    user_email = current_user.get('email')
+    
+    # Handle case where current_user is a string (email) vs dict
+    if isinstance(current_user, str):
+        user_email = _normalize_email(current_user)
+        user_name = current_user.split('@')[0]  # Use email username
+        user_avatar = ''
+    else:
+        user_email = _normalize_email(current_user.get('email'))
+        user_name = current_user.get('firstName') or current_user.get('name') or user_email.split('@')[0]
+        user_avatar = current_user.get('avatar', '')
+    
     payload = request.get_json(silent=True) or {}
     
     try:
@@ -1105,9 +1120,9 @@ def add_spotlight_comment(spotlight_id):
         comment = {
             'id': str(uuid.uuid4()),
             'text': payload.get('text', '').strip(),
-            'userName': current_user.get('firstName', 'User'),
+            'userName': user_name,
             'userEmail': user_email,
-            'userAvatar': current_user.get('avatar', ''),
+            'userAvatar': user_avatar,
             'created_at': _now_ms()
         }
         

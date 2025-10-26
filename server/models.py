@@ -56,6 +56,11 @@ user_profiles_collection = db['user_profiles']
 # Follows relation: who follows whom
 follows_collection = db['follows']  # { follower_email, following_email, created_at }
 
+blog_posts_collection = db['blog_posts']
+blog_categories_collection = db['blog_categories']
+blog_comments_collection = db['blog_comments']
+blog_likes_collection = db['blog_likes']
+
 # Exercise GIFs collection
 exercise_gifs_collection = db['exercise_gifs']  # { name, gif_url, category, tags, created_by, created_at }
 

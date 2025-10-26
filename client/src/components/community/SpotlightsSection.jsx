@@ -6,6 +6,8 @@ import { uploadImage, validateImageFile } from '../../utils/imageUpload';
 import { useToast } from '../../contexts/ToastContext';
 import SessionManager from '../../utils/sessionManager';
 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+
 const SpotlightsSection = () => {
   const [spotlights, setSpotlights] = useState([]);
   const [selectedSpotlight, setSelectedSpotlight] = useState(null);
@@ -50,11 +52,41 @@ const SpotlightsSection = () => {
   };
 
   const likeSpotlight = async (spotlightId) => {
+    const user = SessionManager.getCurrentUser();
+    const userEmail = user?.email || user?.name || 'guest';
+    
     try {
+      // Optimistic update
+      setSpotlights(prev => prev.map(s => {
+        if (s.id === spotlightId) {
+          const isLiked = s.likes?.includes(userEmail);
+          return {
+            ...s,
+            likes: isLiked 
+              ? s.likes.filter(email => email !== userEmail)
+              : [...(s.likes || []), userEmail]
+          };
+        }
+        return s;
+      }));
+
+      if (selectedSpotlight?.id === spotlightId) {
+        const isLiked = selectedSpotlight.likes?.includes(userEmail);
+        setSelectedSpotlight(prev => ({
+          ...prev,
+          likes: isLiked 
+            ? prev.likes.filter(email => email !== userEmail)
+            : [...(prev.likes || []), userEmail]
+        }));
+      }
+
       await spotlightsApi.like(spotlightId);
-      fetchSpotlights(); // Refresh spotlights
+      showSuccess('Spotlight liked! ❤️');
     } catch (error) {
       console.error('Error liking spotlight:', error);
+      showError('Failed to like spotlight');
+      // Revert optimistic update
+      fetchSpotlights();
     }
   };
 
@@ -109,11 +141,34 @@ const SpotlightsSection = () => {
   };
 
   const handlePostComment = async () => {
-    if (!commentText.trim() || !selectedSpotlight || !currentUser) return;
+    if (!commentText.trim() || !selectedSpotlight || !currentUser) {
+      showWarning('Please enter a comment');
+      return;
+    }
 
     setPostingComment(true);
     try {
-      const response = await fetch(`http://localhost:5000/community/spotlights/${selectedSpotlight.id}/comments`, {
+      const newComment = {
+        id: Date.now().toString(),
+        text: commentText.trim(),
+        userName: currentUser.firstName || currentUser.name || 'User',
+        userAvatar: currentUser.avatar || '',
+        created_at: Date.now()
+      };
+
+      // Optimistic update
+      const updatedSpotlight = {
+        ...selectedSpotlight,
+        comments: [...(selectedSpotlight.comments || []), newComment]
+      };
+      setSelectedSpotlight(updatedSpotlight);
+      setSpotlights(prev => prev.map(s => 
+        s.id === selectedSpotlight.id 
+          ? { ...s, comments: updatedSpotlight.comments }
+          : s
+      ));
+
+      const response = await fetch(`${API_BASE_URL}/community/spotlights/${selectedSpotlight.id}/comments`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${SessionManager.getCurrentUser()?.token}`,
@@ -126,37 +181,28 @@ const SpotlightsSection = () => {
 
       const data = await response.json();
       if (data.ok) {
-        // Add the new comment to the selected spotlight
-        const newComment = {
-          id: Date.now().toString(),
-          text: commentText.trim(),
-          userName: currentUser.firstName || currentUser.name || 'User',
-          userAvatar: currentUser.avatar || '',
-          created_at: Date.now()
-        };
-
-        // Update the selected spotlight with the new comment
-        const updatedSpotlight = {
-          ...selectedSpotlight,
-          comments: [...(selectedSpotlight.comments || []), newComment]
-        };
-        setSelectedSpotlight(updatedSpotlight);
-
-        // Update the spotlight in the main list
-        setSpotlights(prev => prev.map(s => 
-          s.id === selectedSpotlight.id 
-            ? { ...s, comments: updatedSpotlight.comments }
-            : s
-        ));
-
         setCommentText('');
         showSuccess('Comment posted successfully! 💬');
       } else {
         showError(data.error || 'Failed to post comment');
+        // Revert optimistic update
+        setSelectedSpotlight(selectedSpotlight);
+        setSpotlights(prev => prev.map(s => 
+          s.id === selectedSpotlight.id 
+            ? { ...s, comments: selectedSpotlight.comments }
+            : s
+        ));
       }
     } catch (error) {
       console.error('Error posting comment:', error);
-      showError('Failed to post comment');
+      showError('Failed to post comment. Please try again.');
+      // Revert optimistic update
+      setSelectedSpotlight(selectedSpotlight);
+      setSpotlights(prev => prev.map(s => 
+        s.id === selectedSpotlight.id 
+          ? { ...s, comments: selectedSpotlight.comments }
+          : s
+      ));
     } finally {
       setPostingComment(false);
     }
@@ -305,9 +351,17 @@ const SpotlightsSection = () => {
                       e.stopPropagation();
                       likeSpotlight(spotlight.id);
                     }}
-                    className="flex items-center gap-1 px-2 py-1 text-gray-600 hover:text-red-500 hover:bg-red-50 rounded-md transition-all duration-200"
+                    className={`flex items-center gap-1 px-2 py-1 rounded-md transition-all duration-200 ${
+                      spotlight.likes?.includes(currentUser?.email || currentUser?.name || 'guest')
+                        ? 'text-red-500 bg-red-50'
+                        : 'text-gray-600 hover:text-red-500 hover:bg-red-50'
+                    }`}
                   >
-                    <Heart className={`w-4 h-4 ${spotlight.likes?.includes('currentUser') ? 'fill-red-500 text-red-500' : ''}`} />
+                    <Heart className={`w-4 h-4 ${
+                      spotlight.likes?.includes(currentUser?.email || currentUser?.name || 'guest') 
+                        ? 'fill-red-500 text-red-500' 
+                        : ''
+                    }`} />
                     <span className="text-xs font-medium">{spotlight.likes?.length || 0}</span>
                   </button>
                   
@@ -457,9 +511,17 @@ const SpotlightsSection = () => {
                 <div className="flex items-center gap-4 pb-4 border-b border-gray-200">
                   <button
                     onClick={() => likeSpotlight(selectedSpotlight.id)}
-                    className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-colors ${
+                      selectedSpotlight.likes?.includes(currentUser?.email || currentUser?.name || 'guest')
+                        ? 'text-red-500 bg-red-50'
+                        : 'text-gray-600 hover:text-red-500 hover:bg-red-50'
+                    }`}
                   >
-                    <Heart className={`w-4 h-4 ${selectedSpotlight.likes?.includes('currentUser') ? 'fill-red-500 text-red-500' : ''}`} />
+                    <Heart className={`w-4 h-4 ${
+                      selectedSpotlight.likes?.includes(currentUser?.email || currentUser?.name || 'guest') 
+                        ? 'fill-red-500 text-red-500' 
+                        : ''
+                    }`} />
                     <span className="text-sm">{selectedSpotlight.likes?.length || 0} likes</span>
                   </button>
                   
@@ -476,12 +538,16 @@ const SpotlightsSection = () => {
                   {/* Comment Input */}
                   {currentUser && (
                     <div className="flex gap-3 mb-4">
-                      <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full overflow-hidden">
-                        <img
-                          src={currentUser?.avatar || '/api/placeholder/32/32'}
-                          alt="Your avatar"
-                          className="w-full h-full object-cover"
-                        />
+                      <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-pink-400 rounded-full overflow-hidden flex items-center justify-center text-white font-bold text-xs">
+                        {currentUser?.avatar ? (
+                          <img
+                            src={currentUser.avatar}
+                            alt="Your avatar"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          (currentUser?.firstName?.[0] || currentUser?.name?.[0] || 'U').toUpperCase()
+                        )}
                       </div>
                       <div className="flex-1">
                         <textarea

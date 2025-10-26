@@ -698,6 +698,7 @@ export default function CommunityPage() {
         params.append('category', selectedCategory);
       }
       
+      // Use the correct endpoint for blog posts
       const response = await api.get(`/blog/posts?${params}`);
       const { data, pagination } = response.data;
       
@@ -713,6 +714,7 @@ export default function CommunityPage() {
   // Fetch blog categories
   const fetchBlogCategories = async () => {
     try {
+      // Use the correct endpoint for blog categories
       const response = await api.get('/blog/categories');
       setBlogCategories(response.data.data || []);
     } catch (e) {

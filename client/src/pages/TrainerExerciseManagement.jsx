@@ -21,8 +21,11 @@ export default function TrainerExerciseManagement() {
     equipment: '',
     // Keep as textarea string; convert to array on submit
     instructions: '',
-    gifFile: null
+    gifFile: null,
+    gifUrl: ''
   });
+  
+  const [useUrl, setUseUrl] = useState(false);
   
   const [previewUrl, setPreviewUrl] = useState('');
   const [selectedExercise, setSelectedExercise] = useState(null);
@@ -111,6 +114,7 @@ export default function TrainerExerciseManagement() {
         equipment: formData.equipment,
         instructions: instructionsArr,
         gifFile: formData.gifFile, // Include the GIF file
+        gifUrl: formData.gifUrl, // Include the GIF URL
         trainerId: localStorage.getItem('userId') || 'anonymous'
       };
 
@@ -161,10 +165,12 @@ export default function TrainerExerciseManagement() {
       target: '',
       equipment: '',
       instructions: '',
-      gifFile: null
+      gifFile: null,
+      gifUrl: ''
     });
     setPreviewUrl('');
     setEditingExercise(null);
+    setUseUrl(false);
   };
 
   const handleEdit = (exercise) => {
@@ -176,8 +182,13 @@ export default function TrainerExerciseManagement() {
       equipment: exercise.equipment,
       // Convert array to textarea string
       instructions: Array.isArray(exercise.instructions) ? exercise.instructions.join('\n') : (exercise.instructions || ''),
-      gifFile: null
+      gifFile: null,
+      gifUrl: exercise.gifUrl || exercise.mediaUrl || ''
     });
+    setUseUrl(!!(exercise.gifUrl || exercise.mediaUrl));
+    if (exercise.gifUrl || exercise.mediaUrl) {
+      setPreviewUrl(exercise.gifUrl || exercise.mediaUrl);
+    }
     setShowUploadForm(true);
   };
 
@@ -547,15 +558,63 @@ export default function TrainerExerciseManagement() {
                     <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                       Exercise GIF (Optional)
                     </label>
-                    <input
-                      type="file"
-                      accept=".gif,.webp,.mp4,.mov"
-                      onChange={handleFileChange}
-                      className={`w-full px-3 py-2 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
-                    />
-                    <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Supported formats: GIF, WebP, MP4, MOV (max 10MB)
-                    </p>
+                    
+                    {/* Toggle between URL and File Upload */}
+                    <div className="flex gap-2 mb-2">
+                      <button
+                        type="button"
+                        onClick={() => setUseUrl(false)}
+                        className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          !useUrl 
+                            ? (isDark ? 'bg-green-600 text-white' : 'bg-green-600 text-white')
+                            : (isDark ? 'bg-gray-800 text-gray-400' : 'bg-gray-200 text-gray-600')
+                        }`}
+                      >
+                        📁 Upload File
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setUseUrl(true)}
+                        className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          useUrl 
+                            ? (isDark ? 'bg-green-600 text-white' : 'bg-green-600 text-white')
+                            : (isDark ? 'bg-gray-800 text-gray-400' : 'bg-gray-200 text-gray-600')
+                        }`}
+                      >
+                        🔗 Use URL
+                      </button>
+                    </div>
+
+                    {!useUrl ? (
+                      <>
+                        <input
+                          type="file"
+                          accept=".gif,.webp,.mp4,.mov"
+                          onChange={handleFileChange}
+                          className={`w-full px-3 py-2 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                        />
+                        <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                          Supported formats: GIF, WebP, MP4, MOV (max 10MB)
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <input
+                          type="url"
+                          name="gifUrl"
+                          value={formData.gifUrl}
+                          onChange={(e) => {
+                            setFormData(prev => ({ ...prev, gifUrl: e.target.value }));
+                            setPreviewUrl(e.target.value);
+                          }}
+                          placeholder="https://example.com/exercise.gif"
+                          className={`w-full px-3 py-2 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'}`}
+                        />
+                        <p className={`text-xs mt-1 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                          Enter a direct URL to a GIF, WebP, MP4, or MOV file
+                        </p>
+                      </>
+                    )}
                   </div>
 
                   {previewUrl && (

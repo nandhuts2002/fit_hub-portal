@@ -35,30 +35,44 @@ def _profile_public(p):
 
 def _find_profile_by_identifier(identifier: str):
     key = _normalize_key(identifier)
+    print(f"Looking up profile for identifier: {key}")
+    
     if '@' in key:
+        # First try to find existing profile
         p = user_profiles_collection.find_one({'email': key})
         if not p:
+            # If no profile exists, check if user exists in users collection
             u = users_collection.find_one({'email': key})
             if u:
+                # Create a default profile for the user
                 p = {
                     'email': key,
                     'handle': (u.get('firstName') or key.split('@')[0]).lower(),
-                    'displayName': u.get('firstName') or key.split('@')[0],
+                    'displayName': u.get('firstName') or u.get('name') or key.split('@')[0],
                     'avatar': u.get('avatar',''),
                     'bio': '',
                     'links': [],
                     'created_at': _now_ms(),
                 }
                 user_profiles_collection.insert_one(p)
+                print(f"Created default profile for user: {key}")
+            else:
+                print(f"User not found in users collection: {key}")
+        else:
+            print(f"Found existing profile for user: {key}")
         return p
     # treat as handle
-    return user_profiles_collection.find_one({'handle': key})
+    result = user_profiles_collection.find_one({'handle': key})
+    print(f"Profile lookup by handle '{key}' result: {result is not None}")
+    return result
 
 
 @profile_bp.get('/<identifier>')
 def get_profile(identifier):
+    print(f"GET /profile/{identifier} called")
     p = _find_profile_by_identifier(identifier)
     if not p:
+        print(f"Profile not found for identifier: {identifier}")
         return jsonify({'ok': False, 'error': 'Profile not found'}), 404
     email = p.get('email','')
     posts_count = community_posts_collection.count_documents({'user.email': email})
@@ -72,6 +86,7 @@ def get_profile(identifier):
     data = _profile_public(p) or {}
     if data:
         data.update({'counts': {'posts': posts_count, 'followers': followers, 'following': following}})
+    print(f"Profile found for {identifier}: {data}")
     return jsonify({'ok': True, 'data': data})
 
 
@@ -172,8 +187,10 @@ def unfollow():
 
 @profile_bp.get('/<identifier>/posts')
 def profile_posts(identifier):
+    print(f"GET /profile/{identifier}/posts called")
     p = _find_profile_by_identifier(identifier)
     if not p:
+        print(f"Profile not found for identifier: {identifier}")
         return jsonify({'ok': False, 'error': 'Profile not found'}), 404
     email = p.get('email','')
     try:
@@ -188,6 +205,7 @@ def profile_posts(identifier):
         doc['_id'] = str(doc.get('_id'))
         items.append(doc)
     total = community_posts_collection.count_documents({'user.email': email})
+    print(f"Found {len(items)} posts for user {email}")
     return jsonify({'ok': True, 'data': items, 'total': total, 'page': page, 'limit': limit})
 
 

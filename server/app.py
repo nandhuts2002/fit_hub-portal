@@ -17,6 +17,7 @@ from exercise_gifs import exercise_gifs_bp
 from upload import upload_bp
 from yoga_progress import yoga_progress_bp
 from exercise_progress import exercise_progress_bp
+from blog import blog_bp
 # Import Cloudinary configuration to initialize it
 import cloudinary_config
 from dotenv import load_dotenv
@@ -101,6 +102,7 @@ app.register_blueprint(exercise_gifs_bp)
 app.register_blueprint(upload_bp)
 app.register_blueprint(yoga_progress_bp)
 app.register_blueprint(exercise_progress_bp)
+app.register_blueprint(blog_bp, url_prefix='/blog')
 
 # Add explicit handling for OPTIONS requests (CORS preflight)
 @app.before_request
@@ -194,7 +196,12 @@ def test_cloudinary():
 UPLOAD_DIR = _path.join(_path.dirname(__file__), 'uploads')
 @app.route('/uploads/<path:filename>')
 def uploaded_file(filename):
-    return send_from_directory(UPLOAD_DIR, filename, as_attachment=False)
+    print(f"Serving uploaded file: {filename}")
+    try:
+        return send_from_directory(UPLOAD_DIR, filename, as_attachment=False)
+    except Exception as e:
+        print(f"Error serving file {filename}: {str(e)}")
+        return jsonify({'error': 'File not found'}), 404
 
 # Proxy: ExerciseDB GIFs (to avoid CDN DNS blocks)
 @app.route('/proxy/exercise-gif/<path:gif_id>')

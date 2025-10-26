@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../utils/api';
 import SessionManager from '../../utils/sessionManager';
 
 const BlogPostCard = ({ post, onLike, onComment }) => {
+  const navigate = useNavigate();
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(post.likes || 0);
 
-  const handleLike = async () => {
+  const handleLike = async (e) => {
+    e.stopPropagation();
     try {
+      // Use the correct endpoint for blog post likes
       const response = await api.post(`/blog/posts/${post._id}/like`);
       setLiked(response.data.liked);
       setLikeCount(response.data.like_count);
@@ -33,12 +37,17 @@ const BlogPostCard = ({ post, onLike, onComment }) => {
     return Math.ceil(wordCount / wordsPerMinute);
   };
 
+  const handleCardClick = () => {
+    navigate(`/blog/${post._id}`);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ y: -5 }}
-      className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-slate-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-all duration-300"
+      onClick={handleCardClick}
+      className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-slate-200 dark:border-gray-700 overflow-hidden hover:shadow-lg transition-all duration-300 cursor-pointer"
     >
       {/* Featured Image */}
       {post.featured_image && (
@@ -69,8 +78,13 @@ const BlogPostCard = ({ post, onLike, onComment }) => {
 
         {/* Excerpt */}
         <p className="text-slate-600 dark:text-gray-300 text-sm mb-4 line-clamp-3">
-          {post.excerpt}
+          {post.excerpt || post.content?.substring(0, 200) || 'No excerpt available'}
         </p>
+        
+        {/* Read More Link */}
+        <div className="mb-4 text-sm text-blue-600 dark:text-blue-400 font-semibold">
+          Read more →
+        </div>
 
         {/* Author and Meta */}
         <div className="flex items-center justify-between mb-4">
@@ -112,7 +126,7 @@ const BlogPostCard = ({ post, onLike, onComment }) => {
             </motion.button>
 
             <button 
-              onClick={() => onComment?.(post._id)}
+              onClick={(e) => { e.stopPropagation(); onComment?.(post._id); }}
               className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium bg-slate-100 dark:bg-gray-800 text-slate-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-gray-700 transition-colors"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

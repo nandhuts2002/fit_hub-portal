@@ -144,6 +144,30 @@ class SessionManager {
         return '/user-home';
     }
   }
+
+  /**
+   * Set avatar URL
+   */
+  static setAvatar(avatarUrl) {
+    const session = this.getSession();
+    if (session) {
+      session.avatar = avatarUrl;
+      this.setSession(session);
+      console.log('Avatar updated:', avatarUrl);
+    }
+  }
+
+  /**
+   * Set current user data (update existing session)
+   */
+  static setCurrentUser(userData) {
+    const session = this.getSession();
+    if (session) {
+      Object.assign(session, userData);
+      this.setSession(session);
+      console.log('User data updated');
+    }
+  }
 }
 
 export default SessionManager;

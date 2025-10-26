@@ -42,6 +42,7 @@ import MyTicketsPage from './pages/MyTicketsPage';
 import WorkoutVideosPage from './pages/WorkoutVideosPage';
 import YogaProgressTracker from './components/YogaProgressTracker';
 import ExerciseProgressTracker from './components/ExerciseProgressTracker';
+import BlogDetailPage from './pages/BlogDetailPage';
 // If you want a dedicated page for Plate Analyzer later, we can add it similarly.
 
 // Debug component to track current route
@@ -159,6 +160,11 @@ function App() {
         <Route path="/community-posts" element={
           <ProtectedRoute>
             <CommunityPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/blog/:id" element={
+          <ProtectedRoute>
+            <BlogDetailPage />
           </ProtectedRoute>
         } />
         <Route path="/orders" element={

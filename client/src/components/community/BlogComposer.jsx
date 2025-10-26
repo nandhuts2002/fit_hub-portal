@@ -31,20 +31,25 @@ const BlogComposer = ({ onClose, onPostCreated, categories = [] }) => {
 
     try {
       setUploading(true);
-      const formData = new FormData();
-      formData.append('file', file);
+      const formDataObj = new FormData();
+      formDataObj.append('image', file);
       
-      const response = await api.post('/upload', formData, {
+      // Use the correct endpoint for image upload
+      const response = await api.post('/upload/image', formDataObj, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       
-      setFormData(prev => ({
-        ...prev,
-        featured_image: response.data.url
-      }));
+      if (response.data.ok) {
+        setFormData(prev => ({
+          ...prev,
+          featured_image: response.data.url
+        }));
+      } else {
+        throw new Error(response.data.error || 'Upload failed');
+      }
     } catch (error) {
       console.error('Error uploading image:', error);
-      setError('Failed to upload image');
+      setError('Failed to upload image: ' + (error.response?.data?.error || error.message));
     } finally {
       setUploading(false);
     }
@@ -73,6 +78,7 @@ const BlogComposer = ({ onClose, onPostCreated, categories = [] }) => {
         author_avatar: user?.avatar || ''
       };
 
+      // Use the correct endpoint for blog posts
       await api.post('/blog/posts', postData);
       
       onPostCreated?.();
@@ -91,15 +97,17 @@ const BlogComposer = ({ onClose, onPostCreated, categories = [] }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.9 }}
-        className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
-      >
+    <div className="fixed inset-0 bg-black/50 z-50 overflow-y-auto" onClick={onClose}>
+      <div className="flex items-center justify-center min-h-full p-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.9 }}
+          className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-4xl w-full my-8"
+          onClick={(e) => e.stopPropagation()}
+        >
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-gray-700 flex-shrink-0">
           <div>
             <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Write Blog Post</h2>
             <p className="text-slate-600 dark:text-gray-300">Share your fitness knowledge with the community</p>
@@ -115,8 +123,8 @@ const BlogComposer = ({ onClose, onPostCreated, categories = [] }) => {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="flex flex-col h-full">
-          <div className="flex-1 overflow-y-auto p-6">
+        <form onSubmit={handleSubmit} className="flex flex-col">
+          <div className="p-6 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 350px)' }}>
             {error && (
               <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-300 text-sm">
                 {error}
@@ -138,26 +146,6 @@ const BlogComposer = ({ onClose, onPostCreated, categories = [] }) => {
                   className="w-full px-4 py-3 border border-slate-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-gray-400"
                   required
                 />
-              </div>
-
-              {/* Category */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-2">
-                  Category
-                </label>
-                <select
-                  name="category"
-                  value={formData.category}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-3 border border-slate-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-slate-900 dark:text-white"
-                >
-                  <option value="">Select a category</option>
-                  {categories.map((category) => (
-                    <option key={category._id} value={category.name}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
               </div>
 
               {/* Featured Image */}
@@ -185,6 +173,10 @@ const BlogComposer = ({ onClose, onPostCreated, categories = [] }) => {
                         src={formData.featured_image} 
                         alt="Featured image preview" 
                         className="w-full max-w-md h-48 object-cover rounded-lg border border-slate-200 dark:border-gray-700"
+                        onError={(e) => {
+                          // Handle broken image links
+                          e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjRTFFMUUxIi8+CjxwYXRoIGQ9Ik0zNS41IDM4LjVIMjQuNUwzMCAyOS41TDM1LjUgMzguNVoiIGZpbGw9IiM5OTk5OTkiLz4KPHBhdGggZD0iTTI0LjUgMjQuNUgyNy41VjI3LjVIMjQuNVYyNC41WiIgZmlsbD0iIzk5OTk5OSIvPgo8cGF0aCBkPSJNMzIuNSAyNC41SDM1LjVWMjcuNUgzMi41VjI0LjVaIiBmaWxsPSIjOTk5OTk5Ii8+Cjwvc3ZnPgo=';
+                        }}
                       />
                       <button
                         type="button"
@@ -215,8 +207,8 @@ const BlogComposer = ({ onClose, onPostCreated, categories = [] }) => {
                   value={formData.content}
                   onChange={handleInputChange}
                   placeholder="Write your blog post content here... Use markdown for formatting."
-                  rows={12}
-                  className="w-full px-4 py-3 border border-slate-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-gray-400 resize-none"
+                  rows={8}
+                  className="w-full px-4 py-3 border border-slate-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-slate-900 dark:text-white placeholder-slate-500 dark:placeholder-gray-400 resize-y"
                   required
                 />
                 <div className="mt-2 text-xs text-slate-500 dark:text-gray-400">
@@ -243,7 +235,7 @@ const BlogComposer = ({ onClose, onPostCreated, categories = [] }) => {
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-between p-6 border-t border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800">
+          <div className="flex items-center justify-between p-6 border-t border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 flex-shrink-0">
             <div className="text-sm text-slate-600 dark:text-gray-400">
               {formData.status === 'published' ? 'This post will be published immediately' : 'Save as draft to publish later'}
             </div>
@@ -283,7 +275,8 @@ const BlogComposer = ({ onClose, onPostCreated, categories = [] }) => {
             </div>
           </div>
         </form>
-      </motion.div>
+        </motion.div>
+      </div>
     </div>
   );
 };

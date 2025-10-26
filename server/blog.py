@@ -45,7 +45,7 @@ def _generate_slug(title):
     return slug.strip('-')
 
 # Blog Categories Management
-@blog_bp.route('/blog/categories', methods=['GET'])
+@blog_bp.route('/categories', methods=['GET'])
 def get_categories():
     """Get all blog categories"""
     try:
@@ -57,7 +57,7 @@ def get_categories():
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
-@blog_bp.route('/blog/categories', methods=['POST'])
+@blog_bp.route('/categories', methods=['POST'])
 @jwt_required()
 def create_category():
     """Create a new blog category (admin/trainer only)"""
@@ -104,7 +104,7 @@ def create_category():
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 # Blog Posts Management
-@blog_bp.route('/blog/posts', methods=['GET'])
+@blog_bp.route('/posts', methods=['GET'])
 def get_blog_posts():
     """Get blog posts with pagination and filtering"""
     try:
@@ -163,7 +163,7 @@ def get_blog_posts():
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
-@blog_bp.route('/blog/posts', methods=['POST'])
+@blog_bp.route('/posts', methods=['POST'])
 @jwt_required()
 def create_blog_post():
     """Create a new blog post"""
@@ -240,7 +240,7 @@ def create_blog_post():
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
-@blog_bp.route('/blog/posts/<post_id>', methods=['GET'])
+@blog_bp.route('/posts/<post_id>', methods=['GET'])
 def get_blog_post(post_id):
     """Get a single blog post by ID"""
     try:
@@ -266,7 +266,7 @@ def get_blog_post(post_id):
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
-@blog_bp.route('/blog/posts/<post_id>', methods=['PUT'])
+@blog_bp.route('/posts/<post_id>', methods=['PUT'])
 @jwt_required()
 def update_blog_post(post_id):
     """Update a blog post"""
@@ -331,7 +331,7 @@ def update_blog_post(post_id):
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
-@blog_bp.route('/blog/posts/<post_id>', methods=['DELETE'])
+@blog_bp.route('/posts/<post_id>', methods=['DELETE'])
 @jwt_required()
 def delete_blog_post(post_id):
     """Delete a blog post"""
@@ -373,7 +373,7 @@ def delete_blog_post(post_id):
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 # Blog Comments
-@blog_bp.route('/blog/posts/<post_id>/comments', methods=['GET'])
+@blog_bp.route('/posts/<post_id>/comments', methods=['GET'])
 def get_blog_comments(post_id):
     """Get comments for a blog post"""
     try:
@@ -405,7 +405,7 @@ def get_blog_comments(post_id):
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
-@blog_bp.route('/blog/posts/<post_id>/comments', methods=['POST'])
+@blog_bp.route('/posts/<post_id>/comments', methods=['POST'])
 @jwt_required()
 def create_blog_comment(post_id):
     """Create a comment on a blog post"""
@@ -460,7 +460,7 @@ def create_blog_comment(post_id):
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 # Blog Likes
-@blog_bp.route('/blog/posts/<post_id>/like', methods=['POST'])
+@blog_bp.route('/posts/<post_id>/like', methods=['POST'])
 @jwt_required()
 def like_blog_post(post_id):
     """Like/unlike a blog post"""
@@ -515,7 +515,7 @@ def like_blog_post(post_id):
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 # Blog Statistics
-@blog_bp.route('/blog/stats', methods=['GET'])
+@blog_bp.route('/stats', methods=['GET'])
 def get_blog_stats():
     """Get blog statistics"""
     try:

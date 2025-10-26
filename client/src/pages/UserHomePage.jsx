@@ -487,15 +487,16 @@ const UserHomePage = () => {
                 </span>
               </button>
               
-              {/* User Profile */}
+              {/* User Profile - Click avatar to go to profile */}
               <button
-                onClick={() => setMenuOpen(!menuOpen)}
-                className="w-10 h-10 rounded-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold flex items-center justify-center shadow-lg hover:scale-105 transition overflow-hidden"
+                onClick={() => navigate("/profile")}
+                className="w-10 h-10 rounded-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold flex items-center justify-center shadow-lg hover:scale-105 transition overflow-hidden ring-2 ring-white"
+                title="View your profile"
               >
                 {user?.avatar ? (
                   <img
                     src={user.avatar}
-                    alt={user?.firstName || user?.email || 'User'}
+                    alt={user?.firstName || user?.name || user?.email || 'User'}
                     className="w-full h-full object-cover rounded-full"
                     onError={(e)=>{
                       const display = (user?.firstName || user?.name || user?.email || 'Member');
@@ -503,16 +504,21 @@ const UserHomePage = () => {
                     }}
                   />
                 ) : (
-                  user?.firstName?.[0] || user?.email?.[0] || "U"
+                  (user?.firstName?.[0] || user?.name?.[0] || user?.email?.[0] || 'U').toUpperCase()
                 )}
               </button>
               
-              {/* Mobile Menu Button */}
+              {/* Profile Menu Toggle */}
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
-                className={`lg:hidden transition-colors ${theme === 'dark' ? 'text-gray-200 hover:text-orange-300' : 'text-gray-600 hover:text-orange-600'}`}
+                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                  theme === 'dark' 
+                    ? 'text-gray-300 hover:bg-gray-800 hover:text-orange-300' 
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-orange-600'
+                }`}
+                title="Profile menu"
               >
-                <Menu size={24} />
+                <Menu className="w-5 h-5" />
               </button>
             </div>
           </div>
@@ -683,7 +689,7 @@ const UserHomePage = () => {
                       {user?.avatar ? (
                         <img
                           src={user.avatar}
-                          alt={user?.firstName || user?.email || 'User'}
+                          alt={user?.firstName || user?.name || user?.email || 'User'}
                           className="w-full h-full object-cover rounded-full"
                           onError={(e)=>{
                             const display = (user?.firstName || user?.name || user?.email || 'Member');
@@ -691,7 +697,7 @@ const UserHomePage = () => {
                           }}
                         />
                       ) : (
-                        <div className="w-full h-full grid place-items-center text-white font-bold text-lg">{user?.firstName?.[0] || user?.email?.[0] || 'U'}</div>
+                        <div className="w-full h-full grid place-items-center text-white font-bold text-lg">{(user?.firstName?.[0] || user?.name?.[0] || user?.email?.[0] || 'U').toUpperCase()}</div>
                       )}
                       <div className="absolute inset-0 bg-black/0 hover:bg-black/30 transition-colors grid place-items-center text-[10px] text-white font-semibold">
                         {avatarBusy ? 'Saving…' : 'Edit'}
@@ -716,7 +722,7 @@ const UserHomePage = () => {
                   </div>
                   <div>
                       <p className="text-sm font-semibold text-white">
-                      {user?.firstName || user?.email?.split('@')[0] || "Fitness Member"}
+                      {user?.firstName || user?.name || user?.email?.split('@')[0] || "Fitness Member"}
                       </p>
                       <p className="text-xs text-white/90">{user?.email}</p>
                     </div>

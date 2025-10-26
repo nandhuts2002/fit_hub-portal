@@ -5,9 +5,9 @@ import uuid
 import time
 from werkzeug.utils import secure_filename
 try:
-    from cloudinary_config import upload_image_to_cloudinary
+    from cloudinary_config import upload_image_to_cloudinary, is_cloudinary_configured
 except ImportError:
-    from server.cloudinary_config import upload_image_to_cloudinary
+    from server.cloudinary_config import upload_image_to_cloudinary, is_cloudinary_configured
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -42,6 +42,7 @@ def upload_image():
         print(f"CLOUDINARY_CLOUD_NAME: {os.getenv('CLOUDINARY_CLOUD_NAME')}")
         print(f"CLOUDINARY_API_KEY: {os.getenv('CLOUDINARY_API_KEY')}")
         print(f"CLOUDINARY_API_SECRET set: {bool(os.getenv('CLOUDINARY_API_SECRET'))}")
+        print(f"Cloudinary configured: {is_cloudinary_configured()}")
         
         # Check if file is present
         if 'image' not in request.files:
@@ -74,28 +75,29 @@ def upload_image():
             print("File too large")
             return jsonify({'ok': False, 'error': 'File too large. Maximum size: 5MB'}), 400
         
-        # Try Cloudinary first
-        try:
-            # Upload to Cloudinary
-            print("Uploading to Cloudinary...")
-            upload_result = upload_image_to_cloudinary(file, folder)
-            print(f"Upload result: {upload_result}")
-            
-            return jsonify({
-                'ok': True,
-                'url': upload_result['url'],
-                'public_id': upload_result['public_id'],
-                'format': upload_result['format'],
-                'size': file_size
-            })
-        except ImportError as e:
-            print(f"Cloudinary import error: {str(e)}")
-        except Exception as e:
-            print(f"Cloudinary upload error: {str(e)}")
-            import traceback
-            traceback.print_exc()
+        # Try Cloudinary first if configured
+        if is_cloudinary_configured():
+            try:
+                # Upload to Cloudinary
+                print("Uploading to Cloudinary...")
+                upload_result = upload_image_to_cloudinary(file, folder)
+                print(f"Upload result: {upload_result}")
+                
+                return jsonify({
+                    'ok': True,
+                    'url': upload_result['url'],
+                    'public_id': upload_result['public_id'],
+                    'format': upload_result['format'],
+                    'size': file_size
+                })
+            except Exception as e:
+                print(f"Cloudinary upload error: {str(e)}")
+                import traceback
+                traceback.print_exc()
+        else:
+            print("Cloudinary not configured, skipping Cloudinary upload")
         
-        # Fallback to local storage if Cloudinary fails
+        # Fallback to local storage
         try:
             filename = secure_filename(file.filename or f"uploaded_{int(time.time())}.jpg")
             if not filename:
@@ -116,11 +118,13 @@ def upload_image():
             return jsonify({
                 'ok': True,
                 'url': local_url,
-                'message': 'Image saved locally due to Cloudinary unavailability',
+                'message': 'Image saved locally',
                 'size': file_size
             })
         except Exception as local_e:
             print(f"Local upload also failed: {local_e}")
+            import traceback
+            traceback.print_exc()
             return jsonify({'ok': False, 'error': f'Upload failed: {str(local_e)}'}), 500
         
     except Exception as e:

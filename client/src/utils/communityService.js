@@ -98,8 +98,18 @@ export async function uploadImage(file) {
     console.log('Upload response:', data);
     
     if (!data.ok) throw new Error(data.error || 'Failed to upload image');
-    // Return absolute URL for immediate display
-    const url = data.url.startsWith('http') ? data.url : `${API_BASE}${data.url}`;
+    
+    // Handle both absolute and relative URLs
+    let url = data.url;
+    if (url && !url.startsWith('http')) {
+      // If it's a relative URL, make it absolute
+      if (url.startsWith('/')) {
+        url = `${API_BASE}${url}`;
+      } else {
+        url = `${API_BASE}/${url}`;
+      }
+    }
+    
     return url;
   } catch (error) {
     console.error('Upload error:', error);

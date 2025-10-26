@@ -68,7 +68,12 @@ app.register_blueprint(exercise_gifs_bp)
 app.register_blueprint(upload_bp)
 app.register_blueprint(yoga_progress_bp, url_prefix='')
 app.register_blueprint(exercise_progress_bp, url_prefix='')
-app.register_blueprint(blog_bp, url_prefix='')
+app.register_blueprint(blog_bp, url_prefix='/blog')
+
+# Add explicit handling for OPTIONS requests (CORS preflight)
+@app.route('/<path:path>', methods=['OPTIONS'])
+def handle_options(path):
+    return '', 204
 
 # API Root endpoint
 @app.route('/')

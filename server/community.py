@@ -456,24 +456,28 @@ def upload_image():
             print(f"File too large: {file_size} bytes")
             return jsonify({'ok': False, 'error': 'File too large. Maximum size: 5MB'}), 400
         
-        # Try Cloudinary first
+        # Try Cloudinary first if configured
         try:
-            # Use Cloudinary for image upload
-            from cloudinary_config import upload_image_to_cloudinary
-            
-            # Upload to Cloudinary
-            print("Uploading to Cloudinary...")
-            upload_result = upload_image_to_cloudinary(image_file, 'community')
-            print(f"Upload result: {upload_result}")
-            
-            url = upload_result['url']
-            
-            return jsonify({
-                'ok': True, 
-                'url': url,
-                'public_id': upload_result['public_id'],
-                'format': upload_result['format']
-            })
+            from cloudinary_config import is_cloudinary_configured
+            if is_cloudinary_configured():
+                # Use Cloudinary for image upload
+                from cloudinary_config import upload_image_to_cloudinary
+                
+                # Upload to Cloudinary
+                print("Uploading to Cloudinary...")
+                upload_result = upload_image_to_cloudinary(image_file, 'community')
+                print(f"Upload result: {upload_result}")
+                
+                url = upload_result['url']
+                
+                return jsonify({
+                    'ok': True, 
+                    'url': url,
+                    'public_id': upload_result['public_id'],
+                    'format': upload_result['format']
+                })
+            else:
+                print("Cloudinary not configured, using local storage")
         except ImportError as e:
             print(f"Cloudinary import error: {str(e)}")
         except Exception as e:
@@ -481,7 +485,7 @@ def upload_image():
             import traceback
             traceback.print_exc()
         
-        # Fallback to local storage if Cloudinary fails
+        # Fallback to local storage if Cloudinary fails or is not configured
         try:
             filename = secure_filename(image_file.filename or '')
             if not filename:
@@ -499,10 +503,12 @@ def upload_image():
             return jsonify({
                 'ok': True,
                 'url': local_url,
-                'message': 'Image saved locally due to Cloudinary unavailability'
+                'message': 'Image saved locally'
             })
         except Exception as local_e:
             print(f"Local upload also failed: {local_e}")
+            import traceback
+            traceback.print_exc()
             return jsonify({'ok': False, 'error': f'Image upload failed: {str(local_e)}'}), 500
             
     except Exception as e:

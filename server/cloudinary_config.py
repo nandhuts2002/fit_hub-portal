@@ -19,20 +19,20 @@ cloudinary.config(
     api_secret=os.getenv('CLOUDINARY_API_SECRET')
 )
 
+def is_cloudinary_configured():
+    """Check if Cloudinary is properly configured"""
+    config = cloudinary.config()
+    return bool(config.cloud_name and config.api_key and config.api_secret)
+
 def upload_image_to_cloudinary(file, folder='community'):
     """Upload image to Cloudinary and return the URL"""
     try:
         # Check if Cloudinary is properly configured
+        if not is_cloudinary_configured():
+            raise Exception("Cloudinary is not properly configured. Check environment variables.")
+        
         config = cloudinary.config()
         print(f"Cloudinary configuration: cloud_name={config.cloud_name}, api_key={config.api_key}")
-        
-        # Additional validation
-        if not config.cloud_name:
-            raise Exception("Cloudinary cloud_name is not set. Check CLOUDINARY_CLOUD_NAME environment variable.")
-        if not config.api_key:
-            raise Exception("Cloudinary api_key is not set. Check CLOUDINARY_API_KEY environment variable.")
-        if not config.api_secret:
-            raise Exception("Cloudinary api_secret is not set. Check CLOUDINARY_API_SECRET environment variable.")
         
         # Reset file pointer to beginning
         file.seek(0)
@@ -67,6 +67,8 @@ def upload_image_to_cloudinary(file, folder='community'):
 def delete_image_from_cloudinary(public_id):
     """Delete image from Cloudinary"""
     try:
+        if not is_cloudinary_configured():
+            raise Exception("Cloudinary is not properly configured.")
         result = cloudinary.uploader.destroy(public_id)
         return result
     except Exception as e:
