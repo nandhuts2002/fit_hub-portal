@@ -1,13 +1,33 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Play, Clock, Users, Star, Heart } from 'lucide-react';
 import VideoPlayer from './VideoPlayer';
+import SessionManager from '../utils/sessionManager';
 
 const WorkoutVideoModal = ({ 
   isOpen, 
   onClose, 
   workout = {} 
 }) => {
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  
+  // Load favorite status from localStorage on mount
+  useEffect(() => {
+    if (workout && workout.id) {
+      try {
+        const currentUser = localStorage.getItem('userEmail');
+        if (currentUser) {
+          const favorites = JSON.parse(localStorage.getItem(`favorites_${currentUser}`) || '[]');
+          const isInFavorites = favorites.some(fav => fav.id === workout.id);
+          setIsFavorite(isInFavorites);
+        }
+      } catch (error) {
+        console.error('Error loading favorite status:', error);
+      }
+    }
+  }, [workout]);
+  
   if (!isOpen || !workout) return null;
 
   const {
@@ -22,6 +42,42 @@ const WorkoutVideoModal = ({
     likes,
     thumbnail
   } = workout;
+
+  // Handle favorite toggle
+  const handleToggleFavorite = () => {
+    const newFavoriteState = !isFavorite;
+    setIsFavorite(newFavoriteState);
+    
+    // Save to localStorage or send to backend
+    try {
+      // Try to get user email from SessionManager first
+      const currentUserObj = SessionManager.getCurrentUser();
+      const currentUser = currentUserObj?.email || localStorage.getItem('userEmail');
+      
+      if (currentUser) {
+        const favorites = JSON.parse(localStorage.getItem(`favorites_${currentUser}`) || '[]');
+        
+        if (!newFavoriteState) {
+          // Remove from favorites (was true, now false)
+          const updatedFavorites = favorites.filter(fav => fav.id !== workout.id);
+          localStorage.setItem(`favorites_${currentUser}`, JSON.stringify(updatedFavorites));
+          console.log('Removed from favorites:', workout.id);
+        } else {
+          // Add to favorites (was false, now true)
+          favorites.push({
+            id: workout.id,
+            title: workout.title,
+            videoUrl: workout.videoUrl,
+            thumbnail: workout.thumbnail
+          });
+          localStorage.setItem(`favorites_${currentUser}`, JSON.stringify(favorites));
+          console.log('Added to favorites:', workout.id);
+        }
+      }
+    } catch (error) {
+      console.error('Error saving favorite:', error);
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -151,13 +207,16 @@ const WorkoutVideoModal = ({
 
                 {/* Action Buttons */}
                 <div className="space-y-3">
-                  <button className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 px-4 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all flex items-center justify-center gap-2">
-                    <Play className="w-4 h-4" />
-                    Start Workout
-                  </button>
-                  <button className="w-full border border-gray-300 text-gray-700 py-3 px-4 rounded-lg font-semibold hover:bg-gray-50 transition-all flex items-center justify-center gap-2">
-                    <Heart className="w-4 h-4" />
-                    Add to Favorites
+                  <button 
+                    onClick={handleToggleFavorite}
+                    className={`w-full border py-3 px-4 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 ${
+                      isFavorite 
+                        ? 'border-red-300 bg-red-50 text-red-600 hover:bg-red-100' 
+                        : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Heart className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
+                    {isFavorite ? 'Remove from Favorites' : 'Add to Favorites'}
                   </button>
                 </div>
               </div>

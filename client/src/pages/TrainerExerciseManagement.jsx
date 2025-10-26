@@ -36,6 +36,12 @@ export default function TrainerExerciseManagement() {
     'lower arms', 'waist', 'neck', 'shoulders'
   ];
 
+  const equipmentOptions = [
+    'body weight', 'dumbbell', 'barbell', 'cable', 'machine', 
+    'kettlebell', 'resistance band', 'band', 'rope', 'assisted', 
+    'other'
+  ];
+
   useEffect(() => {
     fetchExercises();
   }, []);
@@ -527,15 +533,18 @@ export default function TrainerExerciseManagement() {
                       <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                         Equipment *
                       </label>
-                      <input
-                        type="text"
+                      <select
                         name="equipment"
                         value={formData.equipment}
                         onChange={handleInputChange}
-                        placeholder="e.g., body weight, dumbbell"
-                        className={`w-full px-3 py-2 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-400' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-500'}`}
+                        className={`w-full px-3 py-2 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
                         required
-                      />
+                      >
+                        <option value="">Select equipment</option>
+                        {equipmentOptions.map(equipment => (
+                          <option key={equipment} value={equipment}>{equipment}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
 

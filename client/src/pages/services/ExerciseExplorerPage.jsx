@@ -452,7 +452,7 @@ export default function ExerciseExplorerPage() {
             </div>
 
             {/* Modal Content */}
-            <div className="p-6">
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* GIF/Video/Image Section */}
                 <div className="space-y-4">
@@ -517,7 +517,7 @@ export default function ExerciseExplorerPage() {
                   </h3>
                   
                   {Array.isArray(selectedExercise.instructions) && selectedExercise.instructions.length > 0 ? (
-                    <div className={`rounded-xl p-4 ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                    <div className={`rounded-xl p-4 ${isDark ? 'bg-gray-800' : 'bg-gray-50'} max-h-64 overflow-y-auto`}>
                       <ol className="space-y-3">
                         {selectedExercise.instructions.map((instruction, index) => (
                           <li key={index} className="flex items-start gap-3">
