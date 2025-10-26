@@ -36,11 +36,11 @@ const WorkoutVideoModal = ({
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.9, opacity: 0 }}
-          className="bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden"
+          className="bg-white rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          {/* Header - Fixed */}
+          <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
             <div className="flex-1">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">{title}</h2>
               <div className="flex items-center gap-4 text-sm text-gray-600">
@@ -84,8 +84,8 @@ const WorkoutVideoModal = ({
             </button>
           </div>
 
-          {/* Content */}
-          <div className="p-6">
+          {/* Content - Scrollable */}
+          <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Video Player */}
               <div className="lg:col-span-2">

@@ -15,6 +15,8 @@ from profile import profile_bp
 from ai import ai_bp
 from exercise_gifs import exercise_gifs_bp
 from upload import upload_bp
+from yoga_progress import yoga_progress_bp
+from exercise_progress import exercise_progress_bp
 # Import Cloudinary configuration to initialize it
 import cloudinary_config
 from dotenv import load_dotenv
@@ -97,6 +99,8 @@ app.register_blueprint(profile_bp, url_prefix='/profile')
 app.register_blueprint(ai_bp)
 app.register_blueprint(exercise_gifs_bp)
 app.register_blueprint(upload_bp)
+app.register_blueprint(yoga_progress_bp)
+app.register_blueprint(exercise_progress_bp)
 
 # Add explicit handling for OPTIONS requests (CORS preflight)
 @app.before_request

@@ -59,6 +59,12 @@ follows_collection = db['follows']  # { follower_email, following_email, created
 # Exercise GIFs collection
 exercise_gifs_collection = db['exercise_gifs']  # { name, gif_url, category, tags, created_by, created_at }
 
+# Yoga Progress Tracking
+yoga_progress_collection = db['yoga_progress']  # Yoga workout progress tracking
+
+# General Exercise Progress Tracking  
+exercise_progress_collection = db['exercise_progress']  # General exercise progress tracking
+
 # Extended Community Features Collections
 challenges_collection = db['challenges']  # Fitness challenges and competitions
 user_progress_collection = db['user_progress']  # Activity logs and progress tracking

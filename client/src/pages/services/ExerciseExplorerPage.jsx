@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import customExerciseService from '../../utils/customExerciseService';
 import TrainerExerciseUpload from '../../components/TrainerExerciseUpload';
+import api from '../../utils/api';
+import SessionManager from '../../utils/sessionManager';
 
 export default function ExerciseExplorerPage() {
   const theme = (typeof window !== 'undefined' && localStorage.getItem('user_theme')) || 'light';
@@ -21,6 +23,15 @@ export default function ExerciseExplorerPage() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedExercise, setSelectedExercise] = useState(null);
   const [showExerciseModal, setShowExerciseModal] = useState(false);
+  const [showTrackModal, setShowTrackModal] = useState(false);
+  const [trackingData, setTrackingData] = useState({
+    sets: 3,
+    reps: 10,
+    totalTime: 0,
+    notes: ''
+  });
+  const [timeMinutes, setTimeMinutes] = useState(0);
+  const [timeSeconds, setTimeSeconds] = useState(0);
 
   useEffect(() => {
     // Check if body part is specified in URL
@@ -121,6 +132,48 @@ export default function ExerciseExplorerPage() {
       'shoulders': 'Shoulders'
     };
     return bodyPartNames[bodyPartId] || 'All Body Parts';
+  };
+
+  const handleTrackProgress = () => {
+    // Check if user is logged in using SessionManager
+    if (!SessionManager.isAuthenticated()) {
+      alert('Please login to track your progress');
+      return;
+    }
+    setShowTrackModal(true);
+  };
+
+  const saveProgress = async () => {
+    if (!selectedExercise) return;
+
+    try {
+      // Convert minutes and seconds to total seconds
+      const totalTimeInSeconds = (timeMinutes * 60) + timeSeconds;
+      
+      const progressData = {
+        exerciseName: selectedExercise.name,
+        bodyPart: selectedExercise.bodyPart,
+        target: selectedExercise.target,
+        equipment: selectedExercise.equipment,
+        sets: trackingData.sets,
+        reps: trackingData.reps,
+        totalTime: totalTimeInSeconds,
+        totalReps: trackingData.sets * trackingData.reps,
+        notes: trackingData.notes,
+        timestamp: new Date().toISOString()
+      };
+
+      await api.post('/exercise-progress', progressData);
+      alert('Progress tracked successfully! 💪');
+      setShowTrackModal(false);
+      setShowExerciseModal(false);
+      setTrackingData({ sets: 3, reps: 10, totalTime: 0, notes: '' });
+      setTimeMinutes(0);
+      setTimeSeconds(0);
+    } catch (error) {
+      console.error('Error tracking progress:', error);
+      alert('Failed to track progress. Please try again.');
+    }
   };
 
 
@@ -328,6 +381,23 @@ export default function ExerciseExplorerPage() {
                     </ul>
                   </details>
                 )}
+                
+                {/* Track Progress Button */}
+                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                  <button
+                    onClick={() => {
+                      setSelectedExercise(c);
+                      handleTrackProgress();
+                    }}
+                    className={`w-full px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+                      isDark 
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                        : 'bg-blue-600 hover:bg-blue-700 text-white'
+                    }`}
+                  >
+                    📈 Track Progress
+                  </button>
+                </div>
               </div>
             </motion.div>
           ))}
@@ -500,6 +570,136 @@ export default function ExerciseExplorerPage() {
                     </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Track Progress Modal */}
+      {showTrackModal && selectedExercise && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className={`${isDark ? 'bg-gray-900' : 'bg-white'} rounded-2xl shadow-2xl max-w-2xl w-full`}
+          >
+            {/* Modal Header */}
+            <div className={`p-6 border-b ${isDark ? 'border-gray-800' : 'border-gray-200'}`}>
+              <div className="flex justify-between items-center">
+                <h2 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  Track Progress - {selectedExercise.name}
+                </h2>
+                <button
+                  onClick={() => setShowTrackModal(false)}
+                  className={`p-2 rounded-lg ${isDark ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-600'}`}
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 space-y-6">
+              {/* Sets and Reps */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Sets
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="20"
+                    value={trackingData.sets}
+                    onChange={(e) => setTrackingData({ ...trackingData, sets: parseInt(e.target.value) || 1 })}
+                    className={`w-full px-4 py-3 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-blue-500`}
+                  />
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Reps per Set
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={trackingData.reps}
+                    onChange={(e) => setTrackingData({ ...trackingData, reps: parseInt(e.target.value) || 1 })}
+                    className={`w-full px-4 py-3 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-blue-500`}
+                  />
+                </div>
+              </div>
+
+              {/* Improved Time Input */}
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Workout Duration
+                </label>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <label className={`block text-xs mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Minutes</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="120"
+                      value={timeMinutes}
+                      onChange={(e) => setTimeMinutes(parseInt(e.target.value) || 0)}
+                      className={`w-full px-4 py-3 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-blue-500`}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className={`block text-xs mb-1 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Seconds</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="59"
+                      value={timeSeconds}
+                      onChange={(e) => setTimeSeconds(parseInt(e.target.value) || 0)}
+                      className={`w-full px-4 py-3 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-blue-500`}
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+                <p className={`text-xs mt-2 ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  Total: {timeMinutes}m {timeSeconds}s ({timeMinutes * 60 + timeSeconds} seconds)
+                </p>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Notes (Optional)
+                </label>
+                <textarea
+                  value={trackingData.notes}
+                  onChange={(e) => setTrackingData({ ...trackingData, notes: e.target.value })}
+                  className={`w-full px-4 py-3 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'} focus:ring-2 focus:ring-blue-500`}
+                  rows="3"
+                  placeholder="Add any notes about your workout (e.g., difficulty, form tips, etc.)"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => setShowTrackModal(false)}
+                  className={`flex-1 px-4 py-3 rounded-lg font-medium ${isDark ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-900'} transition-colors`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={saveProgress}
+                  className={`flex-1 px-4 py-3 rounded-lg font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors flex items-center justify-center gap-2`}
+                >
+                  <span>💪</span>
+                  Save Progress
+                </button>
               </div>
             </div>
           </motion.div>

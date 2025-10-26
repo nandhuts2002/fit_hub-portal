@@ -68,3 +68,12 @@ spotlights_collection = db['spotlights']  # Transformation spotlights
 
 # Yoga Progress Tracking
 yoga_progress_collection = db['yoga_progress']  # Yoga workout sessions and progress tracking
+
+# Exercise Progress Tracking
+exercise_progress_collection = db['exercise_progress']  # Strength workout sessions and progress tracking
+
+# Blog System Collections
+blog_posts_collection = db['blog_posts']  # Blog posts with rich content
+blog_categories_collection = db['blog_categories']  # Blog categories and tags
+blog_comments_collection = db['blog_comments']  # Blog post comments
+blog_likes_collection = db['blog_likes']  # Blog post likes and reactions

@@ -40,6 +40,13 @@ const SERVICES = [
     path: "/yoga-poses",
   },
   {
+    icon: "📈",
+    img: "https://images.unsplash.com/photo-1584467735871-53d46f4b6c89?q=80&w=400&auto=format&fit=crop",
+    title: "Exercise Progress Tracker",
+    desc: "Track strength workouts and visualize performance",
+    path: "/exercise-progress",
+  },
+  {
     icon: "🎥",
     img: "https://media.istockphoto.com/id/1220117732/photo/millennial-girl-watch-yoga-training-on-laptop-online.jpg?s=1024x1024&w=is&k=20&c=r957Ya6OIyOc2iySTgFlAk1PUysMguUCZALQiYRmcPU=",
     title: "Live Sessions",

@@ -1,11 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import SessionManager from '../utils/sessionManager';
 import { listPosts, createPost, likePost, unlikePost, listComments, addComment, uploadImage, deletePost, getCommunitySocket, sendTyping, listTrending, listByHashtag, listCollections, createCollection, addPostToCollection, listStories, createStory, reportPost, followUser, unfollowUser, getPersonalizedFeed, getFollowing } from '../utils/communityService';
+import api from '../utils/api';
 
-// Import new community features - Only Spotlights
+// Import community components
 import SpotlightsSection from '../components/community/SpotlightsSection';
+
+// Blog Components
+import BlogPostCard from '../components/community/BlogPostCard';
+import BlogComposer from '../components/community/BlogComposer';
+import BlogCategoryFilter from '../components/community/BlogCategoryFilter';
 
 function useThemeToggle() {
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light');
@@ -70,7 +76,6 @@ function StoriesBar({ onOpenViewer }) {
   const reload = async () => {
     try {
       const data = await listStories();
-      // Ensure own story (if any) at the front
       const mine = data.filter(s => String(s.user?.email||'').toLowerCase() === String(user?.email||'').toLowerCase());
       const others = data.filter(s => String(s.user?.email||'').toLowerCase() !== String(user?.email||'').toLowerCase());
       setStories([ ...mine, ...others ]);
@@ -95,7 +100,6 @@ function StoriesBar({ onOpenViewer }) {
     }
   };
 
-  // Group stories by user for Instagram-like behavior
   const groups = React.useMemo(() => {
     const map = new Map();
     stories.forEach(s => {
@@ -103,7 +107,6 @@ function StoriesBar({ onOpenViewer }) {
       if (!map.has(key)) map.set(key, { user: s.user || {}, items: [] });
       map.get(key).items.push(s);
     });
-    // sort items by created_at ascending
     const arr = Array.from(map.values()).map(g => ({
       user: g.user,
       items: (g.items || []).sort((a,b)=> (a.created_at||0) - (b.created_at||0))
@@ -139,7 +142,6 @@ function StoriesBar({ onOpenViewer }) {
   return (
     <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3 overflow-x-auto no-scrollbar mb-4">
       <div className="flex items-center gap-4 min-w-max">
-        {/* Your story uploader */}
         <button onClick={onPick} className="flex flex-col items-center w-16 flex-none">
           <div className="p-[2px] rounded-full bg-gray-300">
             <div className="w-14 h-14 rounded-full bg-gray-100 grid place-items-center text-gray-600">{uploading ? '…' : '+'}</div>
@@ -147,16 +149,12 @@ function StoriesBar({ onOpenViewer }) {
           <div className="text-[10px] text-gray-700 mt-1 truncate w-14 text-center font-medium">Add</div>
         </button>
         <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={onChange} />
-
-        {/* Stories list (grouped by user) */}
         {groups.map((g, idx) => circle(g, idx))}
-
       </div>
     </div>
   );
 }
 
-// Full-screen Instagram-like story viewer
 function StoryViewer({ groups, groupIndex, itemIndex, onClose, onViewed }) {
   const [gIdx, setGIdx] = useState(groupIndex || 0);
   const [iIdx, setIIdx] = useState(itemIndex || 0);
@@ -181,7 +179,7 @@ function StoryViewer({ groups, groupIndex, itemIndex, onClose, onViewed }) {
     clearInterval(timerRef.current);
     const start = Date.now();
     timerRef.current = setInterval(() => {
-      const p = Math.min(1, (Date.now() - start) / 5000); // 5s per story
+      const p = Math.min(1, (Date.now() - start) / 5000);
       setProgress(p);
       if (p >= 1) next();
     }, 50);
@@ -206,7 +204,6 @@ function StoryViewer({ groups, groupIndex, itemIndex, onClose, onViewed }) {
     <div className="fixed inset-0 z-50 bg-black/90" onClick={onClose}>
       <div className="absolute inset-0 grid place-items-center">
         <div className="w-full max-w-md mx-auto relative" style={{ height: '85vh' }} onClick={(e)=>e.stopPropagation()}>
-          {/* Header */}
           <div className="absolute top-2 left-2 right-2 z-10">
             <div className="flex gap-1">
               {(groups[gIdx]?.items || []).map((_, idx) => (
@@ -227,10 +224,8 @@ function StoryViewer({ groups, groupIndex, itemIndex, onClose, onViewed }) {
               <button onClick={onClose} className="px-2 py-1 rounded bg-white/20">✕</button>
             </div>
           </div>
-          {/* Media */}
           <div className="relative w-full h-full">
             <img src={current.mediaUrl} alt="story" className="w-full h-full object-contain" />
-            {/* Tappable areas */}
             <button onClick={prev} className="absolute inset-y-0 left-0 w-1/3"/>
             <button onClick={next} className="absolute inset-y-0 right-0 w-1/3"/>
           </div>
@@ -414,9 +409,7 @@ function PostCard({ post, meEmail, onLikeToggle, onCommentAdded, onDeleted, onTy
     return () => clearTimeout(t);
   }, [comment]);
 
-  // Subscribe to global typing map via a custom event on post object changes
   useEffect(() => {
-    // The parent updates post.__typing timestamp when typing updates arrive
     setIsSomeoneTyping(!!post.__typing && Date.now() - post.__typing < 1500);
   }, [post.__typing]);
 
@@ -435,7 +428,6 @@ function PostCard({ post, meEmail, onLikeToggle, onCommentAdded, onDeleted, onTy
 
   return (
     <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm overflow-hidden mb-4">
-      {/* Header */}
       <div className="flex items-center justify-between p-3 relative">
         <button onClick={()=>{
           const ident = post.user?.email || post.user?.name || '';
@@ -513,7 +505,6 @@ function PostCard({ post, meEmail, onLikeToggle, onCommentAdded, onDeleted, onTy
         </div>
       </div>
       
-      {/* Content */}
       {post.imageUrl && (
         <div className="relative">
           <button onClick={()=>onOpenPost?.(post)} style={{ aspectRatio: '4 / 5' }} className="w-full bg-gray-50 overflow-hidden rounded-xl max-h-96">
@@ -522,7 +513,6 @@ function PostCard({ post, meEmail, onLikeToggle, onCommentAdded, onDeleted, onTy
         </div>
       )}
       
-      {/* Actions */}
       <div className="px-4 py-3">
         <div className="flex items-center gap-4 mb-3">
           <motion.button 
@@ -568,7 +558,6 @@ function PostCard({ post, meEmail, onLikeToggle, onCommentAdded, onDeleted, onTy
         {post.text && (
           <div className="text-sm text-gray-900 dark:text-gray-100 mb-2">
             <span className="font-semibold mr-2">{post.user?.name || 'Member'}</span>
-            {/* Hashtag linkify */}
             {(post.text || '').split(/(#[A-Za-z0-9_]+)/g).map((part, idx) => {
               if (part.startsWith('#')) {
                 const tag = part.slice(1);
@@ -601,7 +590,6 @@ function PostCard({ post, meEmail, onLikeToggle, onCommentAdded, onDeleted, onTy
         )}
       </div>
       
-      {/* Add comment */}
       <form onSubmit={submitComment} className="px-4 pb-4 border-t border-gray-100">
         <div className="flex items-center gap-3 pt-3">
           <input 
@@ -631,17 +619,26 @@ export default function CommunityPage() {
   const [items, setItems] = useState([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const [view, setView] = useState('feed'); // feed | trending | hashtag | challenges | badges | qa | spotlights
+  const [view, setView] = useState('feed'); // feed | blog | spotlights
   const [feedMode, setFeedMode] = useState('all'); // all | following
   const [activeTag, setActiveTag] = useState('');
   const [themeOpen, setThemeOpen] = useState(false);
   const [progressRefreshTrigger, setProgressRefreshTrigger] = useState(0);
   const [user, setUser] = useState(() => SessionManager.getCurrentUser() || {});
+  
+  // Blog state
+  const [blogPosts, setBlogPosts] = useState([]);
+  const [blogCategories, setBlogCategories] = useState([]);
+  const [blogLoading, setBlogLoading] = useState(false);
+  const [blogPage, setBlogPage] = useState(1);
+  const [blogTotal, setBlogTotal] = useState(0);
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [showBlogComposer, setShowBlogComposer] = useState(false);
+  
   useEffect(() => {
     const refresh = () => {
       const u = SessionManager.getCurrentUser() || {};
       setUser(u);
-      // also refresh avatars inside existing posts that belong to me
       setItems(prev => prev.map(p => {
         const pe = String(p?.user?.email || '').toLowerCase();
         const me = String(u?.email || '').toLowerCase();
@@ -660,11 +657,13 @@ export default function CommunityPage() {
       window.removeEventListener('fithub:session-updated', refresh);
     };
   }, []);
+  
   const meEmail = (user?.email || '').trim();
   const [following, setFollowing] = useState([]);
   const [followPending, setFollowPending] = useState('');
   const { theme, setTheme } = useThemeToggle();
   const typingMapRef = useRef({});
+  
   // Collections modal state
   const [showCollections, setShowCollections] = useState(false);
   const [collections, setCollections] = useState([]);
@@ -672,17 +671,61 @@ export default function CommunityPage() {
   const [newCollectionName, setNewCollectionName] = useState('');
   const [savingPost, setSavingPost] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState('');
+  
   // Story viewer state
   const [storyViewerOpen, setStoryViewerOpen] = useState(false);
   const [storyGroupsCache, setStoryGroupsCache] = useState([]);
   const [storyGIdx, setStoryGIdx] = useState(0);
   const [storyIIdx, setStoryIIdx] = useState(0);
+  
   // Post viewer modal
   const [viewerOpen, setViewerOpen] = useState(false);
   const [activePost, setActivePost] = useState(null);
   const [activeComments, setActiveComments] = useState([]);
   const [commentText, setCommentText] = useState('');
   const [likeBusy, setLikeBusy] = useState(false);
+
+  // Fetch blog posts
+  const fetchBlogPosts = async (pageNum = 1, append = false) => {
+    setBlogLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: pageNum.toString(),
+        limit: '10'
+      });
+      
+      if (selectedCategory) {
+        params.append('category', selectedCategory);
+      }
+      
+      const response = await api.get(`/blog/posts?${params}`);
+      const { data, pagination } = response.data;
+      
+      setBlogTotal(pagination.total);
+      setBlogPosts(prev => append ? [...prev, ...data] : data);
+    } catch (e) {
+      console.error('Error fetching blog posts:', e);
+    } finally {
+      setBlogLoading(false);
+    }
+  };
+
+  // Fetch blog categories
+  const fetchBlogCategories = async () => {
+    try {
+      const response = await api.get('/blog/categories');
+      setBlogCategories(response.data.data || []);
+    } catch (e) {
+      console.error('Error fetching blog categories:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (view === 'blog') {
+      fetchBlogPosts(1, false);
+      fetchBlogCategories();
+    }
+  }, [view, selectedCategory]);
 
   const fetchPage = async (p = 1, append = false) => {
     setLoading(true);
@@ -721,7 +764,6 @@ export default function CommunityPage() {
   // Socket live updates
   useEffect(() => {
     const s = getCommunitySocket();
-    // join community namespace implicitly
     s.on('connect', () => {});
     s.on('post:created', (post) => {
       setItems(prev => [post, ...prev]);
@@ -740,7 +782,6 @@ export default function CommunityPage() {
     });
     s.on('comment:typing', ({ postId, isTyping }) => {
       typingMapRef.current[postId] = !!isTyping;
-      // trigger re-render by updating state subtly
       setItems(prev => prev.map(p => p.id === postId ? { ...p, __typing: Date.now() } : p));
     });
     return () => {
@@ -759,7 +800,6 @@ export default function CommunityPage() {
 
   const onLikeToggle = async (post, alreadyLiked) => {
     if (!meEmail) throw new Error('Login required');
-    // Optimistic update
     setItems(prev => prev.map(p => p.id === post.id ? {
       ...p,
       likes: alreadyLiked ? p.likes.filter(e => String(e).toLowerCase() !== meEmail.toLowerCase()) : [...(p.likes||[]), meEmail]
@@ -767,7 +807,6 @@ export default function CommunityPage() {
     try {
       if (alreadyLiked) await unlikePost(post.id, meEmail); else await likePost(post.id, meEmail);
     } catch (e) {
-      // revert on error
       setItems(prev => prev.map(p => p.id === post.id ? post : p));
       throw e;
     }
@@ -778,6 +817,7 @@ export default function CommunityPage() {
   };
 
   const canLoadMore = items.length < total && view === 'feed';
+  const canLoadMoreBlog = blogPosts.length < blogTotal && view === 'blog';
 
   const onTyping = (postId, isTyping) => {
     const u = { name: user?.name || user?.email || 'Member', email: meEmail };
@@ -786,7 +826,6 @@ export default function CommunityPage() {
 
   const onFollowToggle = async (targetEmail, alreadyFollowing) => {
     if (!meEmail || !targetEmail) throw new Error('Login required');
-    // optimistic
     setFollowPending(targetEmail.toLowerCase());
     setFollowing(prev => {
       const set = new Set(prev);
@@ -797,7 +836,6 @@ export default function CommunityPage() {
       if (alreadyFollowing) await unfollowUser(meEmail, targetEmail); else await followUser(meEmail, targetEmail);
       if (feedMode === 'following') fetchPage(1, false);
     } catch (e) {
-      // revert on error
       setFollowing(prev => prev);
       throw e;
     } finally {
@@ -866,7 +904,6 @@ export default function CommunityPage() {
     finally { setSavingPost(false); }
   };
 
-  // Open stories viewer with grouped stories
   const openStoriesViewer = (groups, gIndex, iIndex) => {
     try {
       setStoryGroupsCache(groups || []);
@@ -878,37 +915,47 @@ export default function CommunityPage() {
 
   // IntersectionObserver for infinite scroll
   useEffect(() => {
-    if (!canLoadMore) return;
+    if (!canLoadMore && !canLoadMoreBlog) return;
     const btn = document.getElementById('feed-load-more');
     if (!btn) return;
     const io = new IntersectionObserver((entries) => {
       entries.forEach((e) => {
         if (e.isIntersecting) {
-          const next = page + 1;
-          setPage(next);
-          fetchPage(next, true);
+          if (view === 'feed') {
+            const next = page + 1;
+            setPage(next);
+            fetchPage(next, true);
+          } else if (view === 'blog') {
+            const next = blogPage + 1;
+            setBlogPage(next);
+            fetchBlogPosts(next, true);
+          }
         }
       });
     }, { rootMargin: '200px' });
     io.observe(btn);
     return () => io.disconnect();
-  }, [page, canLoadMore]);
+  }, [page, canLoadMore, blogPage, canLoadMoreBlog, view]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black">
-      {/* Top header */}
-      <header className="sticky top-0 z-30 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-pink-500 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">F</span>
-            </div>
-            <div className="text-xl font-bold text-gray-900 dark:text-gray-100">FitHub</div>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      {/* Professional Header */}
+      <header className="sticky top-0 z-30 backdrop-blur supports-[backdrop-filter]:bg-white/70 bg-white/80 dark:bg-gray-900/80 border-b border-slate-200 dark:border-gray-700 shadow-sm">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg">
+              <span className="text-white font-bold text-lg">F</span>
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900 dark:text-white">FitHub</h1>
+              <p className="text-sm text-slate-600 dark:text-gray-300">Community Hub</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
             <div className="relative">
-              <button className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full" onClick={()=>setThemeOpen(v=>!v)}>
-                <svg className="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <button className="p-2 hover:bg-slate-100 dark:hover:bg-gray-800 rounded-lg transition-colors" onClick={()=>setThemeOpen(v=>!v)}>
+                <svg className="w-6 h-6 text-slate-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m8-9h1M3 12H2m15.364 6.364l-.707.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707-.707"/>
                 </svg>
               </button>
@@ -920,126 +967,281 @@ export default function CommunityPage() {
                 </div>
               )}
             </div>
-            <button className="p-2 hover:bg-gray-100 rounded-full">
-              <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            
+            <button className="p-2 hover:bg-slate-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+              <svg className="w-6 h-6 text-slate-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </button>
-            <button className="p-2 hover:bg-gray-100 rounded-full">
-              <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            
+            <button className="p-2 hover:bg-slate-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+              <svg className="w-6 h-6 text-slate-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5v-5zM4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
             </button>
-            <button className="p-2 hover:bg-gray-100 rounded-full">
-              <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-            </button>
-            <button onClick={()=>navigate('/profile')} title="Open profile" className="rounded-full overflow-hidden">
+            
+            <button onClick={()=>navigate('/profile')} title="Open profile" className="rounded-full overflow-hidden ring-2 ring-slate-200 dark:ring-gray-700">
               <Avatar name={user?.name || user?.email} url={user?.avatar} size={8}/>
             </button>
           </div>
         </div>
       </header>
 
-      {/* Main content */}
-      <div className="max-w-2xl mx-auto px-3 py-4">
-        {/* Community Navigation Tabs */}
-        <div className="mb-4">
-          <div className="text-lg font-semibold mb-3">Community Hub</div>
+      {/* Main Content */}
+      <div className="max-w-6xl mx-auto px-6 py-8">
+        {/* Professional Navigation */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">Community Hub</h2>
+              <p className="text-slate-600 dark:text-gray-300">Connect, share, and grow with the fitness community</p>
+            </div>
+            
+            {view === 'blog' && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setShowBlogComposer(true)}
+                className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg flex items-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Write Blog Post
+              </motion.button>
+            )}
+          </div>
           
-          {/* Main Navigation Tabs - Only Feed and Spotlights */}
-          <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-2">
-            <button
+          {/* Professional Tab Navigation */}
+          <div className="flex items-center gap-2 mb-6">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => setView('feed')}
-              className={`px-4 py-2 text-sm rounded-full whitespace-nowrap ${view === 'feed' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+              className={`px-6 py-3 text-sm font-semibold rounded-xl transition-all ${
+                view === 'feed' 
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' 
+                  : 'bg-white dark:bg-gray-800 text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700 border border-slate-200 dark:border-gray-700'
+              }`}
             >
-              📱 Feed
-            </button>
-            <button
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+                Social Feed
+              </div>
+            </motion.button>
+            
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setView('blog')}
+              className={`px-6 py-3 text-sm font-semibold rounded-xl transition-all ${
+                view === 'blog' 
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' 
+                  : 'bg-white dark:bg-gray-800 text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700 border border-slate-200 dark:border-gray-700'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                </svg>
+                Fitness Blog
+              </div>
+            </motion.button>
+            
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => setView('spotlights')}
-              className={`px-4 py-2 text-sm rounded-full whitespace-nowrap ${view === 'spotlights' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+              className={`px-6 py-3 text-sm font-semibold rounded-xl transition-all ${
+                view === 'spotlights' 
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg' 
+                  : 'bg-white dark:bg-gray-800 text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700 border border-slate-200 dark:border-gray-700'
+              }`}
             >
-              ⭐ Spotlights
-            </button>
+              <div className="flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                </svg>
+                Spotlights
+              </div>
+            </motion.button>
           </div>
 
           {/* Feed mode toggle - only show when on feed tab */}
           {view === 'feed' && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mb-4">
               <button
                 onClick={()=>{ setFeedMode('all'); setPage(1); fetchPage(1, false); }}
-                className={`px-3 py-1 text-sm rounded-full ${feedMode==='all' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
-              >All</button>
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                  feedMode==='all' 
+                    ? 'bg-blue-600 text-white shadow-md' 
+                    : 'bg-white dark:bg-gray-800 text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700 border border-slate-200 dark:border-gray-700'
+                }`}
+              >
+                All Posts
+              </button>
               <button
                 onClick={()=>{ setFeedMode('following'); setPage(1); fetchPage(1, false); }}
-                className={`px-3 py-1 text-sm rounded-full ${feedMode==='following' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'}`}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition-all ${
+                  feedMode==='following' 
+                    ? 'bg-blue-600 text-white shadow-md' 
+                    : 'bg-white dark:bg-gray-800 text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700 border border-slate-200 dark:border-gray-700'
+                }`}
                 disabled={!meEmail}
-              >Following</button>
+              >
+                Following
+              </button>
             </div>
           )}
         </div>
-        {error && <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 mb-4">{error}</div>}
+
+        {error && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 mb-6"
+          >
+            {error}
+          </motion.div>
+        )}
 
         {/* Render different views based on selected tab */}
-        {view === 'feed' && (
-          <>
-            {/* Stories bar */}
-            <StoriesBar onOpenViewer={openStoriesViewer} />
+        <AnimatePresence mode="wait">
+          {view === 'feed' && (
+            <motion.div
+              key="feed"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              {/* Stories bar */}
+              <StoriesBar onOpenViewer={openStoriesViewer} />
 
-            {/* Composer */}
-            <PostComposer onPosted={onPosted} />
+              {/* Composer */}
+              <PostComposer onPosted={onPosted} />
 
-            {/* Feed cards */}
-            <div className="space-y-4">
-              {items.map((p)=> (
-            <PostCard 
-              key={p.id} 
-              post={p} 
-              meEmail={meEmail}
-              onLikeToggle={onLikeToggle}
-              onCommentAdded={onCommentAdded}
-              onDeleted={(id)=> setItems(prev => prev.filter(x => x.id !== id))}
-              onTyping={onTyping}
-              onHashtagClick={filterByHashtag}
-              onSaveRequested={openSaveModal}
-              isFollowing={following.map(e=>String(e).toLowerCase()).includes(String(p.user?.email||'').toLowerCase())}
-              onFollowToggle={onFollowToggle}
-              isFollowPending={followPending === String(p.user?.email||'').toLowerCase()}
-            />
-          ))}
-            </div>
+              {/* Feed cards */}
+              <div className="space-y-6">
+                {items.map((p)=> (
+                  <PostCard 
+                    key={p.id} 
+                    post={p} 
+                    meEmail={meEmail}
+                    onLikeToggle={onLikeToggle}
+                    onCommentAdded={onCommentAdded}
+                    onDeleted={(id)=> setItems(prev => prev.filter(x => x.id !== id))}
+                    onTyping={onTyping}
+                    onHashtagClick={filterByHashtag}
+                    onSaveRequested={openSaveModal}
+                    isFollowing={following.map(e=>String(e).toLowerCase()).includes(String(p.user?.email||'').toLowerCase())}
+                    onFollowToggle={onFollowToggle}
+                    isFollowPending={followPending === String(p.user?.email||'').toLowerCase()}
+                  />
+                ))}
+              </div>
 
-            {/* Load more / Infinite scroll sentinel */}
-            <div className="py-8 flex items-center justify-center">
-              {loading ? (
-                <div className="flex items-center gap-2 text-gray-600">
-                  <div className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
-                  <span className="text-sm">Loading…</span>
-                </div>
-              ) : canLoadMore ? (
-                <button
-                  id="feed-load-more"
-                  onClick={() => { const next = page + 1; setPage(next); fetchPage(next, true); }}
-                  className="px-6 py-3 rounded-xl bg-white border border-gray-200 hover:bg-gray-50 text-sm font-medium shadow-sm"
-                >
-                  Load more posts
-                </button>
-              ) : (
-                <div className="text-sm text-gray-500">You're all caught up! 🎉</div>
-              )}
-            </div>
-          </>
-        )}
+              {/* Load more / Infinite scroll sentinel */}
+              <div className="py-8 flex items-center justify-center">
+                {loading ? (
+                  <div className="flex items-center gap-2 text-slate-600 dark:text-gray-300">
+                    <div className="w-5 h-5 border-2 border-slate-300 border-t-blue-500 rounded-full animate-spin"></div>
+                    <span className="text-sm">Loading…</span>
+                  </div>
+                ) : canLoadMore ? (
+                  <button
+                    id="feed-load-more"
+                    onClick={() => { const next = page + 1; setPage(next); fetchPage(next, true); }}
+                    className="px-6 py-3 rounded-xl bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 hover:bg-slate-50 dark:hover:bg-gray-700 text-sm font-medium shadow-sm transition-colors"
+                  >
+                    Load more posts
+                  </button>
+                ) : (
+                  <div className="text-sm text-slate-500 dark:text-gray-400">You're all caught up! 🎉</div>
+                )}
+              </div>
+            </motion.div>
+          )}
 
-        {/* Spotlights Section Only */}
-        {view === 'spotlights' && (
-          <div className="bg-white dark:bg-gray-900 rounded-xl p-4">
-            <SpotlightsSection />
-          </div>
-        )}
+          {view === 'blog' && (
+            <motion.div
+              key="blog"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              {/* Blog Category Filter */}
+              <BlogCategoryFilter 
+                categories={blogCategories}
+                selectedCategory={selectedCategory}
+                onCategoryChange={setSelectedCategory}
+              />
+
+              {/* Blog Posts Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
+                {blogPosts.map((post) => (
+                  <BlogPostCard 
+                    key={post._id} 
+                    post={post}
+                    onLike={() => {/* Handle blog post like */}}
+                    onComment={() => {/* Handle blog post comment */}}
+                  />
+                ))}
+              </div>
+
+              {/* Load more blog posts */}
+              <div className="py-8 flex items-center justify-center">
+                {blogLoading ? (
+                  <div className="flex items-center gap-2 text-slate-600 dark:text-gray-300">
+                    <div className="w-5 h-5 border-2 border-slate-300 border-t-blue-500 rounded-full animate-spin"></div>
+                    <span className="text-sm">Loading blog posts…</span>
+                  </div>
+                ) : canLoadMoreBlog ? (
+                  <button
+                    id="feed-load-more"
+                    onClick={() => { const next = blogPage + 1; setBlogPage(next); fetchBlogPosts(next, true); }}
+                    className="px-6 py-3 rounded-xl bg-white dark:bg-gray-800 border border-slate-200 dark:border-gray-700 hover:bg-slate-50 dark:hover:bg-gray-700 text-sm font-medium shadow-sm transition-colors"
+                  >
+                    Load more blog posts
+                  </button>
+                ) : (
+                  <div className="text-sm text-slate-500 dark:text-gray-400">No more blog posts to load! 📚</div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {view === 'spotlights' && (
+            <motion.div
+              key="spotlights"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+              className="bg-white dark:bg-gray-900 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-gray-700"
+            >
+              <SpotlightsSection />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-      {/* Story Viewer Overlay (page-level) */}
+
+      {/* Blog Composer Modal */}
+      {showBlogComposer && (
+        <BlogComposer
+          onClose={() => setShowBlogComposer(false)}
+          onPostCreated={() => {
+            setShowBlogComposer(false);
+            fetchBlogPosts(1, false);
+          }}
+          categories={blogCategories}
+        />
+      )}
+
+      {/* Story Viewer Overlay */}
       {storyViewerOpen && (
         <StoryViewer
           groups={storyGroupsCache}

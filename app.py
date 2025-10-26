@@ -16,6 +16,8 @@ from server.ai import ai_bp
 from server.exercise_gifs import exercise_gifs_bp
 from server.upload import upload_bp
 from server.yoga_progress import yoga_progress_bp
+from server.exercise_progress import exercise_progress_bp
+from server.blog import blog_bp
 from dotenv import load_dotenv
 import os
 from datetime import timedelta
@@ -65,6 +67,8 @@ app.register_blueprint(ai_bp)
 app.register_blueprint(exercise_gifs_bp)
 app.register_blueprint(upload_bp)
 app.register_blueprint(yoga_progress_bp, url_prefix='')
+app.register_blueprint(exercise_progress_bp, url_prefix='')
+app.register_blueprint(blog_bp, url_prefix='')
 
 # API Root endpoint
 @app.route('/')
