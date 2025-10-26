@@ -750,6 +750,7 @@ const LocationAdminPanel = () => {
             <input
               type="date"
               value={eventForm.date}
+              min={new Date().toISOString().split('T')[0]}
               onChange={(e) => setEventForm({...eventForm, date: e.target.value})}
               className="border rounded px-3 py-2"
               required

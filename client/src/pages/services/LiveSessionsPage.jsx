@@ -264,7 +264,15 @@ export default function LiveSessionsPage() {
               </div>
               <div>
                 <label className="text-sm font-semibold">Start Time</label>
-                <input type="datetime-local" name="startTime" value={form.startTime} onChange={onChange} required className={`w-full px-3 py-2 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'} ${formErrors.startTime ? 'border-red-500' : ''}`} />
+                <input 
+                  type="datetime-local" 
+                  name="startTime" 
+                  value={form.startTime} 
+                  onChange={onChange} 
+                  min={new Date().toISOString().slice(0, 16)}
+                  required 
+                  className={`w-full px-3 py-2 rounded-lg border ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'} ${formErrors.startTime ? 'border-red-500' : ''}`} 
+                />
                 {formErrors.startTime && <p className="text-red-500 text-xs mt-1">{formErrors.startTime}</p>}
               </div>
               <div>

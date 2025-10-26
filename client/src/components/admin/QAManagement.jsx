@@ -360,6 +360,7 @@ const QAManagement = ({ userRole = 'admin' }) => {
                     <input
                       type="datetime-local"
                       value={formData.scheduledAt}
+                      min={new Date().toISOString().slice(0, 16)}
                       onChange={(e) => {
                         setFormData({...formData, scheduledAt: e.target.value});
                         if (formErrors.scheduledAt) {

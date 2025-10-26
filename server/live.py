@@ -6,8 +6,7 @@ from typing import Dict, Any
 
 from flask import Blueprint, jsonify, request
 from email_utils import send_email
-
-LIVE_DATA_PATH = os.path.join(os.path.dirname(__file__), 'live_sessions.json')
+from models import live_sessions_collection
 
 live_bp = Blueprint('live', __name__)
 
@@ -17,20 +16,22 @@ def _now_iso() -> str:
 
 
 def _load() -> Dict[str, Any]:
-    if not os.path.exists(LIVE_DATA_PATH):
-        return {"sessions": []}
+    """Load all sessions from MongoDB"""
     try:
-        with open(LIVE_DATA_PATH, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception:
+        sessions = list(live_sessions_collection.find({}))
+        # Convert MongoDB _id to string format for compatibility
+        for session in sessions:
+            if '_id' in session:
+                del session['_id']
+        return {"sessions": sessions}
+    except Exception as e:
+        print(f"Error loading sessions: {e}")
         return {"sessions": []}
 
 
 def _save(payload: Dict[str, Any]):
-    tmp_path = LIVE_DATA_PATH + '.tmp'
-    with open(tmp_path, 'w', encoding='utf-8') as f:
-        json.dump(payload, f, indent=2)
-    os.replace(tmp_path, LIVE_DATA_PATH)
+    """Save session data - MongoDB is updated inline, no save needed"""
+    pass
 
 
 @live_bp.route('/sessions', methods=['GET'])
@@ -75,10 +76,11 @@ def live_config():
 
 @live_bp.route('/sessions/<sid>', methods=['GET'])
 def get_session(sid):
-    data = _load()
-    for s in data.get('sessions', []):
-        if s.get('id') == sid:
-            return jsonify({"ok": True, "data": s})
+    session = live_sessions_collection.find_one({"id": sid})
+    if session:
+        if '_id' in session:
+            del session['_id']
+        return jsonify({"ok": True, "data": session})
     return jsonify({"ok": False, "error": "Not found"}), 404
 
 
@@ -88,30 +90,42 @@ def approve_reservation(sid):
     email = (body.get('email') or '').strip()
     if not email:
         return jsonify({"ok": False, "error": "email is required"}), 400
-    data = _load()
-    for s in data.get('sessions', []):
-        if s.get('id') == sid:
-            reservations = s.get('reservations', [])
-            approved = _count_approved(reservations)
-            cap = int(s.get('capacity') or 0)
-            if cap and approved >= cap:
-                return jsonify({"ok": False, "error": "Session is full"}), 409
-            target = next((r for r in reservations if r.get('email') == email), None)
-            if not target:
-                return jsonify({"ok": False, "error": "Reservation not found"}), 404
-            target['status'] = 'approved'
-            _save(data)
-            # notify user of approval
-            body_txt = (
-                f"Hi {target.get('name') or 'there'},\n\n"
-                f"Your seat for '{s.get('title','Live Session')}' is approved.\n"
-                f"Join link: {s.get('meetingUrl')}\n\n"
-                f"If payment is required, please complete it before joining.\n\n"
-                f"Thanks,\nFit Hub Team"
-            )
-            send_email(email, subject="Seat approved", body=body_txt)
-            return jsonify({"ok": True, "data": s})
-    return jsonify({"ok": False, "error": "Not found"}), 404
+    
+    # Find session in MongoDB
+    session = live_sessions_collection.find_one({"id": sid})
+    if not session:
+        return jsonify({"ok": False, "error": "Not found"}), 404
+    
+    reservations = session.get('reservations', [])
+    approved = _count_approved(reservations)
+    cap = int(session.get('capacity') or 0)
+    if cap and approved >= cap:
+        return jsonify({"ok": False, "error": "Session is full"}), 409
+    target = next((r for r in reservations if r.get('email') == email), None)
+    if not target:
+        return jsonify({"ok": False, "error": "Reservation not found"}), 404
+    target['status'] = 'approved'
+    
+    # Update MongoDB
+    live_sessions_collection.update_one(
+        {"id": sid},
+        {"$set": {"reservations": reservations}}
+    )
+    
+    # Remove _id for response
+    if '_id' in session:
+        del session['_id']
+    
+    # notify user of approval
+    body_txt = (
+        f"Hi {target.get('name') or 'there'},\n\n"
+        f"Your seat for '{session.get('title','Live Session')}' is approved.\n"
+        f"Join link: {session.get('meetingUrl')}\n\n"
+        f"If payment is required, please complete it before joining.\n\n"
+        f"Thanks,\nFit Hub Team"
+    )
+    send_email(email, subject="Seat approved", body=body_txt)
+    return jsonify({"ok": True, "data": session})
 
 
 @live_bp.route('/sessions/<sid>/reject', methods=['POST'])
@@ -120,26 +134,34 @@ def reject_reservation(sid):
     email = (body.get('email') or '').strip()
     if not email:
         return jsonify({"ok": False, "error": "email is required"}), 400
-    data = _load()
-    for s in data.get('sessions', []):
-        if s.get('id') == sid:
-            reservations = s.get('reservations', [])
-            target = next((r for r in reservations if r.get('email') == email), None)
-            if not target:
-                return jsonify({"ok": False, "error": "Reservation not found"}), 404
-            target['status'] = 'rejected'
-            _save(data)
-            send_email(email, subject="Seat request update", body="We're sorry, your request could not be approved this time.")
-            return jsonify({"ok": True, "data": s})
-    return jsonify({"ok": False, "error": "Not found"}), 404
+    
+    session = live_sessions_collection.find_one({"id": sid})
+    if not session:
+        return jsonify({"ok": False, "error": "Not found"}), 404
+    
+    reservations = session.get('reservations', [])
+    target = next((r for r in reservations if r.get('email') == email), None)
+    if not target:
+        return jsonify({"ok": False, "error": "Reservation not found"}), 404
+    target['status'] = 'rejected'
+    
+    live_sessions_collection.update_one(
+        {"id": sid},
+        {"$set": {"reservations": reservations}}
+    )
+    
+    if '_id' in session:
+        del session['_id']
+    
+    send_email(email, subject="Seat request update", body="We're sorry, your request could not be approved this time.")
+    return jsonify({"ok": True, "data": session})
 
 
 @live_bp.route('/sessions/<sid>/reservations', methods=['GET'])
 def list_reservations(sid):
-    data = _load()
-    for s in data.get('sessions', []):
-        if s.get('id') == sid:
-            return jsonify({"ok": True, "data": s.get('reservations', [])})
+    session = live_sessions_collection.find_one({"id": sid})
+    if session:
+        return jsonify({"ok": True, "data": session.get('reservations', [])})
     return jsonify({"ok": False, "error": "Not found"}), 404
 
 
@@ -149,17 +171,23 @@ def mark_paid(sid):
     email = (body.get('email') or '').strip()
     if not email:
         return jsonify({"ok": False, "error": "email is required"}), 400
-    data = _load()
-    for s in data.get('sessions', []):
-        if s.get('id') == sid:
-            reservations = s.get('reservations', [])
-            target = next((r for r in reservations if r.get('email') == email), None)
-            if not target:
-                return jsonify({"ok": False, "error": "Reservation not found"}), 404
-            target['payStatus'] = 'paid'
-            _save(data)
-            return jsonify({"ok": True})
-    return jsonify({"ok": False, "error": "Not found"}), 404
+    
+    session = live_sessions_collection.find_one({"id": sid})
+    if not session:
+        return jsonify({"ok": False, "error": "Not found"}), 404
+    
+    reservations = session.get('reservations', [])
+    target = next((r for r in reservations if r.get('email') == email), None)
+    if not target:
+        return jsonify({"ok": False, "error": "Reservation not found"}), 404
+    target['payStatus'] = 'paid'
+    
+    live_sessions_collection.update_one(
+        {"id": sid},
+        {"$set": {"reservations": reservations}}
+    )
+    
+    return jsonify({"ok": True})
 
 
 @live_bp.route('/sessions', methods=['POST'])
@@ -194,11 +222,12 @@ def create_session():
         "createdAt": _now_iso(),
     }
 
-    data = _load()
-    sessions = data.get('sessions', [])
-    sessions.append(new_item)
-    data['sessions'] = sessions
-    _save(data)
+    # Save to MongoDB instead of JSON file
+    try:
+        live_sessions_collection.insert_one(new_item.copy())  # Use copy to avoid _id issues
+    except Exception as e:
+        print(f"Error saving session to MongoDB: {e}")
+        return jsonify({"ok": False, "error": "Failed to save session"}), 500
 
     return jsonify({"ok": True, "data": new_item})
 
@@ -222,52 +251,74 @@ def request_seat(sid):
     if not email:
         return jsonify({"ok": False, "error": "email is required"}), 400
 
-    data = _load()
-    for s in data.get('sessions', []):
-        if s.get('id') == sid:
-            reservations = s.get('reservations', [])
-            # if already exists, set to pending again
-            existing = next((r for r in reservations if r.get('email') == email), None)
-            if existing:
-                existing['status'] = 'pending'
-                existing['requestedAt'] = _now_iso()
-            else:
-                res_obj = {
-                    "email": email,
-                    "name": name,
-                    "requestedAt": _now_iso(),
-                    "status": 'pending',  # pending | approved | rejected
-                    "payStatus": 'unpaid',  # unpaid | paid
-                }
-                reservations.append(res_obj)
-            s['reservations'] = reservations
-            _save(data)
-            # Optional: notify user their request is received
-            start_str = s.get('startTime') or ''
-            body_txt = (
-                f"Hi {name or 'there'},\n\n"
-                f"We've received your seat request for: {s.get('title','Live Session')}\n"
-                f"When: {start_str}\n"
-                f"We'll email you once the trainer approves.\n\n"
-                f"Thanks,\nFit Hub Team"
-            )
-            send_email(email, subject="Seat request received", body=body_txt)
-            return jsonify({"ok": True, "data": s})
-
-    return jsonify({"ok": False, "error": "Not found"}), 404
+    session = live_sessions_collection.find_one({"id": sid})
+    if not session:
+        return jsonify({"ok": False, "error": "Not found"}), 404
+    
+    reservations = session.get('reservations', [])
+    # if already exists, set to pending again
+    existing = next((r for r in reservations if r.get('email') == email), None)
+    if existing:
+        existing['status'] = 'pending'
+        existing['requestedAt'] = _now_iso()
+    else:
+        res_obj = {
+            "email": email,
+            "name": name,
+            "requestedAt": _now_iso(),
+            "status": 'pending',  # pending | approved | rejected
+            "payStatus": 'unpaid',  # unpaid | paid
+        }
+        reservations.append(res_obj)
+    
+    live_sessions_collection.update_one(
+        {"id": sid},
+        {"$set": {"reservations": reservations}}
+    )
+    
+    # Remove _id for response
+    if '_id' in session:
+        del session['_id']
+    
+    # Optional: notify user their request is received
+    start_str = session.get('startTime') or ''
+    body_txt = (
+        f"Hi {name or 'there'},\n\n"
+        f"We've received your seat request for: {session.get('title','Live Session')}\n"
+        f"When: {start_str}\n"
+        f"We'll email you once the trainer approves.\n\n"
+        f"Thanks,\nFit Hub Team"
+    )
+    send_email(email, subject="Seat request received", body=body_txt)
+    return jsonify({"ok": True, "data": session})
 
 
 @live_bp.route('/sessions/<sid>/update', methods=['PATCH'])
 def update_session(sid):
     body = request.get_json(force=True) or {}
-    data = _load()
-    for s in data.get('sessions', []):
-        if s.get('id') == sid:
-            for key in [
-                'title', 'description', 'platform', 'meetingUrl', 'startTime', 'duration', 'capacity', 'price', 'level', 'style'
-            ]:
-                if key in body:
-                    s[key] = body[key]
-            _save(data)
-            return jsonify({"ok": True, "data": s})
-    return jsonify({"ok": False, "error": "Not found"}), 404
+    
+    session = live_sessions_collection.find_one({"id": sid})
+    if not session:
+        return jsonify({"ok": False, "error": "Not found"}), 404
+    
+    # Build update data
+    update_data = {}
+    for key in [
+        'title', 'description', 'platform', 'meetingUrl', 'startTime', 'duration', 'capacity', 'price', 'level', 'style'
+    ]:
+        if key in body:
+            update_data[key] = body[key]
+    
+    # Update MongoDB
+    if update_data:
+        live_sessions_collection.update_one(
+            {"id": sid},
+            {"$set": update_data}
+        )
+    
+    # Get updated session
+    updated_session = live_sessions_collection.find_one({"id": sid})
+    if '_id' in updated_session:
+        del updated_session['_id']
+    
+    return jsonify({"ok": True, "data": updated_session})
