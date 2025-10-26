@@ -114,45 +114,45 @@ const OrderHistory = ({ isOpen, onClose }) => {
   const loadNotifications = async () => {
     try {
       const currentUser = SessionManager.getCurrentUser();
-      console.log('Loading notifications for user:', currentUser?.email);
+      console.log('FitHub Notifications: Loading for user', currentUser?.email);
       
       if (!currentUser?.token || !currentUser?.email) {
-        console.log('No user token or email for notifications');
+        console.log('FitHub Notifications: User authentication required');
         return;
       }
       
       // Try to fetch real notifications from API
       try {
-        console.log('Fetching notifications from API...');
+        console.log('FitHub Notifications: Fetching from server...');
         const response = await api.get(`/shop/api/notifications/${encodeURIComponent(currentUser.email)}`, {
           headers: { Authorization: `Bearer ${currentUser.token}` }
         });
         
-        console.log('Notifications API response:', response.data);
+        console.log('FitHub Notifications: Server response received', response.data);
         
         if (response.data.success && response.data.notifications) {
-          console.log('Notifications found:', response.data.notifications);
+          console.log('FitHub Notifications: Data loaded successfully', response.data.notifications);
           setNotifications(response.data.notifications);
           return;
         }
       } catch (apiError) {
-        console.log('Notifications API not available, using localStorage fallback:', apiError.message);
+        console.log('FitHub Notifications: Using local storage fallback', apiError.message);
       }
       
       // Fallback: Load from localStorage
       const storedNotifications = localStorage.getItem('fithub-notifications');
-      console.log('Stored notifications:', storedNotifications);
+      console.log('FitHub Notifications: Loading from local storage', storedNotifications);
       
       if (storedNotifications) {
         const parsed = JSON.parse(storedNotifications);
-        console.log('Parsed notifications:', parsed);
+        console.log('FitHub Notifications: Local data parsed successfully', parsed);
         setNotifications(parsed);
       } else {
-        console.log('No stored notifications found');
+        console.log('FitHub Notifications: No local data available');
         setNotifications([]);
       }
     } catch (error) {
-      console.error('Error loading notifications:', error);
+      console.error('FitHub Notifications: Error loading data', error);
       setNotifications([]);
     }
   };

@@ -160,7 +160,7 @@ const ShopPage = () => {
   const navigate = useNavigate();
   const location = useLocation(); // Add this to track location changes
   
-  console.log('ShopPage mounted with location:', location);
+  console.log('FitHub Shop: Page loaded successfully');
   const cartBtnRef = useRef(null);
   const [flyAnim, setFlyAnim] = useState(null); // {start, end, key}
   const [cart, setCart] = useState(() => {
@@ -295,7 +295,7 @@ const ShopPage = () => {
         });
       } catch (e) {
         // non-fatal; keep local cart working even if server init fails
-        console.warn('Cart init skipped:', e?.response?.data || e?.message || e);
+        console.warn('FitHub Shop: Cart initialization skipped - using local storage', e?.response?.data || e?.message || e);
       }
     };
     initServerCart();

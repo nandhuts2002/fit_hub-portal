@@ -16,7 +16,8 @@ import {
   Sun,
   CloudRain,
   Thermometer,
-  Wind
+  Wind,
+  Ticket
 } from 'lucide-react';
 import locationService from '../utils/locationService';
 import exerciseApi from '../utils/exerciseApi';
@@ -589,35 +590,36 @@ const LocationFeaturesPage = () => {
 
       {/* Navigation Tabs */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex space-x-2 bg-gradient-to-r from-gray-50 to-gray-100 p-2 rounded-2xl shadow-sm">
+        <div className="flex space-x-1 sm:space-x-2 bg-gradient-to-r from-gray-50 to-gray-100 p-1 sm:p-2 rounded-2xl shadow-sm">
           {[
-            { id: 'gyms', label: 'Nearby Gyms', icon: MapPin, color: 'blue' },
+            { id: 'gyms', label: 'Gyms', icon: MapPin, color: 'blue' },
             { id: 'trainers', label: 'Trainers', icon: Users, color: 'green' },
-            { id: 'events', label: 'Events', icon: Calendar, color: 'purple' }
+            { id: 'events', label: 'Events', icon: Calendar, color: 'purple' },
+            { id: 'tickets', label: 'Tickets', icon: Ticket, color: 'orange' }
           ].map((tab) => (
             <motion.button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className={`flex-1 flex items-center justify-center gap-3 py-4 px-6 rounded-xl font-semibold transition-all duration-200 ${
+              className={`flex-1 flex items-center justify-center gap-2 sm:gap-3 py-3 sm:py-4 px-3 sm:px-6 rounded-xl font-semibold transition-all duration-200 ${
                 activeTab === tab.id
                   ? `bg-white text-${tab.color}-600 shadow-lg border-2 border-${tab.color}-200`
                   : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
               }`}
             >
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+              <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center ${
                 activeTab === tab.id 
                   ? `bg-${tab.color}-100` 
                   : 'bg-gray-200'
               }`}>
-                <tab.icon className={`w-4 h-4 ${
+                <tab.icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${
                   activeTab === tab.id 
                     ? `text-${tab.color}-600` 
                     : 'text-gray-500'
                 }`} />
               </div>
-              <span className="hidden sm:block">{tab.label}</span>
+              <span className="text-xs sm:text-sm font-medium">{tab.label}</span>
             </motion.button>
           ))}
         </div>
@@ -992,6 +994,32 @@ const LocationFeaturesPage = () => {
                   ))}
                 </div>
               )}
+            </motion.div>
+          )}
+
+          {activeTab === 'tickets' && (
+            <motion.div
+              key="tickets"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="space-y-6"
+            >
+              <div className="text-center py-12">
+                <div className="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Ticket className="w-10 h-10 text-orange-600" />
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">My Event Tickets</h3>
+                <p className="text-gray-600 mb-8 max-w-md mx-auto">
+                  Access your event tickets and manage your bookings from the dedicated tickets page.
+                </p>
+                <button
+                  onClick={() => window.location.href = '/my-tickets'}
+                  className="bg-orange-600 text-white px-8 py-3 rounded-lg hover:bg-orange-700 transition-colors font-semibold shadow-lg"
+                >
+                  Go to My Tickets
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

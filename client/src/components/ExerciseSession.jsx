@@ -14,9 +14,11 @@ import {
   Target,
   Lightbulb,
   Users,
-  Star
+  Star,
+  Flame
 } from 'lucide-react';
 import { getPoseInstructions } from '../data/yogaInstructions';
+import api from '../utils/api';
 
 const ExerciseSession = ({ exercise, onClose, onComplete }) => {
   const [isPlaying, setIsPlaying] = useState(false);
@@ -41,6 +43,8 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
     totalReps: 0,
     caloriesBurned: 0
   });
+  const [setCompletedFeedback, setSetCompletedFeedback] = useState(false);
+  const [savingProgress, setSavingProgress] = useState(false);
   const intervalRef = useRef(null);
   const restIntervalRef = useRef(null);
   const synthRef = useRef(typeof window !== 'undefined' ? window.speechSynthesis : null);
@@ -65,11 +69,11 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
 
   // Set up image URL and pose instructions when exercise changes
   useEffect(() => {
-    console.log('ExerciseSession: Processing exercise/pose:', exercise);
+    console.log('FitHub Exercise: Processing exercise data', exercise);
     
     // Check if this is a yoga pose (has imageUrl field)
     if (exercise?.imageUrl) {
-      console.log('ExerciseSession: Using yoga pose imageUrl:', exercise.imageUrl);
+      console.log('FitHub Exercise: Using yoga pose image', exercise.imageUrl);
       setImageUrl(exercise.imageUrl);
       setImageError(false);
       
@@ -84,7 +88,7 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
     const slug = slugify(exercise?.name);
     if (slug) {
       const localUrl = `/assets/gifs/${slug}.gif`;
-      console.log('ExerciseSession: Trying local GIF:', localUrl);
+      console.log('FitHub Exercise: Loading local GIF', localUrl);
       setImageUrl(localUrl);
       setImageError(false);
       return;
@@ -93,14 +97,14 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
     const directGif = exercise?.gifUrl ? getGifUrl(exercise.gifUrl) : null;
     if (directGif) {
       const proxied = `http://localhost:5001/proxy-image?url=${encodeURIComponent(directGif)}`;
-      console.log('ExerciseSession: Using proxy GIF URL:', proxied);
+      console.log('FitHub Exercise: Using proxy GIF URL', proxied);
       setImageUrl(proxied);
     } else if (exercise?.previewUrl) {
-      console.log('ExerciseSession: Using v2 preview URL:', exercise.previewUrl);
+      console.log('FitHub Exercise: Using preview URL', exercise.previewUrl);
       setImageUrl(exercise.previewUrl);
     } else if (exercise?.id && typeof exercise.id === 'string' && exercise.id.length === 14) {
       const url = `https://v2.exercisedb.io/image/${exercise.id}`;
-      console.log('ExerciseSession: Using v2 image URL (by id):', url);
+      console.log('FitHub Exercise: Using image URL by ID', url);
       setImageUrl(url);
     } else {
       setImageUrl(getFallbackImage());
@@ -171,7 +175,45 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
     setRestTimeLeft(0);
   };
 
-  const handleCompleteSet = () => {
+  // Function to save yoga progress to MongoDB
+  const saveYogaProgressToMongoDB = async (workoutData) => {
+    try {
+      setSavingProgress(true);
+      const progressData = {
+        poseName: workoutData.exerciseName,
+        sanskritName: exercise.sanskrit_name || exercise.sanskritName || '',
+        category: exercise.category || '',
+        level: exercise.level || exercise.difficulty || 'Beginner',
+        sets: workoutData.totalSets,
+        reps: reps,
+        totalTime: workoutData.totalTime,
+        totalReps: workoutData.totalReps,
+        completedSets: workoutData.completedSets,
+        timestamp: workoutData.timestamp
+      };
+      
+      await api.post('/yoga-progress', progressData);
+      console.log('Yoga progress saved to MongoDB successfully');
+    } catch (error) {
+      console.error('Error saving yoga progress to MongoDB:', error);
+      // Don't show error to user, just log it
+    } finally {
+      setSavingProgress(false);
+    }
+  };
+
+  const handleCompleteSet = async () => {
+    // Validation
+    if (sets < 1 || reps < 1) {
+      alert('Please enter valid sets and reps (minimum 1)');
+      return;
+    }
+
+    if (!isPlaying && timeElapsed === 0) {
+      alert('Please start the timer before completing a set');
+      return;
+    }
+
     const newCompletedSet = {
       set: currentSet,
       reps: reps,
@@ -181,25 +223,29 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
     
     setCompletedSets(prev => [...prev, newCompletedSet]);
     
+    // Show set completion feedback
+    setSetCompletedFeedback(true);
+    setTimeout(() => setSetCompletedFeedback(false), 2000);
+    
     // Update workout stats
     setWorkoutStats(prev => ({
       totalTime: timeElapsed,
       totalSets: currentSet,
       totalReps: prev.totalReps + reps,
-      caloriesBurned: 0 // Only show if we have real data
+      caloriesBurned: calculateCalories(timeElapsed)
     }));
     
     // Praise the user
     if (soundEnabled) {
       const praiseMessages = [
-        "Great job!",
-        "Well done!",
-        "Excellent!",
-        "Nice work!",
-        "Keep it up!",
-        "Good job!",
-        "Awesome!",
-        "Perfect!"
+        "Beautiful! Well done!",
+        "Excellent pose!",
+        "Keep breathing! Great job!",
+        "You're doing great!",
+        "Amazing! Keep flowing!",
+        "Perfect! You're strong!",
+        "Wonderful! Stay focused!",
+        "Fantastic work!"
       ];
       const randomPraise = praiseMessages[Math.floor(Math.random() * praiseMessages.length)];
       speak(randomPraise);
@@ -214,7 +260,7 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
       // All sets completed - show celebration
       setShowCompletionCelebration(true);
       if (soundEnabled) {
-        speak("Congratulations! Workout complete!");
+        speak("Congratulations! You've completed all sets!");
       }
       
       // Store workout data in localStorage
@@ -233,11 +279,22 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
       existingWorkouts.push(workoutData);
       localStorage.setItem('workoutHistory', JSON.stringify(existingWorkouts));
       
+      // Save to MongoDB if this is a yoga pose
+      if (exercise.imageUrl) {
+        await saveYogaProgressToMongoDB(workoutData);
+      }
+      
       // Call onComplete after a delay to show celebration
       setTimeout(() => {
         onComplete?.(completedSets);
       }, 3000);
     }
+  };
+
+  const calculateCalories = (seconds) => {
+    // Yoga burns approximately 4 calories per minute
+    const minutes = seconds / 60;
+    return Math.round(minutes * 4);
   };
 
   const handleSkipRest = () => {
@@ -694,14 +751,29 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
                 </div>
 
                 {/* Complete Set Button */}
-                <button
+                <motion.button
                   onClick={handleCompleteSet}
-                  disabled={isResting}
-                  className="w-full bg-purple-600 text-white py-3 px-4 rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+                  disabled={isResting || savingProgress}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600 text-white py-4 px-4 rounded-xl hover:from-purple-700 hover:via-pink-600 hover:to-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 font-semibold shadow-lg hover:shadow-xl relative overflow-hidden"
                 >
-                  <CheckCircle className="w-5 h-5" />
-                  Complete Set
-                </button>
+                  {savingProgress ? (
+                    <>
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
+                      />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-6 h-6" />
+                      <span>Complete Set ✨</span>
+                    </>
+                  )}
+                </motion.button>
               </div>
             </div>
 
@@ -753,8 +825,11 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
                       <div className="text-sm text-green-700">Total Time</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">{Math.round(workoutStats.totalTime / 60)}</div>
-                      <div className="text-sm text-green-700">Minutes</div>
+                      <div className="text-2xl font-bold text-orange-600 flex items-center justify-center gap-1">
+                        <Flame className="w-6 h-6" />
+                        {workoutStats.caloriesBurned}
+                      </div>
+                      <div className="text-sm text-green-700">Calories</div>
                     </div>
                   </div>
                 </div>
@@ -832,6 +907,41 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
         </div>
       </motion.div>
 
+      {/* Set Completion Feedback */}
+      <AnimatePresence>
+        {setCompletedFeedback && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.8, y: -20 }}
+            className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none"
+          >
+            <motion.div
+              className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-8 py-6 rounded-2xl shadow-2xl flex items-center gap-4"
+            >
+              <motion.div
+                animate={{ 
+                  scale: [1, 1.2, 1],
+                  rotate: [0, 360]
+                }}
+                transition={{ 
+                  duration: 1,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+                className="text-4xl"
+              >
+                🎉
+              </motion.div>
+              <div>
+                <h3 className="text-2xl font-bold mb-1">Set {currentSet > 1 ? currentSet - 1 : sets} Complete!</h3>
+                <p className="text-green-100">Great job! {sets - (currentSet > 1 ? currentSet - 1 : sets)} more to go</p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Completion Celebration Modal */}
       <AnimatePresence>
         {showCompletionCelebration && (
@@ -888,8 +998,11 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
                     <div className="text-sm text-gray-600">Time</div>
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-orange-600">{Math.round(workoutStats.totalTime / 60)}</div>
-                    <div className="text-sm text-gray-600">Minutes</div>
+                    <div className="text-2xl font-bold text-orange-600 flex items-center justify-center gap-1">
+                      <Flame className="w-5 h-5" />
+                      {workoutStats.caloriesBurned}
+                    </div>
+                    <div className="text-sm text-gray-600">Calories</div>
                   </div>
                 </div>
               </div>

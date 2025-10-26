@@ -5,7 +5,6 @@ import {
   MapPin, 
   Clock, 
   Star, 
-  Phone, 
   DollarSign,
   Users,
   Wifi,
@@ -15,23 +14,7 @@ import {
 } from 'lucide-react';
 
 const GymDetailsModal = ({ gym, isOpen, onClose }) => {
-  const [showContactForm, setShowContactForm] = useState(false);
-  const [contactForm, setContactForm] = useState({
-    name: '',
-    phone: '',
-    email: '',
-    message: ''
-  });
-
   if (!isOpen || !gym) return null;
-
-  const handleContactSubmit = (e) => {
-    e.preventDefault();
-    // Here you would typically send the contact form to your backend
-    alert('Contact form submitted! The gym will get back to you soon.');
-    setShowContactForm(false);
-    setContactForm({ name: '', phone: '', email: '', message: '' });
-  };
 
   return (
     <AnimatePresence>
@@ -123,90 +106,8 @@ const GymDetailsModal = ({ gym, isOpen, onClose }) => {
               </div>
             )}
 
-            {/* Contact Form */}
-            {showContactForm && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="border-t pt-6"
-              >
-                <h3 className="text-lg font-semibold mb-4">Contact This Gym</h3>
-                <form onSubmit={handleContactSubmit} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <input
-                      type="text"
-                      placeholder="Your Name"
-                      value={contactForm.name}
-                      onChange={(e) => setContactForm({...contactForm, name: e.target.value})}
-                      className="border rounded-lg px-3 py-2"
-                      required
-                    />
-                    <input
-                      type="tel"
-                      placeholder="Phone Number"
-                      value={contactForm.phone}
-                      onChange={(e) => setContactForm({...contactForm, phone: e.target.value})}
-                      className="border rounded-lg px-3 py-2"
-                      required
-                    />
-                  </div>
-                  <input
-                    type="email"
-                    placeholder="Email Address"
-                    value={contactForm.email}
-                    onChange={(e) => setContactForm({...contactForm, email: e.target.value})}
-                    className="border rounded-lg px-3 py-2 w-full"
-                    required
-                  />
-                  <textarea
-                    placeholder="Your message or inquiry..."
-                    value={contactForm.message}
-                    onChange={(e) => setContactForm({...contactForm, message: e.target.value})}
-                    className="border rounded-lg px-3 py-2 w-full h-24 resize-none"
-                    required
-                  />
-                  <div className="flex gap-3">
-                    <button
-                      type="submit"
-                      className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-                    >
-                      Send Message
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowContactForm(false)}
-                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </form>
-              </motion.div>
-            )}
           </div>
 
-          {/* Footer Actions */}
-          <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 p-6 rounded-b-xl">
-            <div className="flex gap-3">
-              {!showContactForm && (
-                <button
-                  onClick={() => setShowContactForm(true)}
-                  className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                >
-                  <Phone className="w-4 h-4 inline mr-2" />
-                  Request to Join
-                </button>
-              )}
-              {showContactForm && (
-                <button
-                  onClick={() => setShowContactForm(false)}
-                  className="flex-1 bg-gray-500 text-white py-3 px-6 rounded-lg hover:bg-gray-600 transition-colors font-medium"
-                >
-                  Back to Details
-                </button>
-              )}
-            </div>
-          </div>
         </motion.div>
       </motion.div>
     </AnimatePresence>

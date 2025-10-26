@@ -39,6 +39,8 @@ import ShopProfilePage from './pages/ShopProfilePage';
 import ProductDetailsPage from './pages/ProductDetailsPage';
 import ProfilePage from './pages/ProfilePage';
 import MyTicketsPage from './pages/MyTicketsPage';
+import WorkoutVideosPage from './pages/WorkoutVideosPage';
+import YogaProgressTracker from './components/YogaProgressTracker';
 // If you want a dedicated page for Plate Analyzer later, we can add it similarly.
 
 // Debug component to track current route
@@ -49,7 +51,7 @@ const RouteDebugger = () => {
 };
 
 function App() {
-  console.log('App component rendering...');
+  console.log('FitHub Application: Initializing...');
 
   return (
     <ToastProvider>
@@ -91,10 +93,10 @@ function App() {
             <TutorialsPage />
           </ProtectedRoute>
         } />
-        {/* Alias used by Start Workout CTA */}
+        {/* Alias used by Start Workout CTA - now redirects to yoga poses */}
         <Route path="/workouts" element={
           <ProtectedRoute>
-            <TutorialsPage />
+            <YogaPosesPage />
           </ProtectedRoute>
         } />
         <Route path="/queries" element={
@@ -173,6 +175,11 @@ function App() {
             <MyTicketsPage />
           </ProtectedRoute>
         } />
+        <Route path="/workout-videos" element={
+          <ProtectedRoute>
+            <WorkoutVideosPage />
+          </ProtectedRoute>
+        } />
         <Route path="/location-features" element={
           <ProtectedRoute>
             <LocationFeaturesPage />
@@ -186,6 +193,11 @@ function App() {
         <Route path="/yoga-poses" element={
           <ProtectedRoute>
             <YogaPosesPage />
+          </ProtectedRoute>
+        } />
+        <Route path="/yoga-progress" element={
+          <ProtectedRoute>
+            <YogaProgressTracker />
           </ProtectedRoute>
         } />
         <Route path="/services" element={

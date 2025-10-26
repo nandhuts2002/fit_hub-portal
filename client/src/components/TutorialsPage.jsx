@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FaHeart, FaRegHeart, FaSearch, FaFilter, FaPlay, FaClock, FaUser, FaStar, FaArrowLeft } from 'react-icons/fa';
 import api from '../utils/api';
 import SessionManager from '../utils/sessionManager';
+import VideoPlayer from './VideoPlayer';
 
 const TutorialsPage = () => {
   const navigate = useNavigate();
@@ -885,34 +886,13 @@ const TutorialsPage = () => {
                 <p className="text-gray-600 mb-6">{selectedTutorial.description}</p>
 
               {selectedTutorial.videoUrl && (
-                  <div className="mb-6">
-                    <div className="aspect-video bg-black rounded-xl overflow-hidden">
-                  {(() => {
-                        if (!selectedTutorial.videoUrl) return null;
-                        const isYouTube = selectedTutorial.videoUrl.includes('youtube.com') || selectedTutorial.videoUrl.includes('youtu.be');
-                        if (isYouTube) {
-                          const videoId = selectedTutorial.videoUrl.includes('youtu.be') 
-                            ? selectedTutorial.videoUrl.split('youtu.be/')[1]?.split('?')[0]
-                            : selectedTutorial.videoUrl.split('v=')[1]?.split('&')[0];
-                          return (
-                      <iframe
-                              src={`https://www.youtube.com/embed/${videoId}`}
-                        title={selectedTutorial.title}
-                              className="w-full h-full"
-                        allowFullScreen
-                      />
-                          );
-                        } else {
-                          return (
-                            <video
-                              src={selectedTutorial.videoUrl}
-                              controls
-                              className="w-full h-full"
-                            />
-                          );
-                        }
-                  })()}
-                    </div>
+                <div className="mb-6">
+                  <VideoPlayer
+                    videoUrl={selectedTutorial.videoUrl}
+                    title={selectedTutorial.title}
+                    className="aspect-video rounded-xl"
+                    showControls={true}
+                  />
                 </div>
               )}
 

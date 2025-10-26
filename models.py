@@ -65,3 +65,6 @@ user_progress_collection = db['user_progress']  # Activity logs and progress tra
 badges_collection = db['badges']  # Achievement badges system
 qa_sessions_collection = db['qa_sessions']  # Expert Q&A sessions
 spotlights_collection = db['spotlights']  # Transformation spotlights
+
+# Yoga Progress Tracking
+yoga_progress_collection = db['yoga_progress']  # Yoga workout sessions and progress tracking

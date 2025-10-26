@@ -75,3 +75,10 @@ The shop payments work because they use the same `_razorpay_client_keys()` funct
 ### Alternative: Use Test Keys
 If you want to test without real Razorpay account, you can use test keys (but payments won't actually process).
 
+
+
+
+
+
+
+

@@ -21,7 +21,6 @@ import {
   Heart,
   Settings,
   LogOut,
-  Ticket
 } from "lucide-react";
 import SessionManager from "../utils/sessionManager";
 import { uploadAvatar } from "../utils/communityService";
@@ -52,6 +51,22 @@ const UserHomePage = () => {
   const [tutorialsList, setTutorialsList] = useState([]); // real tutorials for recommendations
   const fileInputRef = useRef(null);
   const [avatarBusy, setAvatarBusy] = useState(false);
+
+  // Get cart count from localStorage
+  const getCartCount = () => {
+    try {
+      const currentUser = SessionManager.getCurrentUser();
+      const key = currentUser?.email ? `fithub-cart:${currentUser.email}` : 'fithub-cart';
+      const savedCart = localStorage.getItem(key);
+      if (savedCart) {
+        const cart = JSON.parse(savedCart);
+        return cart.reduce((total, item) => total + (item.quantity || 1), 0);
+      }
+    } catch (error) {
+      console.error('FitHub Cart: Error retrieving cart count', error);
+    }
+    return 0;
+  };
 
   useEffect(() => {
     const currentUser = SessionManager.getCurrentUser();
@@ -428,15 +443,6 @@ const UserHomePage = () => {
               <motion.button
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
-                onClick={() => navigate("/my-tickets")}
-                className="px-4 py-2.5 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 flex items-center gap-2"
-              >
-                <Ticket className="w-4 h-4" />
-                <span className="text-sm font-semibold">My Tickets</span>
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
                 onClick={() => navigate("/community")}
                 className="px-4 py-2.5 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 flex items-center gap-2"
               >
@@ -472,11 +478,13 @@ const UserHomePage = () => {
               
               {/* Cart */}
               <button 
-                onClick={() => navigate("/cart")}
+                onClick={() => navigate("/shop")}
                 className={`relative p-2.5 rounded-lg transition-all duration-200 ${theme === 'dark' ? 'text-gray-300 hover:text-orange-300 hover:bg-white/10' : 'text-gray-600 hover:text-orange-600 hover:bg-orange-50'}`}
               >
                 <ShoppingBag className="w-5 h-5" />
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 text-white text-xs rounded-full flex items-center justify-center">3</span>
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 text-white text-xs rounded-full flex items-center justify-center">
+                  {getCartCount()}
+                </span>
               </button>
               
               {/* User Profile */}
@@ -555,13 +563,6 @@ const UserHomePage = () => {
               >
                 <ShoppingBag className="w-5 h-5" />
                 <span className="font-medium">Shop</span>
-              </button>
-              <button
-                onClick={() => { navigate('/my-tickets'); setMenuOpen(false); }}
-                className={`w-full text-left px-4 py-3 rounded-xl transition-colors flex items-center gap-3 bg-white border border-gray-200 shadow-sm text-gray-900 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700`}
-              >
-                <Ticket className="w-5 h-5" />
-                <span className="font-medium">My Tickets</span>
               </button>
               {/* More Services - Mobile direct link */}
               <button

@@ -60,6 +60,27 @@ const SERVICES = [
     desc: "Ask and track trainer responses",
     path: "/queries",
   },
+  {
+    icon: "🎫",
+    img: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?q=80&w=400&auto=format&fit=crop",
+    title: "My Tickets",
+    desc: "Manage your event bookings and tickets",
+    path: "/my-tickets",
+  },
+  {
+    icon: "🎥",
+    img: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?q=80&w=400&auto=format&fit=crop",
+    title: "Workout Videos",
+    desc: "Professional workout videos with YouTube integration",
+    path: "/workout-videos",
+  },
+  {
+    icon: "📊",
+    img: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=400&auto=format&fit=crop",
+    title: "Yoga Progress Tracker",
+    desc: "Track your yoga workouts and monitor your progress",
+    path: "/yoga-progress",
+  },
 ];
 
 const ACCENTS = [
