@@ -3,7 +3,48 @@ Simple k-Nearest Neighbors (kNN) Product Recommendation System
 Similar to Flipkart's "Based on your recent orders" feature
 """
 
-import numpy as np
+# Try to import numpy, fallback to built-in functions if not available
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    HAS_NUMPY = False
+    # Create a simple numpy-like interface for basic operations
+    class SimpleNumpy:
+        @staticmethod
+        def mean(data):
+            return sum(data) / len(data) if data else 0
+        
+        @staticmethod
+        def std(data):
+            if len(data) <= 1:
+                return 0
+            mean_val = sum(data) / len(data)
+            variance = sum((x - mean_val) ** 2 for x in data) / (len(data) - 1)
+            return math.sqrt(variance)
+        
+        @staticmethod
+        def array(data):
+            return data
+        
+        @staticmethod
+        def zeros(shape):
+            if isinstance(shape, int):
+                return [0] * shape
+            elif len(shape) == 2:
+                return [[0] * shape[1] for _ in range(shape[0])]
+            return [0] * shape[0]
+        
+        @staticmethod
+        def argmax(data):
+            return max(range(len(data)), key=lambda i: data[i]) if data else 0
+        
+        @staticmethod
+        def argsort(data, reverse=False):
+            return sorted(range(len(data)), key=lambda i: data[i], reverse=reverse)
+    
+    np = SimpleNumpy()
+
 from collections import defaultdict, Counter
 from datetime import datetime, timedelta
 import math
