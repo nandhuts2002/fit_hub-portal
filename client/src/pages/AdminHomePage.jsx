@@ -6,6 +6,7 @@ import AdminProductManagement from '../components/AdminProductManagement';
 import LocationAdminPanel from '../components/LocationAdminPanel';
 import EventBookingsAdmin from '../components/EventBookingsAdmin';
 import BookingManagement from '../components/BookingManagement';
+import RevenuePredictor from '../components/RevenuePredictor';
 import api from '../utils/api';
 // import MusicAdminPanel from '../components/MusicAdminPanel';
 
@@ -2897,6 +2898,7 @@ const AdminHomePage = () => {
                 {activeTab === 'location' && '📍 Location'}
                 {activeTab === 'event-bookings' && '🎫 Event Bookings'}
                 {activeTab === 'bookings' && '📋 Bookings'}
+                {activeTab === 'revenue-predictor' && '💰 Revenue Predictor'}
               </span>
             </div>
           )}
@@ -3147,6 +3149,17 @@ const AdminHomePage = () => {
                   <p className="text-sm text-secondary-600">Event & gym bookings</p>
                 </div>
               </div>
+
+              <div
+                className="nav-card"
+                onClick={() => handleTabChange('revenue-predictor')}
+              >
+                <div className="text-3xl mb-3">💰</div>
+                <div>
+                  <h3 className="text-lg font-semibold text-secondary-900 mb-1">Revenue Predictor</h3>
+                  <p className="text-sm text-secondary-600">AI-powered revenue forecasting</p>
+                </div>
+              </div>
             </div>
 
             {/* Welcome Section */}
@@ -3178,6 +3191,7 @@ const AdminHomePage = () => {
         {activeTab === 'event-bookings' && <EventBookingsAdmin />}
         {activeTab === 'bookings' && <BookingManagement />}
         {activeTab === 'orders' && renderOrders()}
+        {activeTab === 'revenue-predictor' && <RevenuePredictor />}
         {activeTab === 'analytics' && renderAnalytics()}
         {activeTab === 'settings' && renderSettings()}
 

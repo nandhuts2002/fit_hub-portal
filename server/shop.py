@@ -79,6 +79,7 @@ from models import (
     payment_methods_collection,
     shipping_collection
 )
+from knn_recommender import ProductRecommender
 
 shop_bp = Blueprint('shop', __name__)
 
@@ -1904,4 +1905,172 @@ def mark_notification_read(user_email):
         return jsonify({'success': True, 'message': 'Notification marked as read'})
         
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# PRODUCT RECOMMENDATION API (kNN-based)
+@shop_bp.route('/api/recommendations/<user_email>', methods=['GET'])
+@jwt_required()
+def get_product_recommendations(user_email):
+    """Get personalized product recommendations using kNN algorithm"""
+    try:
+        # URL decode the email parameter
+        import urllib.parse
+        decoded_email = urllib.parse.unquote(user_email)
+        
+        # Check authorization
+        identity = get_jwt_identity()
+        current_user_email = _get_email_from_identity(identity)
+        if not current_user_email or current_user_email.lower() != decoded_email.lower():
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        
+        # Get recommendation type from query params
+        rec_type = request.args.get('type', 'hybrid')  # hybrid, similar_users, recent_orders, trending
+        
+        # Fetch orders and products data
+        orders = list(orders_collection.find({}))
+        products = list(products_collection.find({}))
+        
+        # Initialize recommender
+        recommender = ProductRecommender()
+        
+        recommendations = []
+        
+        if rec_type == 'hybrid':
+            recommendations = recommender.get_hybrid_recommendations(decoded_email, orders, products)
+        elif rec_type == 'similar_users':
+            recommendations = recommender.get_recommendations_from_similar_users(decoded_email, orders, products)
+        elif rec_type == 'recent_orders':
+            recommendations = recommender.get_recommendations_from_recent_orders(decoded_email, orders, products)
+        elif rec_type == 'trending':
+            recommendations = recommender.get_trending_products(orders, products)
+        else:
+            return jsonify({'success': False, 'error': 'Invalid recommendation type'}), 400
+        
+        # Format recommendations for frontend
+        formatted_recommendations = []
+        for rec in recommendations:
+            product = rec['product']
+            formatted_recommendations.append({
+                'product_id': str(product.get('_id')),
+                'name': product.get('name', ''),
+                'price': product.get('price', 0),
+                'original_price': product.get('original_price'),
+                'category': product.get('category', ''),
+                'brand': product.get('brand', ''),
+                'rating': product.get('rating', 0),
+                'reviews': product.get('reviews', 0),
+                'images': product.get('images', []),
+                'in_stock': product.get('in_stock', True),
+                'recommendation_score': round(rec['score'], 3),
+                'recommendation_reason': rec['reason']
+            })
+        
+        return jsonify({
+            'success': True,
+            'recommendations': formatted_recommendations,
+            'type': rec_type,
+            'count': len(formatted_recommendations)
+        })
+        
+    except Exception as e:
+        print(f"Error getting recommendations: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@shop_bp.route('/api/recommendations/<user_email>/recent', methods=['GET'])
+@jwt_required()
+def get_recent_based_recommendations(user_email):
+    """Get recommendations based on recent orders (like Flipkart's approach)"""
+    try:
+        import urllib.parse
+        decoded_email = urllib.parse.unquote(user_email)
+        
+        identity = get_jwt_identity()
+        current_user_email = _get_email_from_identity(identity)
+        if not current_user_email or current_user_email.lower() != decoded_email.lower():
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        
+        # Get days back parameter
+        days_back = request.args.get('days', 30, type=int)
+        
+        # Fetch data
+        orders = list(orders_collection.find({}))
+        products = list(products_collection.find({}))
+        
+        # Get recommendations
+        recommender = ProductRecommender()
+        recommendations = recommender.get_recommendations_from_recent_orders(decoded_email, orders, products)
+        
+        # Format for frontend
+        formatted_recommendations = []
+        for rec in recommendations:
+            product = rec['product']
+            formatted_recommendations.append({
+                'product_id': str(product.get('_id')),
+                'name': product.get('name', ''),
+                'price': product.get('price', 0),
+                'original_price': product.get('original_price'),
+                'category': product.get('category', ''),
+                'brand': product.get('brand', ''),
+                'rating': product.get('rating', 0),
+                'reviews': product.get('reviews', 0),
+                'images': product.get('images', []),
+                'in_stock': product.get('in_stock', True),
+                'similarity_score': round(rec['score'], 3),
+                'reason': 'Based on your recent orders'
+            })
+        
+        return jsonify({
+            'success': True,
+            'recommendations': formatted_recommendations,
+            'days_back': days_back,
+            'count': len(formatted_recommendations)
+        })
+        
+    except Exception as e:
+        print(f"Error getting recent-based recommendations: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@shop_bp.route('/api/recommendations/trending', methods=['GET'])
+def get_trending_products():
+    """Get trending products (no auth required)"""
+    try:
+        # Get days back parameter
+        days_back = request.args.get('days', 30, type=int)
+        
+        # Fetch data
+        orders = list(orders_collection.find({}))
+        products = list(products_collection.find({}))
+        
+        # Get trending products
+        recommender = ProductRecommender()
+        trending = recommender.get_trending_products(orders, products, days_back)
+        
+        # Format for frontend
+        formatted_trending = []
+        for item in trending:
+            product = item['product']
+            formatted_trending.append({
+                'product_id': str(product.get('_id')),
+                'name': product.get('name', ''),
+                'price': product.get('price', 0),
+                'original_price': product.get('original_price'),
+                'category': product.get('category', ''),
+                'brand': product.get('brand', ''),
+                'rating': product.get('rating', 0),
+                'reviews': product.get('reviews', 0),
+                'images': product.get('images', []),
+                'in_stock': product.get('in_stock', True),
+                'orders_count': item['orders_count'],
+                'reason': 'Trending now'
+            })
+        
+        return jsonify({
+            'success': True,
+            'trending_products': formatted_trending,
+            'days_back': days_back,
+            'count': len(formatted_trending)
+        })
+        
+    except Exception as e:
+        print(f"Error getting trending products: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500

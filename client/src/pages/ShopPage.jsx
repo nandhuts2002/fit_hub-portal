@@ -23,6 +23,7 @@ import OrderSuccessModal from "../components/OrderSuccessModal";
 import OrderHistory from "../components/OrderHistory";
 import NotificationSystem from "../components/NotificationSystem";
 import FlyToCartDumbbell from "../components/FlyToCartDumbbell";
+import ProductRecommendations from "../components/ProductRecommendations";
 
 // Enhanced sample products with more details
 const products = [
@@ -1077,6 +1078,33 @@ const ShopPage = () => {
                 <ShoppingBag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">No products found</h3>
                 <p className="text-gray-500">Try adjusting your search or filter criteria</p>
+              </div>
+            )}
+
+            {/* Product Recommendations Section - Moved up for better UX */}
+            {SessionManager.isAuthenticated() && (
+              <div className="mt-12">
+                <div className="space-y-8">
+                  {/* Based on Recent Orders */}
+                  <ProductRecommendations 
+                    userEmail={SessionManager.getCurrentUser()?.email}
+                    type="recent_orders"
+                    title="🛍️ Based on your recent orders"
+                  />
+                  
+                  {/* Trending Products */}
+                  <ProductRecommendations 
+                    type="trending"
+                    title="🔥 Trending now"
+                  />
+                  
+                  {/* Similar Users */}
+                  <ProductRecommendations 
+                    userEmail={SessionManager.getCurrentUser()?.email}
+                    type="similar_users"
+                    title="👥 Customers with similar preferences also bought"
+                  />
+                </div>
               </div>
             )}
           </div>

@@ -1,20 +1,32 @@
 from flask import Blueprint, request, jsonify
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
-from models import tutorials_collection, users_collection, music_tracks_collection
+from models import tutorials_collection, users_collection, music_tracks_collection, orders_collection
 from werkzeug.utils import secure_filename
 import os
 import uuid
+from revenue_predictor import RevenuePredictor
 
 admin_bp = Blueprint('admin', __name__)
 
 
 def require_admin():
+    """Check if the current user is an admin. Returns user info if admin, None otherwise."""
+    from flask_jwt_extended import get_jwt
+    
     identity = get_jwt_identity()
-    if not identity or identity.get('role') != 'admin':
+    if not identity:
         return None
+    
+    # Get role from JWT claims (new format)
+    claims = get_jwt()
+    user_role = claims.get('role', 'user')
+    
+    if user_role != 'admin':
+        return None
+    
     return identity
 
 # --- Tutorials moderation (Admin) ---
@@ -229,3 +241,131 @@ def admin_delete_music(track_id):
         return jsonify({'success': False, 'error': 'Admin access required'}), 403
     music_tracks_collection.delete_one({'_id': ObjectId(track_id)})
     return jsonify({'success': True})
+
+# Revenue Prediction API
+@admin_bp.route('/revenue-prediction', methods=['GET'])
+@jwt_required()
+def get_revenue_prediction():
+    """Get revenue prediction using decision tree algorithm"""
+    identity = require_admin()
+    if not identity:
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
+    
+    try:
+        # Get prediction period from query params (default 30 days)
+        prediction_period = request.args.get('period', 30, type=int)
+        
+        # Fetch all orders for analysis
+        orders = list(orders_collection.find({}).sort('created_at', -1))
+        
+        # Initialize revenue predictor
+        predictor = RevenuePredictor()
+        
+        # Generate prediction
+        prediction_result = predictor.predict_revenue(orders, prediction_period)
+        
+        # Add additional analytics
+        analytics = {
+            'total_orders': len(orders),
+            'total_revenue': sum(order.get('total', 0) for order in orders),
+            'avg_order_value': prediction_result['features']['avg_order_value'],
+            'payment_success_rate': prediction_result['features']['payment_status_rate'],
+            'delivery_success_rate': prediction_result['features']['delivery_status_rate'],
+            'customer_retention_rate': prediction_result['features']['customer_retention_rate'],
+            'monthly_trend': prediction_result['features']['monthly_trend'],
+            'seasonal_factor': prediction_result['features']['seasonal_factor']
+        }
+        
+        return jsonify({
+            'success': True,
+            'prediction': prediction_result,
+            'analytics': analytics,
+            'generated_at': datetime.utcnow().isoformat() + 'Z'
+        })
+        
+    except Exception as e:
+        print(f"❌ Revenue prediction error: {str(e)}")
+        return jsonify({'success': False, 'error': 'Failed to generate revenue prediction'}), 500
+
+@admin_bp.route('/revenue-analytics', methods=['GET'])
+@jwt_required()
+def get_revenue_analytics():
+    """Get detailed revenue analytics and trends"""
+    identity = require_admin()
+    if not identity:
+        return jsonify({'success': False, 'error': 'Admin access required'}), 403
+    
+    try:
+        # Get date range from query params
+        days_back = request.args.get('days', 90, type=int)
+        start_date = datetime.utcnow() - timedelta(days=days_back)
+        
+        # Fetch orders within date range
+        orders = list(orders_collection.find({
+            'created_at': {'$gte': start_date}
+        }).sort('created_at', -1))
+        
+        # Calculate daily revenue
+        daily_revenue = {}
+        monthly_revenue = {}
+        
+        for order in orders:
+            created_at = order.get('created_at')
+            if isinstance(created_at, str):
+                try:
+                    created_at = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                except:
+                    continue
+            
+            if isinstance(created_at, datetime):
+                day_key = created_at.strftime('%Y-%m-%d')
+                month_key = created_at.strftime('%Y-%m')
+                
+                daily_revenue[day_key] = daily_revenue.get(day_key, 0) + order.get('total', 0)
+                monthly_revenue[month_key] = monthly_revenue.get(month_key, 0) + order.get('total', 0)
+        
+        # Calculate trends
+        daily_values = list(daily_revenue.values())
+        monthly_values = list(monthly_revenue.values())
+        
+        # Simple trend calculation
+        daily_trend = 0
+        if len(daily_values) > 1:
+            daily_trend = (daily_values[-1] - daily_values[0]) / len(daily_values)
+        
+        monthly_trend = 0
+        if len(monthly_values) > 1:
+            monthly_trend = (monthly_values[-1] - monthly_values[0]) / len(monthly_values)
+        
+        # Top performing days
+        top_days = sorted(daily_revenue.items(), key=lambda x: x[1], reverse=True)[:5]
+        
+        # Revenue by status
+        status_revenue = {}
+        for order in orders:
+            status = order.get('orderStatus', 'Unknown')
+            status_revenue[status] = status_revenue.get(status, 0) + order.get('total', 0)
+        
+        analytics = {
+            'period_days': days_back,
+            'total_orders': len(orders),
+            'total_revenue': sum(order.get('total', 0) for order in orders),
+            'avg_daily_revenue': sum(daily_revenue.values()) / max(1, len(daily_revenue)),
+            'avg_monthly_revenue': sum(monthly_revenue.values()) / max(1, len(monthly_revenue)),
+            'daily_trend': daily_trend,
+            'monthly_trend': monthly_trend,
+            'top_performing_days': top_days,
+            'revenue_by_status': status_revenue,
+            'daily_revenue_data': daily_revenue,
+            'monthly_revenue_data': monthly_revenue
+        }
+        
+        return jsonify({
+            'success': True,
+            'analytics': analytics,
+            'generated_at': datetime.utcnow().isoformat() + 'Z'
+        })
+        
+    except Exception as e:
+        print(f"❌ Revenue analytics error: {str(e)}")
+        return jsonify({'success': False, 'error': 'Failed to generate revenue analytics'}), 500
