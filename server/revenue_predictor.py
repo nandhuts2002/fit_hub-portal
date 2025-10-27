@@ -3,7 +3,32 @@ Revenue Predictor using Decision Tree Algorithm
 Analyzes historical order data to predict future revenue trends
 """
 
-import numpy as np
+# Try to import numpy, fallback to built-in functions if not available
+try:
+    import numpy as np
+    HAS_NUMPY = True
+except ImportError:
+    HAS_NUMPY = False
+    # Create a simple numpy-like interface for basic operations
+    class SimpleNumpy:
+        @staticmethod
+        def mean(data):
+            return sum(data) / len(data) if data else 0
+        
+        @staticmethod
+        def std(data):
+            if len(data) <= 1:
+                return 0
+            mean_val = sum(data) / len(data)
+            variance = sum((x - mean_val) ** 2 for x in data) / (len(data) - 1)
+            return math.sqrt(variance)
+        
+        @staticmethod
+        def array(data):
+            return data
+    
+    np = SimpleNumpy()
+
 from datetime import datetime, timedelta
 from collections import defaultdict
 import math
