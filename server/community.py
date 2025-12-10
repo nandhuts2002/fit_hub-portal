@@ -115,7 +115,58 @@ def _save_reports(reports):
 
 @community_bp.route('/posts', methods=['GET'])
 def list_posts():
-    posts = _load_posts()
+    # Load posts from JSON file
+    file_posts = _load_posts()
+    
+    # Load posts from MongoDB and merge them
+    # MongoDB is the source of truth for comments
+    try:
+        db_posts = list(community_posts_collection.find({}))
+        # Convert ObjectId to string and create a lookup dict
+        db_posts_dict = {}
+        for post in db_posts:
+            post_id = post.get('id')
+            if post_id:
+                # Convert _id to string if present
+                if '_id' in post:
+                    post['_id'] = str(post['_id'])
+                db_posts_dict[post_id] = post
+        
+        # Merge: Use MongoDB posts as source of truth for comments
+        # If a post exists in both, prefer MongoDB's comments
+        merged_posts = []
+        seen_ids = set()
+        
+        # First, add/update posts from file
+        for file_post in file_posts:
+            post_id = file_post.get('id')
+            if post_id:
+                seen_ids.add(post_id)
+                if post_id in db_posts_dict:
+                    # Merge: use MongoDB post but keep file post data if needed
+                    db_post = db_posts_dict[post_id]
+                    # Prefer MongoDB comments if they exist
+                    if 'comments' in db_post:
+                        file_post['comments'] = db_post['comments']
+                    # Update other fields from MongoDB if they're missing in file
+                    for key in ['likes', 'reactions', 'tags']:
+                        if key in db_post and key not in file_post:
+                            file_post[key] = db_post[key]
+                    merged_posts.append(file_post)
+                else:
+                    merged_posts.append(file_post)
+        
+        # Add posts that exist only in MongoDB
+        for post_id, db_post in db_posts_dict.items():
+            if post_id not in seen_ids:
+                merged_posts.append(db_post)
+        
+        posts = merged_posts
+    except Exception as e:
+        print(f"Error loading posts from MongoDB: {e}")
+        # Fallback to file posts only
+        posts = file_posts
+    
     # Sort by created_at desc
     posts_sorted = sorted(posts, key=lambda p: p.get('created_at', 0), reverse=True)
     try:
@@ -365,6 +416,16 @@ def unlike_post(post_id):
 
 @community_bp.route('/posts/<post_id>/comments', methods=['GET'])
 def list_comments(post_id):
+    # Try MongoDB first (source of truth for comments)
+    try:
+        db_post = community_posts_collection.find_one({'id': post_id})
+        if db_post:
+            comments = db_post.get('comments', [])
+            return jsonify({'ok': True, 'data': comments})
+    except Exception as e:
+        print(f"Error loading comments from MongoDB: {e}")
+    
+    # Fallback to JSON file
     posts = _load_posts()
     for p in posts:
         if p.get('id') == post_id:
@@ -379,31 +440,72 @@ def add_comment(post_id):
     user = payload.get('user') or {}
     if not text:
         return jsonify({'ok': False, 'error': 'Comment text required'}), 400
-    posts = _load_posts()
-    for p in posts:
-        if p.get('id') == post_id:
-            comment = {
-                'id': str(uuid.uuid4()),
-                'text': text,
-                'user': {
-                    'name': user.get('name') or 'Member',
-                    'email': user.get('email') or '',
-                    'avatar': user.get('avatar') or ''
-                },
-                'created_at': int(time.time() * 1000)
-            }
-            p.setdefault('comments', []).append(comment)
-            _save_posts(posts)
-            try:
-                community_posts_collection.update_one({'id': post_id}, {'$set': {'comments': p['comments']}})
-            except Exception:
-                pass
-            try:
-                socketio.emit('comment:added', {'postId': post_id, 'comment': comment}, namespace='/community')
-            except Exception:
-                pass
-            return jsonify({'ok': True, 'data': comment})
-    return jsonify({'ok': False, 'error': 'Post not found'}), 404
+    
+    # Get user avatar from database if not provided
+    user_email = user.get('email') or ''
+    if user_email:
+        try:
+            from models import users_collection, user_profiles_collection
+            user_profile = user_profiles_collection.find_one({'email': user_email})
+            user_doc = users_collection.find_one({'email': user_email})
+            
+            if not user.get('avatar'):
+                if user_profile and user_profile.get('avatar'):
+                    user['avatar'] = user_profile.get('avatar')
+                elif user_doc and user_doc.get('avatar'):
+                    user['avatar'] = user_doc.get('avatar')
+        except Exception as e:
+            print(f"Error fetching user avatar: {e}")
+    
+    # Create comment object
+    comment = {
+        'id': str(uuid.uuid4()),
+        'text': text,
+        'user': {
+            'name': user.get('name') or 'Member',
+            'email': user_email,
+            'avatar': user.get('avatar') or ''
+        },
+        'created_at': int(time.time() * 1000)
+    }
+    
+    # Try MongoDB first (source of truth)
+    post_found = False
+    try:
+        db_post = community_posts_collection.find_one({'id': post_id})
+        if db_post:
+            post_found = True
+            # Get existing comments or initialize
+            comments = db_post.get('comments', [])
+            comments.append(comment)
+            
+            # Update MongoDB
+            community_posts_collection.update_one(
+                {'id': post_id},
+                {'$set': {'comments': comments}}
+            )
+    except Exception as e:
+        print(f"Error updating MongoDB comment: {e}")
+    
+    # Also update JSON file if post exists there (for backward compatibility)
+    if post_found:
+        posts = _load_posts()
+        for p in posts:
+            if p.get('id') == post_id:
+                p.setdefault('comments', []).append(comment)
+                _save_posts(posts)
+                break
+    
+    if not post_found:
+        return jsonify({'ok': False, 'error': 'Post not found'}), 404
+    
+    # Emit real-time event
+    try:
+        socketio.emit('comment:added', {'postId': post_id, 'comment': comment}, namespace='/community')
+    except Exception:
+        pass
+    
+    return jsonify({'ok': True, 'data': comment})
 
 
 ALLOWED_IMAGE_EXT = {'png', 'jpg', 'jpeg', 'gif', 'webp'}

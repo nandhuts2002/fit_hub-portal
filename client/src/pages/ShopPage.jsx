@@ -225,7 +225,7 @@ const ShopPage = () => {
         const currentUser = SessionManager.getCurrentUser();
         if (!currentUser?.token || !currentUser?.email) return;
         // Don't encode the email here, let the browser handle it automatically
-        const { data } = await api.get(`/shop/api/wishlist/${currentUser.email}`, {
+        const { data } = await api.get(`/shop/api/wishlist/${encodeURIComponent(currentUser.email)}`, {
           headers: { Authorization: `Bearer ${currentUser.token}` }
         });
         const items = data?.wishlist?.items || [];
@@ -307,11 +307,8 @@ const ShopPage = () => {
     const loadShopData = async () => {
       setLoading(true);
       try {
-        const API_BASE = process.env.REACT_APP_API_BASE_URL || 'https://fit-hub-portal-1.onrender.com';
-        console.log('API Base URL:', API_BASE);
-        // Load products first
-        const productsResponse = await fetch(`${API_BASE}/shop/api/products`);
-        const productsData = await productsResponse.json();
+        const productsResponse = await api.get('/shop/api/products');
+        const productsData = productsResponse.data;
         console.log('Products API response:', productsData);
         
         // Only initialize sample data if no products exist
@@ -329,8 +326,8 @@ const ShopPage = () => {
           }
           
           // Reload products after initialization
-          const newProductsResponse = await fetch(`${API_BASE}/shop/api/products`);
-          const newProductsData = await newProductsResponse.json();
+          const newProductsResponse = await api.get('/shop/api/products');
+          const newProductsData = newProductsResponse.data;
           if (newProductsData.success) {
             // Fix image URLs for Vercel deployment
             const fixedProducts = newProductsData.products.map(product => {
@@ -342,7 +339,7 @@ const ShopPage = () => {
                   }
                   // If it's a relative path, prepend the base URL
                   if (img.startsWith('/')) {
-                    return `${API_BASE}${img}`;
+                    return `${process.env.REACT_APP_API_BASE_URL || ''}${img}`;
                   }
                   // Otherwise, return as is
                   return img;
@@ -364,7 +361,7 @@ const ShopPage = () => {
                 }
                 // If it's a relative path, prepend the base URL
                 if (img.startsWith('/')) {
-                  return `${API_BASE}${img}`;
+                  return `${process.env.REACT_APP_API_BASE_URL || ''}${img}`;
                 }
                 // Otherwise, return as is
                 return img;
@@ -377,8 +374,8 @@ const ShopPage = () => {
         }
 
         // Load categories
-        const categoriesResponse = await fetch(`${API_BASE}/shop/api/categories`);
-        const categoriesData = await categoriesResponse.json();
+        const categoriesResponse = await api.get('/shop/api/categories');
+        const categoriesData = categoriesResponse.data;
         if (categoriesData.success) {
           setApiCategories(categoriesData.categories);
         }
@@ -420,9 +417,8 @@ const ShopPage = () => {
   // Refresh products when component mounts or when needed
   const refreshProducts = async () => {
     try {
-      const baseUrl = process.env.REACT_APP_API_BASE_URL || 'https://fit-hub-portal-1.onrender.com';
-      const productsResponse = await fetch(`${baseUrl}/shop/api/products`);
-      const productsData = await productsResponse.json();
+      const productsResponse = await api.get('/shop/api/products');
+      const productsData = productsResponse.data;
       if (productsData.success) {
         // Fix image URLs for Vercel deployment
         const fixedProducts = productsData.products.map(product => {
@@ -434,7 +430,7 @@ const ShopPage = () => {
               }
               // If it's a relative path, prepend the base URL
               if (img.startsWith('/')) {
-                return `${baseUrl}${img}`;
+                return `${process.env.REACT_APP_API_BASE_URL || ''}${img}`;
               }
               // Otherwise, return as is
               return img;
@@ -613,7 +609,7 @@ const ShopPage = () => {
       if (!currentUser?.token || !currentUser?.email) return; // if not logged, keep local only
       // Don't encode the email here, let the browser handle it automatically
       await api.post(
-        `/shop/api/wishlist/${currentUser.email}/toggle`,
+        `/shop/api/wishlist/${encodeURIComponent(currentUser.email)}/toggle`,
         { product_id: (product.id || product._id) },
         { headers: { Authorization: `Bearer ${currentUser.token}` } }
       );
@@ -643,13 +639,8 @@ const ShopPage = () => {
     if (!couponCode.trim()) return;
     
     try {
-      const response = await fetch('http://localhost:5000/shop/api/coupons/validate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: couponCode })
-      });
-      
-      const data = await response.json();
+      const response = await api.post('/shop/api/coupons/validate', { code: couponCode });
+      const data = response.data;
       if (data.success) {
         setAppliedCoupon(data.coupon);
         alert('Coupon applied successfully!');

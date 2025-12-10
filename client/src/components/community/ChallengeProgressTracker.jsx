@@ -60,9 +60,9 @@ const ChallengeProgressTracker = ({ refreshTrigger, onSwitchToChallenges }) => {
             try {
               const leaderboardData = await challengesApi.getLeaderboard(challenge.id);
               if (leaderboardData.ok) {
-                // Find current user's progress in leaderboard
+                // Find current user's progress in leaderboard (case-insensitive comparison)
                 const userProgress = leaderboardData.data.find(
-                  entry => entry.userEmail === userEmail
+                  entry => entry.userEmail && entry.userEmail.toLowerCase() === normalizedUserEmail
                 );
                 
                 return {
@@ -113,16 +113,21 @@ const ChallengeProgressTracker = ({ refreshTrigger, onSwitchToChallenges }) => {
       });
 
       if (data.ok) {
-        alert('✅ Progress updated successfully!');
+        const message = data.message || 'Progress updated successfully!';
+        alert('✅ ' + message);
         setShowProgressModal(false);
         setSelectedChallenge(null);
-        fetchMyData(currentUser.email); // Refresh data
+        // Refresh data to get updated progress
+        if (currentUser && currentUser.email) {
+          await fetchMyData(currentUser.email);
+        }
       } else {
         alert('❌ ' + (data.error || 'Failed to update progress'));
       }
     } catch (error) {
       console.error('Error updating progress:', error);
-      alert('❌ Failed to update progress');
+      const message = error.message || 'Failed to update progress';
+      alert('❌ ' + message);
     }
   };
 
@@ -341,6 +346,7 @@ const ChallengeProgressTracker = ({ refreshTrigger, onSwitchToChallenges }) => {
         {showProgressModal && selectedChallenge && (
           <ProgressUpdateModal
             challenge={selectedChallenge}
+            currentProgress={selectedChallenge.currentValue || 0}
             onClose={() => {
               setShowProgressModal(false);
               setSelectedChallenge(null);
@@ -354,17 +360,39 @@ const ChallengeProgressTracker = ({ refreshTrigger, onSwitchToChallenges }) => {
 };
 
 // Progress Update Modal Component
-const ProgressUpdateModal = ({ challenge, onClose, onUpdate }) => {
+const ProgressUpdateModal = ({ challenge, currentProgress = 0, onClose, onUpdate }) => {
   const [value, setValue] = useState(1);
   const [description, setDescription] = useState('');
 
+  const targetValue = challenge.goalValue || 0;
+  const remaining = Math.max(0, targetValue - currentProgress);
+  const isCompleted = currentProgress >= targetValue;
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (value <= 0) {
+    const val = parseInt(value) || 0;
+    
+    if (val <= 0) {
       alert('Please enter a value greater than 0');
       return;
     }
-    onUpdate(challenge.id, value, description);
+    
+    if (isCompleted) {
+      alert(`You have already completed this challenge! Goal: ${targetValue} ${challenge.goalType}`);
+      return;
+    }
+    
+    if (val > remaining) {
+      const confirmMsg = `You can only add ${remaining} more ${challenge.goalType} to reach the goal of ${targetValue}. Do you want to add ${remaining} instead of ${val}?`;
+      if (!window.confirm(confirmMsg)) {
+        return;
+      }
+      setValue(remaining);
+      onUpdate(challenge.id, remaining, description);
+      return;
+    }
+    
+    onUpdate(challenge.id, val, description);
   };
 
   const getGoalTypeLabel = (goalType) => {
@@ -414,28 +442,56 @@ const ProgressUpdateModal = ({ challenge, onClose, onUpdate }) => {
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h4 className="font-bold text-gray-900 mb-1">{challenge.name}</h4>
-            <p className="text-sm text-gray-600">
-              Goal: {challenge.goalValue} {challenge.goalType}
+            <p className="text-sm text-gray-600 mb-2">
+              Goal: {targetValue} {challenge.goalType}
             </p>
+            <p className="text-sm font-semibold text-blue-800">
+              Current Progress: {currentProgress} / {targetValue} {challenge.goalType}
+            </p>
+            {remaining > 0 && (
+              <p className="text-sm text-blue-700 mt-1">
+                Remaining: {remaining} {challenge.goalType} to reach goal
+              </p>
+            )}
+            {isCompleted && (
+              <p className="text-sm font-semibold text-green-700 mt-1">
+                ✅ Challenge Completed!
+              </p>
+            )}
           </div>
 
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">
-              How many {getGoalTypeLabel(challenge.goalType)}? *
-            </label>
-            <input
-              type="number"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              min="1"
-              max={challenge.goalValue}
-              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg font-semibold"
-              placeholder="Enter value..."
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              This will be added to your total progress
-            </p>
-          </div>
+          {isCompleted ? (
+            <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4 text-center">
+              <p className="text-green-800 font-semibold">You've already completed this challenge!</p>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                How many {getGoalTypeLabel(challenge.goalType)}? *
+              </label>
+              <input
+                type="number"
+                value={value}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value) || 0;
+                  if (val > remaining) {
+                    setValue(remaining);
+                  } else {
+                    setValue(e.target.value);
+                  }
+                }}
+                min="1"
+                max={remaining}
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg font-semibold"
+                placeholder={`Max: ${remaining}`}
+              />
+              {remaining > 0 && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Maximum: {remaining} {challenge.goalType} (to reach goal)
+                </p>
+              )}
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -458,12 +514,14 @@ const ProgressUpdateModal = ({ challenge, onClose, onUpdate }) => {
             >
               Cancel
             </button>
-            <button
-              type="submit"
-              className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl font-semibold"
-            >
-              Log Progress
-            </button>
+            {!isCompleted && (
+              <button
+                type="submit"
+                className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all shadow-lg hover:shadow-xl font-semibold"
+              >
+                Log Progress
+              </button>
+            )}
           </div>
         </form>
       </motion.div>

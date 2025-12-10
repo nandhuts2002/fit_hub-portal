@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Award, MessageCircle, Star, Users, Plus, Image as ImageIcon } from 'lucide-react';
+import { Trophy, Award, MessageCircle, Star, Users, Plus, Image as ImageIcon, MessageSquare, Sparkles } from 'lucide-react';
 import ChallengesSection from './ChallengesSection';
 import BadgesSection from './BadgesSection';
 import QASection from './QASection';
 import SpotlightsSection from './SpotlightsSection';
 import EnhancedPostCard from './EnhancedPostCard';
+import MessengerPanel from './MessengerPanel';
+import GamificationPanel from './GamificationPanel';
 import SessionManager from '../../utils/sessionManager';
 import { uploadImage, validateImageFile } from '../../utils/imageUpload';
 
@@ -22,6 +24,8 @@ const ExtendedCommunityPage = () => {
 
   const tabs = [
     { id: 'feed', label: 'Feed', icon: Users },
+    { id: 'messenger', label: 'Messenger', icon: MessageSquare },
+    { id: 'gamification', label: 'Gamification', icon: Sparkles },
     { id: 'challenges', label: 'Challenges', icon: Trophy },
     { id: 'badges', label: 'Badges', icon: Award },
     { id: 'qa', label: 'Expert Q&A', icon: MessageCircle },
@@ -44,6 +48,25 @@ const ExtendedCommunityPage = () => {
     fetchPosts();
     fetchActivitySummary();
   }, []);
+
+  // Allow deep-linking to specific tab via ?tab=...
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get('tab');
+      const validIds = tabs.map((t) => t.id);
+      if (tab && validIds.includes(tab)) {
+        setActiveTab(tab);
+      }
+    } catch {
+      // ignore URL parsing errors and keep default tab
+    }
+  }, []);
+  useEffect(() => {
+    if (userEmail) {
+      fetchActivitySummary();
+    }
+  }, [userEmail]);
 
   const fetchPosts = async () => {
     try {
@@ -402,6 +425,10 @@ const ExtendedCommunityPage = () => {
             {activeTab === 'badges' && <BadgesSection userEmail={userEmail} />}
             {activeTab === 'qa' && <QASection />}
             {activeTab === 'spotlights' && <SpotlightsSection />}
+            {activeTab === 'messenger' && <MessengerPanel userEmail={userEmail} />}
+            {activeTab === 'gamification' && (
+              <GamificationPanel activitySummary={activitySummary} />
+            )}
           </motion.div>
         </AnimatePresence>
       </div>

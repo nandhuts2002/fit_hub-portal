@@ -3,7 +3,9 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import (
     challenges_collection, user_progress_collection, badges_collection,
     qa_sessions_collection, spotlights_collection, community_posts_collection,
-    users_collection, user_profiles_collection
+    users_collection, user_profiles_collection, community_threads_collection,
+    community_messages_collection, gamification_stats_collection,
+    gamification_quests_collection
 )
 from datetime import datetime, timedelta
 import uuid
@@ -12,11 +14,233 @@ from socketio_instance import socketio
 
 community_extended_bp = Blueprint('community_extended', __name__)
 
+# Add explicit OPTIONS handler for CORS preflight requests
+@community_extended_bp.before_request
+def handle_preflight():
+    if request.method == "OPTIONS":
+        response = jsonify()
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add('Access-Control-Allow-Headers', "*")
+        response.headers.add('Access-Control-Allow-Methods', "*")
+        response.headers.add('Access-Control-Allow-Credentials', "true")
+        return response
+
+# Add CORS headers to all responses
+@community_extended_bp.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
+    return response
+
 def _now_ms():
     return int(time.time() * 1000)
 
 def _normalize_email(email):
     return str(email or '').strip().lower()
+
+def _get_identity_email():
+    """Return normalized email for the authenticated identity."""
+    current_user = get_jwt_identity()
+    if isinstance(current_user, str):
+        return _normalize_email(current_user)
+    return _normalize_email((current_user or {}).get('email'))
+
+def _derive_display_name(user_email):
+    """Derive a friendly display name from user/profile collections."""
+    profile = user_profiles_collection.find_one({'email': user_email}) or {}
+    if profile.get('displayName'):
+        return profile['displayName']
+    if profile.get('firstName') and profile.get('lastName'):
+        return f"{profile['firstName']} {profile['lastName']}"
+    if profile.get('firstName'):
+        return profile['firstName']
+
+    user = users_collection.find_one({'email': user_email}) or {}
+    if user.get('firstName') and user.get('lastName'):
+        return f"{user['firstName']} {user['lastName']}"
+    if user.get('firstName'):
+        return user['firstName']
+    if user.get('name'):
+        return user['name']
+
+    # Fallback to email username
+    username = (user_email or 'member').split('@')[0]
+    return username.replace('.', ' ').replace('_', ' ').title()
+
+def _base_gamification_state(user_email):
+    return {
+        'userEmail': user_email,
+        'xp': 0,
+        'level': 1,
+        'streakDays': 0,
+        'challengeWins': 0,
+        'postsCount': 0,
+        'lastActive': _now_ms(),
+        'weeklyTrend': [],
+        'recentRewards': [],
+        'questProgress': []
+    }
+
+def _ensure_gamification_stats(user_email):
+    stats = gamification_stats_collection.find_one({'userEmail': user_email})
+    if not stats:
+        stats = _base_gamification_state(user_email)
+        gamification_stats_collection.insert_one(stats)
+    return stats
+
+def _level_threshold(level):
+    return max(500, level * 500)
+
+def _calculate_level_from_xp(xp):
+    level = max(1, int(xp // 500) + 1)
+    return level
+
+def _bootstrap_default_quests():
+    if gamification_quests_collection.count_documents({}) > 0:
+        return
+    now = _now_ms()
+    default_quests = [
+        {
+            'id': str(uuid.uuid4()),
+            'title': 'Daily Check-in',
+            'description': 'Share a quick update or encouragement in the community feed.',
+            'goalValue': 1,
+            'rewardXp': 100,
+            'type': 'daily_post',
+            'isActive': True,
+            'created_at': now
+        },
+        {
+            'id': str(uuid.uuid4()),
+            'title': 'Support Squad',
+            'description': 'Send 3 uplifting messages to teammates today.',
+            'goalValue': 3,
+            'rewardXp': 150,
+            'type': 'messenger',
+            'isActive': True,
+            'created_at': now
+        },
+        {
+            'id': str(uuid.uuid4()),
+            'title': 'Challenge Grinder',
+            'description': 'Log progress toward any active challenge twice this week.',
+            'goalValue': 2,
+            'rewardXp': 200,
+            'type': 'challenge',
+            'isActive': True,
+            'created_at': now
+        }
+    ]
+    gamification_quests_collection.insert_many(default_quests)
+
+def _merge_quests_with_progress(stats):
+    _bootstrap_default_quests()
+    quests = list(gamification_quests_collection.find({'isActive': True}))
+    progress_map = {
+        entry.get('questId'): entry
+        for entry in (stats.get('questProgress') or [])
+        if entry.get('questId')
+    }
+    merged = []
+    for quest in quests:
+        quest_id = quest.get('id')
+        progress = progress_map.get(quest_id, {})
+        current_value = progress.get('currentValue', 0)
+        goal_value = quest.get('goalValue', 1)
+        progress_percent = min(100, int((current_value / goal_value) * 100)) if goal_value else 0
+        merged.append({
+            'id': quest_id,
+            'title': quest.get('title'),
+            'description': quest.get('description'),
+            'rewardXp': quest.get('rewardXp', 0),
+            'goalValue': goal_value,
+            'currentValue': current_value,
+            'status': progress.get('status', 'not_started'),
+            'type': quest.get('type', 'general'),
+            'progressPercent': progress_percent
+        })
+    return merged
+
+def _build_gamification_summary(user_email):
+    stats = _ensure_gamification_stats(user_email)
+    posts_count = community_posts_collection.count_documents({'user.email': user_email})
+    progress_records = list(user_progress_collection.find({'userEmail': user_email}))
+    challenge_wins = sum(
+        1 for record in progress_records
+        if record.get('targetValue', 0) and record.get('currentValue', 0) >= record.get('targetValue', 0)
+    )
+    user_profile = user_profiles_collection.find_one({'email': user_email}) or {}
+    badges_earned = len(user_profile.get('badges', []))
+
+    gamification_stats_collection.update_one(
+        {'userEmail': user_email},
+        {'$set': {'postsCount': posts_count, 'challengeWins': challenge_wins}}
+    )
+
+    level = stats.get('level', 1)
+    total_xp = stats.get('xp', 0)
+    level_floor = max(0, (level - 1) * 500)
+    next_level_xp = _level_threshold(level)
+    progress_to_next = min(
+        100,
+        int(((total_xp - level_floor) / max(1, next_level_xp - level_floor)) * 100)
+    )
+
+    summary = {
+        'xp': total_xp,
+        'level': level,
+        'nextLevelXp': next_level_xp,
+        'progressToNextLevel': progress_to_next,
+        'streakDays': stats.get('streakDays', 0),
+        'challengeWins': challenge_wins,
+        'postsCount': posts_count,
+        'badgesEarned': badges_earned,
+        'recentRewards': stats.get('recentRewards', []),
+        'quests': _merge_quests_with_progress(stats),
+        'leaderboardRank': gamification_stats_collection.count_documents({'xp': {'$gt': total_xp}}) + 1
+    }
+    return summary
+
+def _increment_gamification_xp(user_email, delta, reason='activity'):
+    delta = max(0, int(delta))
+    stats = _ensure_gamification_stats(user_email)
+    new_xp = stats.get('xp', 0) + delta
+    new_level = _calculate_level_from_xp(new_xp)
+    update_doc = {
+        '$set': {
+            'xp': new_xp,
+            'level': new_level,
+            'lastActive': _now_ms()
+        }
+    }
+    if delta > 0:
+        update_doc['$push'] = {
+            'recentRewards': {
+                '$each': [{
+                    'type': reason,
+                    'xp': delta,
+                    'timestamp': _now_ms()
+                }],
+                '$slice': -5
+            }
+        }
+    gamification_stats_collection.update_one(
+        {'userEmail': user_email},
+        update_doc
+    )
+    return new_level
+
+def _build_thread_name(thread_doc, viewer_email):
+    explicit_name = thread_doc.get('name')
+    if explicit_name:
+        return explicit_name
+    members = thread_doc.get('members', [])
+    others = [m for m in members if m != viewer_email]
+    if not others and members:
+        return 'Personal Notes'
+    display_names = [ _derive_display_name(member) for member in others ]
+    return ', '.join(display_names) if display_names else 'Community Chat'
 
 # ================================
 # 1. FITNESS CHALLENGES & LEADERBOARDS
@@ -48,8 +272,10 @@ def create_challenge():
     
     # Handle case where current_user is a string (email) vs dict
     if isinstance(current_user, str):
-        user_role = 'user'  # Default role for string identity
+        # When identity is just an email string, look up the user to get role
         user_email = current_user.strip().lower()
+        user_doc = users_collection.find_one({'email': user_email}) or {}
+        user_role = user_doc.get('role', 'user')
     else:
         user_role = current_user.get('role', 'user')
         user_email = current_user.get('email')
@@ -249,31 +475,222 @@ def get_challenge_leaderboard(challenge_id):
 def update_challenge_progress(challenge_id):
     """Update user's progress in a challenge"""
     current_user = get_jwt_identity()
-    user_email = _normalize_email(current_user.get('email'))
+    # Handle case where current_user is a string (email) vs dict
+    if isinstance(current_user, str):
+        user_email = _normalize_email(current_user)
+    else:
+        user_email = _normalize_email((current_user or {}).get('email'))
     payload = request.get_json(silent=True) or {}
     
-    activity_value = payload.get('value', 0)
+    activity_value = int(payload.get('value', 0))
     activity_type = payload.get('type', 'manual')  # manual, post, workout
     
+    if activity_value <= 0:
+        return jsonify({'ok': False, 'error': 'Value must be greater than 0'}), 400
+    
     try:
+        # Get challenge to check goal
+        challenge = challenges_collection.find_one({'id': challenge_id})
+        if not challenge:
+            return jsonify({'ok': False, 'error': 'Challenge not found'}), 404
+        
+        # Get current progress
+        progress_record = user_progress_collection.find_one({
+            'userEmail': user_email,
+            'challengeId': challenge_id
+        })
+        
+        if not progress_record:
+            return jsonify({'ok': False, 'error': 'You are not participating in this challenge'}), 400
+        
+        current_value = progress_record.get('currentValue', 0)
+        # Prefer stored targetValue, but if it's missing/invalid, fall back to challenge.goalValue
+        target_value = progress_record.get('targetValue') or challenge.get('goalValue', 0)
+
+        # If target_value is still not a positive number, normalize it to the challenge goal
+        try:
+            target_value = int(target_value)
+        except Exception:
+            target_value = 0
+
+        if target_value <= 0:
+            target_value = int(challenge.get('goalValue', 0)) or 0
+            # Persist the corrected targetValue back to the record
+            user_progress_collection.update_one(
+                {'userEmail': user_email, 'challengeId': challenge_id},
+                {'$set': {'targetValue': target_value}}
+            )
+        
+        # Calculate new value and cap at target
+        new_value = current_value + activity_value
+        capped_value = min(new_value, target_value)
+        actual_increment = capped_value - current_value
+        
+        if actual_increment <= 0:
+            return jsonify({
+                'ok': False,
+                'error': f'You have already reached the goal of {target_value}. Cannot add more progress.'
+            }), 400
+        
         # Add to user's progress
         activity = {
             'id': str(uuid.uuid4()),
             'type': activity_type,
-            'value': activity_value,
+            'value': actual_increment,  # Store only the actual increment applied
             'timestamp': _now_ms(),
             'description': payload.get('description', '')
         }
         
+        # Update progress with capped value
         user_progress_collection.update_one(
             {'userEmail': user_email, 'challengeId': challenge_id},
             {
                 '$push': {'activities': activity},
-                '$inc': {'currentValue': activity_value}
+                '$set': {'currentValue': capped_value}  # Use $set to ensure it's capped
             }
         )
         
-        return jsonify({'ok': True, 'message': 'Progress updated successfully'})
+        message = 'Progress updated successfully'
+        if capped_value < new_value:
+            message = f'Progress updated. Goal reached! (Added {actual_increment} instead of {activity_value} to reach goal of {target_value})'
+        
+        return jsonify({
+            'ok': True,
+            'message': message,
+            'currentValue': capped_value,
+            'targetValue': target_value,
+            'isCompleted': capped_value >= target_value
+        })
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@community_extended_bp.route('/challenges/<challenge_id>/progress/reset', methods=['POST'])
+@jwt_required()
+def reset_challenge_progress(challenge_id):
+    """Reset the authenticated user's progress in a specific challenge back to 0."""
+    current_user = get_jwt_identity()
+    # Handle case where current_user is a string (email) vs dict
+    if isinstance(current_user, str):
+        user_email = _normalize_email(current_user)
+    else:
+        user_email = _normalize_email((current_user or {}).get('email'))
+
+    try:
+        # Ensure the challenge exists
+        challenge = challenges_collection.find_one({'id': challenge_id})
+        if not challenge:
+            return jsonify({'ok': False, 'error': 'Challenge not found'}), 404
+
+        # Ensure user is participating / has a progress record
+        progress_record = user_progress_collection.find_one({
+            'userEmail': user_email,
+            'challengeId': challenge_id
+        })
+
+        if not progress_record:
+            return jsonify({'ok': False, 'error': 'No progress found for this challenge'}), 404
+
+        # Always realign targetValue with the challenge goal if possible
+        challenge_goal = challenge.get('goalValue', 0)
+        stored_target = progress_record.get('targetValue')
+        try:
+            stored_target_int = int(stored_target) if stored_target is not None else 0
+        except Exception:
+            stored_target_int = 0
+
+        if challenge_goal:
+          target_value = int(challenge_goal)
+        else:
+          target_value = stored_target_int
+
+        # Reset currentValue and clear activities, keep metadata
+        user_progress_collection.update_one(
+            {'userEmail': user_email, 'challengeId': challenge_id},
+            {
+                '$set': {
+                    'currentValue': 0,
+                    'activities': [],
+                    'targetValue': target_value
+                }
+            }
+        )
+
+        return jsonify({
+            'ok': True,
+            'message': 'Progress reset to 0',
+            'currentValue': 0,
+            'targetValue': target_value,
+            'isCompleted': False
+        })
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@community_extended_bp.route('/challenges/<challenge_id>/progress/me', methods=['GET'])
+@jwt_required()
+def get_my_challenge_progress(challenge_id):
+    """Get detailed progress (including activity logs) for the authenticated user in a challenge."""
+    current_user = get_jwt_identity()
+    # Handle case where current_user is a string (email) vs dict
+    if isinstance(current_user, str):
+        user_email = _normalize_email(current_user)
+    else:
+        user_email = _normalize_email((current_user or {}).get('email'))
+
+    try:
+        challenge = challenges_collection.find_one({'id': challenge_id})
+        if not challenge:
+            return jsonify({'ok': False, 'error': 'Challenge not found'}), 404
+
+        progress_record = user_progress_collection.find_one({
+            'userEmail': user_email,
+            'challengeId': challenge_id
+        })
+
+        goal_value = int(challenge.get('goalValue', 0)) or 0
+        goal_type = challenge.get('goalType', 'workouts')
+
+        if not progress_record:
+            current_value = 0
+            target_value = goal_value
+            activities = []
+        else:
+            current_value = int(progress_record.get('currentValue', 0) or 0)
+            stored_target = progress_record.get('targetValue') or goal_value
+            try:
+                target_value = int(stored_target)
+            except Exception:
+                target_value = goal_value
+            activities = progress_record.get('activities', [])
+
+        # Normalize activities and sort by newest first
+        normalized_activities = []
+        for act in activities:
+            normalized_activities.append({
+                'id': str(act.get('id') or uuid.uuid4()),
+                'type': act.get('type', 'manual'),
+                'value': act.get('value', 0),
+                'timestamp': act.get('timestamp', _now_ms()),
+                'description': act.get('description', '')
+            })
+
+        normalized_activities.sort(key=lambda a: a['timestamp'], reverse=True)
+
+        progress_pct = min(100, (current_value / max(1, target_value or 1)) * 100) if target_value else 0
+
+        data = {
+            'userEmail': user_email,
+            'challengeId': challenge_id,
+            'goalType': goal_type,
+            'currentValue': current_value,
+            'targetValue': target_value,
+            'progress': progress_pct,
+            'activities': normalized_activities,
+            'joined_at': (progress_record or {}).get('joined_at', _now_ms())
+        }
+
+        return jsonify({'ok': True, 'data': data})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
@@ -955,6 +1372,286 @@ def tag_users_in_post(post_id):
             }, namespace='/community')
         
         return jsonify({'ok': True, 'message': 'Users tagged successfully'})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+# ================================
+# 6. COMMUNITY MESSENGER
+# ================================
+
+@community_extended_bp.route('/messenger/threads', methods=['GET'])
+@jwt_required()
+def get_messenger_threads():
+    """Return messenger threads for the authenticated user."""
+    user_email = _get_identity_email()
+    try:
+        threads = list(community_threads_collection.find({
+            'members': user_email
+        }).sort('last_message_at', -1))
+
+        if not threads:
+            onboarding_thread = {
+                'id': str(uuid.uuid4()),
+                'name': 'Coach Check-ins',
+                'members': [user_email],
+                'createdBy': 'system',
+                'type': 'personal',
+                'created_at': _now_ms(),
+                'last_message_at': _now_ms(),
+                'last_message_preview': 'Welcome to the Community Messenger!'
+            }
+            community_threads_collection.insert_one(onboarding_thread)
+            community_messages_collection.insert_one({
+                'id': str(uuid.uuid4()),
+                'threadId': onboarding_thread['id'],
+                'senderEmail': 'coach@fit-hub.ai',
+                'senderName': 'Coach Bot',
+                'content': 'Welcome to the Community Messenger! Drop a note to teammates or coaches anytime.',
+                'attachments': [],
+                'reactions': [],
+                'created_at': _now_ms()
+            })
+            threads = [onboarding_thread]
+
+        summaries = []
+        for thread in threads:
+            last_message = community_messages_collection.find_one(
+                {'threadId': thread.get('id')},
+                sort=[('created_at', -1)]
+            )
+            summaries.append({
+                'id': thread.get('id'),
+                'name': _build_thread_name(thread, user_email),
+                'members': thread.get('members', []),
+                'type': thread.get('type', 'direct'),
+                'createdBy': thread.get('createdBy'),
+                'created_at': thread.get('created_at'),
+                'last_message_at': thread.get('last_message_at'),
+                'lastMessagePreview': thread.get('last_message_preview', ''),
+                'lastMessage': last_message and {
+                    'id': last_message.get('id'),
+                    'content': last_message.get('content'),
+                    'senderEmail': last_message.get('senderEmail'),
+                    'senderName': last_message.get('senderName'),
+                    'previewText': last_message.get('previewText') or last_message.get('content') or '',
+                    'created_at': last_message.get('created_at')
+                }
+            })
+        return jsonify({'ok': True, 'data': summaries})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@community_extended_bp.route('/messenger/threads', methods=['POST'])
+@jwt_required()
+def create_messenger_thread():
+    """Create a direct or group thread."""
+    user_email = _get_identity_email()
+    payload = request.get_json(silent=True) or {}
+
+    member_emails = payload.get('members') or []
+    cleaned_members = {_normalize_email(member) for member in member_emails if member}
+    cleaned_members.add(user_email)
+    members = sorted(cleaned_members)
+
+    if len(members) < 2:
+        return jsonify({'ok': False, 'error': 'Need at least two participants'}), 400
+
+    thread = {
+        'id': str(uuid.uuid4()),
+        'name': payload.get('name', '').strip(),
+        'members': members,
+        'createdBy': user_email,
+        'type': 'group' if len(members) > 2 else 'direct',
+        'created_at': _now_ms(),
+        'last_message_at': _now_ms(),
+        'last_message_preview': ''
+    }
+
+    community_threads_collection.insert_one(thread)
+    summary = {
+        **thread,
+        'name': _build_thread_name(thread, user_email)
+    }
+    return jsonify({'ok': True, 'data': summary})
+
+
+@community_extended_bp.route('/messenger/threads/<thread_id>/messages', methods=['GET'])
+@jwt_required()
+def get_thread_messages(thread_id):
+    """Return messages for a thread if the user is a participant."""
+    user_email = _get_identity_email()
+    limit_param = request.args.get('limit', 50)
+    try:
+        limit = min(int(limit_param), 200)
+    except (TypeError, ValueError):
+        limit = 50
+
+    thread = community_threads_collection.find_one({'id': thread_id, 'members': user_email})
+    if not thread:
+        return jsonify({'ok': False, 'error': 'Thread not found'}), 404
+
+    messages = list(
+        community_messages_collection.find({'threadId': thread_id})
+        .sort('created_at', -1)
+        .limit(limit)
+    )
+    messages.reverse()
+
+    for message in messages:
+        message['_id'] = str(message.get('_id'))
+
+    return jsonify({'ok': True, 'data': messages})
+
+
+@community_extended_bp.route('/messenger/threads/<thread_id>/messages', methods=['POST'])
+@jwt_required()
+def send_thread_message(thread_id):
+    """Send a message within a thread."""
+    user_email = _get_identity_email()
+    payload = request.get_json(silent=True) or {}
+
+    content = (payload.get('content') or '').strip()
+    attachments = payload.get('attachments', [])
+    if not isinstance(attachments, list):
+        attachments = []
+
+    if not content and not attachments:
+        return jsonify({'ok': False, 'error': 'Please share a message or attachment'}), 400
+
+    thread = community_threads_collection.find_one({'id': thread_id, 'members': user_email})
+    if not thread:
+        return jsonify({'ok': False, 'error': 'Thread not found'}), 404
+
+    preview_text = content if content else 'Shared an attachment'
+    message = {
+        'id': str(uuid.uuid4()),
+        'threadId': thread_id,
+        'senderEmail': user_email,
+        'senderName': _derive_display_name(user_email),
+        'content': content,
+        'attachments': attachments,
+        'reactions': [],
+        'hasAttachment': bool(attachments),
+        'previewText': preview_text,
+        'created_at': _now_ms()
+    }
+
+    community_messages_collection.insert_one(message)
+
+    community_threads_collection.update_one(
+        {'id': thread_id},
+        {
+            '$set': {
+                'last_message_at': message['created_at'],
+                'last_message_preview': preview_text
+            }
+        }
+    )
+
+    if content:
+        _increment_gamification_xp(user_email, 10, reason='messenger')
+
+    socketio.emit('messenger:new_message', {
+        'threadId': thread_id,
+        'message': message
+    }, namespace='/community')
+
+    return jsonify({'ok': True, 'data': message})
+
+
+# ================================
+# 7. GAMIFICATION & REWARDS
+# ================================
+
+@community_extended_bp.route('/gamification/summary', methods=['GET'])
+@jwt_required()
+def get_gamification_summary():
+    """Return current XP, streaks, and quest progress for the user."""
+    user_email = _get_identity_email()
+    try:
+        summary = _build_gamification_summary(user_email)
+        return jsonify({'ok': True, 'data': summary})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@community_extended_bp.route('/gamification/leaderboard', methods=['GET'])
+def get_gamification_leaderboard():
+    """Return top XP earners."""
+    try:
+        top_users = list(
+            gamification_stats_collection.find({})
+            .sort('xp', -1)
+            .limit(20)
+        )
+        leaderboard = []
+        for idx, entry in enumerate(top_users):
+            user_email = entry.get('userEmail')
+            profile = user_profiles_collection.find_one({'email': user_email}) or {}
+            leaderboard.append({
+                'rank': idx + 1,
+                'userEmail': user_email,
+                'displayName': _derive_display_name(user_email),
+                'avatar': profile.get('avatar', ''),
+                'xp': entry.get('xp', 0),
+                'level': entry.get('level', 1)
+            })
+        return jsonify({'ok': True, 'data': leaderboard})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+@community_extended_bp.route('/gamification/quests/<quest_id>/progress', methods=['POST'])
+@jwt_required()
+def update_quest_progress(quest_id):
+    """Increment quest progress for the authenticated user."""
+    user_email = _get_identity_email()
+    payload = request.get_json(silent=True) or {}
+    increment_value = max(1, int(payload.get('value', 1)))
+
+    try:
+        stats = _ensure_gamification_stats(user_email)
+        quest = gamification_quests_collection.find_one({'id': quest_id, 'isActive': True})
+        if not quest:
+            return jsonify({'ok': False, 'error': 'Quest not found'}), 404
+
+        goal_value = quest.get('goalValue', 1)
+        progress_list = stats.get('questProgress', [])
+        previous_status = 'not_started'
+        updated_entry = None
+
+        for entry in progress_list:
+            if entry.get('questId') == quest_id:
+                entry['currentValue'] = min(goal_value, entry.get('currentValue', 0) + increment_value)
+                previous_status = entry.get('status', 'not_started')
+                entry['status'] = 'completed' if entry['currentValue'] >= goal_value else 'in_progress'
+                entry['updated_at'] = _now_ms()
+                updated_entry = entry
+                break
+
+        if not updated_entry:
+            current_value = min(goal_value, increment_value)
+            updated_entry = {
+                'questId': quest_id,
+                'currentValue': current_value,
+                'goalValue': goal_value,
+                'status': 'completed' if current_value >= goal_value else 'in_progress',
+                'updated_at': _now_ms()
+            }
+            progress_list.append(updated_entry)
+
+        gamification_stats_collection.update_one(
+            {'userEmail': user_email},
+            {'$set': {'questProgress': progress_list}}
+        )
+
+        if updated_entry['status'] == 'completed' and previous_status != 'completed':
+            _increment_gamification_xp(user_email, quest.get('rewardXp', 100), reason='quest')
+
+        summary = _build_gamification_summary(user_email)
+        return jsonify({'ok': True, 'data': summary})
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 

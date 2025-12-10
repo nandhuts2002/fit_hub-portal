@@ -16,6 +16,7 @@ const ChallengesSection = ({ onSwitchToProgress }) => {
   const [joiningChallengeId, setJoiningChallengeId] = useState(null);
   const [showChallengeDetails, setShowChallengeDetails] = useState(null);
   const [userProgress, setUserProgress] = useState(null);
+  const [loadingProgress, setLoadingProgress] = useState(false);
   const { showSuccess, showError, showWarning, showInfo } = useToast();
 
   useEffect(() => {
@@ -60,23 +61,30 @@ const ChallengesSection = ({ onSwitchToProgress }) => {
 
   const fetchChallengeProgress = async (challengeId) => {
     try {
+      setLoadingProgress(true);
       const currentUser = SessionManager.getCurrentUser();
       const token = currentUser?.token;
-      if (!token) return;
+      if (!token) {
+        setUserProgress({ currentValue: 0, progress: 0, activities: [] });
+        setLoadingProgress(false);
+        return;
+      }
       
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const userEmail = (payload.email || '').toLowerCase();
+      console.log('[fetchChallengeProgress] Fetching MY progress for challenge:', challengeId);
+      const progressData = await challengesApi.getMyProgress(challengeId);
+      console.log('[fetchChallengeProgress] My progress data:', progressData);
       
-      const leaderboardData = await challengesApi.getLeaderboard(challengeId);
-      if (leaderboardData.ok) {
-        const progress = leaderboardData.data.find(
-          entry => entry.userEmail.toLowerCase() === userEmail
-        );
-        setUserProgress(progress || { currentValue: 0, progress: 0 });
+      if (progressData.ok && progressData.data) {
+        setUserProgress(progressData.data);
+      } else {
+        console.log('[fetchChallengeProgress] No progress data found, setting defaults');
+        setUserProgress({ currentValue: 0, progress: 0, activities: [] });
       }
     } catch (error) {
-      console.error('Error fetching progress:', error);
-      setUserProgress({ currentValue: 0, progress: 0 });
+      console.error('Error fetching my progress:', error);
+      setUserProgress({ currentValue: 0, progress: 0, activities: [] });
+    } finally {
+      setLoadingProgress(false);
     }
   };
 
@@ -618,9 +626,11 @@ const ChallengesSection = ({ onSwitchToProgress }) => {
             challenge={showChallengeDetails}
             userProgress={userProgress}
             leaderboard={leaderboard}
+            loadingProgress={loadingProgress}
             onClose={() => {
               setShowChallengeDetails(null);
               setUserProgress(null);
+              setLoadingProgress(false);
             }}
             onLogProgress={async (value, description) => {
               try {
@@ -630,15 +640,51 @@ const ChallengesSection = ({ onSwitchToProgress }) => {
                   description
                 });
                 if (data.ok) {
-                  showSuccess('Progress updated successfully!');
-                  fetchChallengeProgress(showChallengeDetails.id);
-                  fetchLeaderboard(showChallengeDetails.id);
+                  const message = data.message || 'Progress updated successfully!';
+                  showSuccess(message);
+                  // Update progress immediately from response if available
+                  if (data.currentValue !== undefined) {
+                    setUserProgress({
+                      currentValue: data.currentValue,
+                      targetValue: data.targetValue || showChallengeDetails.goalValue,
+                      progress: data.targetValue ? (data.currentValue / data.targetValue) * 100 : 0
+                    });
+                  }
+                  // Refresh progress and leaderboard to ensure consistency
+                  await fetchChallengeProgress(showChallengeDetails.id);
+                  await fetchLeaderboard(showChallengeDetails.id);
                 } else {
                   showError(data.error || 'Failed to update progress');
                 }
               } catch (error) {
                 console.error('Error updating progress:', error);
-                alert('❌ Failed to update progress');
+                const message = error.message || 'Failed to update progress';
+                showError(message);
+              }
+            }}
+            onResetProgress={async () => {
+              if (!window.confirm('Reset your progress for this challenge back to 0? This cannot be undone.')) {
+                return;
+              }
+              try {
+                const data = await challengesApi.resetProgress(showChallengeDetails.id);
+                if (data.ok) {
+                  const message = data.message || 'Progress reset to 0';
+                  showSuccess(message);
+                  setUserProgress({
+                    currentValue: 0,
+                    targetValue: data.targetValue || showChallengeDetails.goalValue,
+                    progress: 0
+                  });
+                  await fetchChallengeProgress(showChallengeDetails.id);
+                  await fetchLeaderboard(showChallengeDetails.id);
+                } else {
+                  showError(data.error || 'Failed to reset progress');
+                }
+              } catch (error) {
+                console.error('Error resetting progress:', error);
+                const message = error.message || 'Failed to reset progress';
+                showError(message);
               }
             }}
           />
@@ -864,7 +910,7 @@ const CreateChallengeModal = ({ onClose, onSuccess }) => {
   );
 };
 
-const ChallengeDetailsModal = ({ challenge, userProgress, leaderboard, onClose, onLogProgress }) => {
+const ChallengeDetailsModal = ({ challenge, userProgress, leaderboard, onClose, onLogProgress, onResetProgress, loadingProgress }) => {
   const [showLogForm, setShowLogForm] = useState(false);
   const [logValue, setLogValue] = useState(1);
   const [logDescription, setLogDescription] = useState('');
@@ -885,21 +931,45 @@ const ChallengeDetailsModal = ({ challenge, userProgress, leaderboard, onClose, 
     return labels[goalType] || goalType;
   };
 
+  const daysLeft = getDaysRemaining(challenge.endDate);
+  const currentValue = userProgress?.currentValue || 0;
+  const targetValue = userProgress?.targetValue || challenge.goalValue || 0;
+  const progress = userProgress?.progress || 0;
+  const remaining = Math.max(0, targetValue - currentValue);
+  const isCompleted = currentValue >= targetValue;
+
+  const activities = Array.isArray(userProgress?.activities)
+    ? [...userProgress.activities].sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+    : [];
+
   const handleLogSubmit = (e) => {
     e.preventDefault();
-    if (logValue <= 0) {
+    const value = parseInt(logValue) || 0;
+    
+    if (value <= 0) {
       alert('Please enter a value greater than 0');
       return;
     }
-    onLogProgress(logValue, logDescription);
+    
+    if (isCompleted) {
+      alert(`You have already completed this challenge! Goal: ${targetValue} ${challenge.goalType}`);
+      return;
+    }
+    
+    if (value > remaining) {
+      const confirmMsg = `You can only add ${remaining} more ${challenge.goalType} to reach the goal of ${targetValue}. Do you want to add ${remaining} instead of ${value}?`;
+      if (!window.confirm(confirmMsg)) {
+        return;
+      }
+      // Will be handled by backend, but we can set it here too
+      setLogValue(remaining);
+    }
+    
+    onLogProgress(value, logDescription);
     setShowLogForm(false);
     setLogValue(1);
     setLogDescription('');
   };
-
-  const daysLeft = getDaysRemaining(challenge.endDate);
-  const currentValue = userProgress?.currentValue || 0;
-  const progress = userProgress?.progress || 0;
 
   return (
     <motion.div
@@ -973,83 +1043,160 @@ const ChallengeDetailsModal = ({ challenge, userProgress, leaderboard, onClose, 
         <div className="p-6 overflow-y-auto max-h-[60vh]">
           {activeTab === 'progress' ? (
             <div className="space-y-6">
-              {/* Progress Stats */}
-              <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-6 border-2 border-blue-200">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <p className="text-sm text-gray-600 mb-1">Your Progress</p>
-                    <p className="text-3xl font-bold text-gray-900">
-                      {currentValue} / {challenge.goalValue}
-                    </p>
-                    <p className="text-sm text-gray-600">{challenge.goalType}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-4xl font-bold text-blue-600">{Math.round(progress)}%</p>
-                    <p className="text-sm text-gray-600">Complete</p>
+              {loadingProgress ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+                    <p className="text-gray-600">Loading your progress...</p>
                   </div>
                 </div>
-                
-                {/* Progress Bar */}
-                <div className="w-full bg-gray-200 rounded-full h-4">
-                  <div
-                    className="bg-gradient-to-r from-blue-500 to-purple-500 h-4 rounded-full transition-all duration-300"
-                    style={{ width: `${Math.min(100, progress)}%` }}
-                  ></div>
-                </div>
-              </div>
-
-              {/* Log Progress Section */}
-              {!showLogForm ? (
-                <button
-                  onClick={() => setShowLogForm(true)}
-                  className="w-full px-6 py-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-semibold flex items-center justify-center gap-2 shadow-lg"
-                >
-                  <Plus className="w-5 h-5" />
-                  Log New Progress
-                </button>
               ) : (
-                <form onSubmit={handleLogSubmit} className="bg-white border-2 border-gray-200 rounded-xl p-6 space-y-4">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      How many {getGoalTypeLabel(challenge.goalType)}? *
-                    </label>
-                    <input
-                      type="number"
-                      value={logValue}
-                      onChange={(e) => setLogValue(e.target.value)}
-                      min="1"
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg font-semibold"
-                      placeholder="Enter value..."
-                    />
+                <>
+                  {/* Progress Stats */}
+                  <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-xl p-6 border-2 border-blue-200">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <p className="text-sm text-gray-600 mb-1">Your Progress</p>
+                        <p className="text-3xl font-bold text-gray-900">
+                          {currentValue} / {challenge.goalValue}
+                        </p>
+                        <p className="text-sm text-gray-600">{challenge.goalType}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-4xl font-bold text-blue-600">{Math.round(progress)}%</p>
+                        <p className="text-sm text-gray-600">Complete</p>
+                      </div>
+                    </div>
+                    
+                    {/* Progress Bar */}
+                    <div className="w-full bg-gray-200 rounded-full h-4">
+                      <div
+                        className="bg-gradient-to-r from-blue-500 to-purple-500 h-4 rounded-full transition-all duration-300"
+                        style={{ width: `${Math.min(100, progress)}%` }}
+                      ></div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Description (optional)
-                    </label>
-                    <textarea
-                      value={logDescription}
-                      onChange={(e) => setLogDescription(e.target.value)}
-                      rows="3"
-                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="What did you accomplish?"
-                    />
+
+                  {/* Log Progress Section */}
+                  {isCompleted ? (
+                    <div className="bg-green-50 border-2 border-green-200 rounded-xl p-6 text-center">
+                      <div className="text-4xl mb-2">🎉</div>
+                      <p className="text-lg font-bold text-green-800 mb-1">Challenge Completed!</p>
+                      <p className="text-sm text-green-700">You've reached your goal of {targetValue} {challenge.goalType}</p>
+                    </div>
+                  ) : !showLogForm ? (
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <button
+                        onClick={() => setShowLogForm(true)}
+                        className="flex-1 px-6 py-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition font-semibold flex items-center justify-center gap-2 shadow-lg"
+                      >
+                        <Plus className="w-5 h-5" />
+                        Log New Progress
+                      </button>
+                      <button
+                        type="button"
+                        onClick={onResetProgress}
+                        className="px-6 py-4 bg-red-50 text-red-600 rounded-xl border-2 border-red-300 hover:bg-red-100 transition font-semibold flex items-center justify-center gap-2"
+                      >
+                        <X className="w-4 h-4" />
+                        Reset Progress
+                      </button>
+                    </div>
+                  ) : (
+                    <form onSubmit={handleLogSubmit} className="bg-white border-2 border-gray-200 rounded-xl p-6 space-y-4">
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-2">
+                        <p className="text-sm text-blue-800">
+                          <span className="font-semibold">Progress:</span> {currentValue} / {targetValue} {challenge.goalType}
+                        </p>
+                        <p className="text-sm text-blue-700 mt-1">
+                          <span className="font-semibold">Remaining:</span> {remaining} {challenge.goalType} to reach goal
+                        </p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          How many {getGoalTypeLabel(challenge.goalType)}? *
+                        </label>
+                        <input
+                          type="number"
+                          value={logValue}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 0;
+                            if (val > remaining) {
+                              setLogValue(remaining);
+                            } else {
+                              setLogValue(e.target.value);
+                            }
+                          }}
+                          min="1"
+                          max={remaining}
+                          className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg font-semibold"
+                          placeholder={`Max: ${remaining}`}
+                        />
+                        {remaining > 0 && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Maximum: {remaining} {challenge.goalType} (to reach goal)
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Description (optional)
+                        </label>
+                        <textarea
+                          value={logDescription}
+                          onChange={(e) => setLogDescription(e.target.value)}
+                          rows="3"
+                          className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="What did you accomplish?"
+                        />
+                      </div>
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setShowLogForm(false)}
+                          className="flex-1 px-4 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
+                        >
+                          Submit Progress
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </>
+              )}
+
+              {/* Recent Activity Logs */}
+              {activities.length > 0 && (
+                <div className="bg-white border-2 border-gray-200 rounded-xl p-4 space-y-3">
+                  <h4 className="text-sm font-semibold text-gray-800">
+                    Recent Logs
+                  </h4>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {activities.map((act) => (
+                      <div
+                        key={act.id}
+                        className="flex items-start justify-between text-sm border-b border-gray-100 pb-2 last:border-b-0 last:pb-0"
+                      >
+                        <div className="mr-3">
+                          <div className="font-medium text-gray-800">
+                            {act.description || 'No description'}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {new Date(act.timestamp).toLocaleString()}
+                          </div>
+                        </div>
+                        <div className="text-right text-sm font-semibold text-blue-700">
+                          +{act.value} {getGoalTypeLabel(challenge.goalType)}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setShowLogForm(false)}
-                      className="flex-1 px-4 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition font-medium"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold"
-                    >
-                      Submit Progress
-                    </button>
-                  </div>
-                </form>
+                </div>
               )}
             </div>
           ) : (

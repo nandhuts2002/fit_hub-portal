@@ -1,6 +1,6 @@
 from flask import Flask
 from flask_cors import CORS
-from flask_jwt_extended import JWTManager
+from flask_jwt_extended import JWTManager, jwt_required, get_jwt_identity
 from server.auth import auth_bp
 from server.trainer import trainer_bp
 from server.admin import admin_bp
@@ -18,6 +18,7 @@ from server.upload import upload_bp
 from server.yoga_progress import yoga_progress_bp
 from server.exercise_progress import exercise_progress_bp
 from server.blog import blog_bp
+from server.svm_workout_classifier import WorkoutPerformanceClassifier
 from dotenv import load_dotenv
 import os
 from datetime import timedelta
@@ -70,6 +71,29 @@ app.register_blueprint(yoga_progress_bp, url_prefix='')
 app.register_blueprint(exercise_progress_bp, url_prefix='')
 app.register_blueprint(blog_bp, url_prefix='/blog')
 
+classifier = WorkoutPerformanceClassifier()
+
+@app.route('/api/predict-performance', methods=['POST'])
+@jwt_required()
+def predict_workout_performance():
+    try:
+        current_user = get_jwt_identity()
+        user_email = current_user if isinstance(current_user, str) else current_user.get('email')
+        if not user_email:
+            return jsonify({'ok': False, 'error': 'User email not found'}), 400
+        data = request.get_json() or {}
+        # Expect: { sets, totalReps, totalTime, caloriesBurned }
+        features = {
+            'sets': data.get('sets',0),
+            'totalReps': data.get('totalReps',0),
+            'totalTime': data.get('totalTime',0),
+            'caloriesBurned': data.get('caloriesBurned',0)
+        }
+        label = classifier.predict_next(user_email, features)
+        return jsonify({'ok': True, 'predictedPerformance': label})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
 # Add explicit handling for OPTIONS requests (CORS preflight)
 @app.route('/<path:path>', methods=['OPTIONS'])
 def handle_options(path):
@@ -104,7 +128,8 @@ def serve_static(filename):
         return send_from_directory('client/build/static', filename)
     except Exception as e:
         print(f"Error serving static file {filename}: {e}")
-        return jsonify({'error': 'Static file not found'}), 404
+        # Return 204 No Content instead of 404 for missing static assets to avoid console errors
+        return '', 204
 
 # Serve other static assets (favicon, manifest, etc.)
 @app.route('/favicon.ico')
@@ -112,21 +137,32 @@ def serve_favicon():
     try:
         return send_from_directory('client/build', 'favicon.ico')
     except:
-        return jsonify({'error': 'Favicon not found'}), 404
+        # Return 204 No Content instead of 404 to avoid console errors
+        return '', 204
 
 @app.route('/manifest.json')
 def serve_manifest():
     try:
         return send_from_directory('client/build', 'manifest.json')
     except:
-        return jsonify({'error': 'Manifest not found'}), 404
+        # Return empty manifest instead of 404
+        return jsonify({
+            'name': 'FitHub',
+            'short_name': 'FitHub',
+            'icons': [],
+            'start_url': '/',
+            'display': 'standalone',
+            'theme_color': '#000000',
+            'background_color': '#ffffff'
+        }), 200
 
 @app.route('/robots.txt')
 def serve_robots():
     try:
         return send_from_directory('client/build', 'robots.txt')
     except:
-        return jsonify({'error': 'Robots.txt not found'}), 404
+        # Return default robots.txt instead of 404
+        return Response('User-agent: *\nDisallow:', mimetype='text/plain'), 200
 
 # Serve other static assets
 @app.route('/<path:path>')
@@ -142,8 +178,9 @@ def serve_react_app(path):
         try:
             return send_from_directory('client/build', path)
         except:
-            # If static file not found, return 404
-            return jsonify({'error': 'File not found'}), 404
+            # For missing static files, return 204 to avoid console 404 errors
+            # This is common for missing images, fonts, etc.
+            return '', 204
     
     # For all other routes (React Router routes), serve index.html
     try:

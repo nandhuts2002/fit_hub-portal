@@ -18,14 +18,26 @@ const apiCall = async (endpoint, options = {}) => {
       ...options.headers
     }
   };
-  
+
   const response = await fetch(url, { ...defaultOptions, ...options });
-  
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+
+  let data = null;
+  try {
+    data = await response.json();
+  } catch (e) {
+    // Non‑JSON response; leave data as null
   }
-  
-  return response.json();
+
+  if (!response.ok) {
+    const backendMessage = data && (data.error || data.message);
+    const error = new Error(backendMessage || `HTTP ${response.status}: ${response.statusText}`);
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
+
+  // For successful responses, always return parsed JSON (may include { ok, data, ... })
+  return data;
 };
 
 // Challenges API
@@ -36,7 +48,9 @@ export const challengesApi = {
   join: (id) => apiCall(`/community/challenges/${id}/join`, { method: 'POST' }),
   leave: (id) => apiCall(`/community/challenges/${id}/leave`, { method: 'POST' }),
   getLeaderboard: (id) => apiCall(`/community/challenges/${id}/leaderboard`),
-  updateProgress: (id, data) => apiCall(`/community/challenges/${id}/progress`, { method: 'POST', body: JSON.stringify(data) })
+  updateProgress: (id, data) => apiCall(`/community/challenges/${id}/progress`, { method: 'POST', body: JSON.stringify(data) }),
+  resetProgress: (id) => apiCall(`/community/challenges/${id}/progress/reset`, { method: 'POST' }),
+  getMyProgress: (id) => apiCall(`/community/challenges/${id}/progress/me`)
 };
 
 // Badges API
@@ -75,6 +89,30 @@ export const interactivePostsApi = {
   tag: (id, data) => apiCall(`/community/posts/${id}/tag`, { method: 'POST', body: JSON.stringify(data) })
 };
 
+// Messenger API
+export const messengerApi = {
+  getThreads: () => apiCall('/community/messenger/threads'),
+  createThread: (data) => apiCall('/community/messenger/threads', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  }),
+  getMessages: (threadId, limit = 50) => apiCall(`/community/messenger/threads/${threadId}/messages?limit=${limit}`),
+  sendMessage: (threadId, data) => apiCall(`/community/messenger/threads/${threadId}/messages`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  })
+};
+
+// Gamification API
+export const gamificationApi = {
+  getSummary: () => apiCall('/community/gamification/summary'),
+  getLeaderboard: () => apiCall('/community/gamification/leaderboard'),
+  updateQuestProgress: (questId, data) => apiCall(`/community/gamification/quests/${questId}/progress`, {
+    method: 'POST',
+    body: JSON.stringify(data)
+  })
+};
+
 // Activity Summary API
 export const activityApi = {
   getUserSummary: (email) => apiCall(`/community/user/${email}/activity-summary`)
@@ -86,5 +124,7 @@ export default {
   qaApi,
   spotlightsApi,
   interactivePostsApi,
-  activityApi
+  activityApi,
+  messengerApi,
+  gamificationApi
 };

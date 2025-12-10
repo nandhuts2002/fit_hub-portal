@@ -76,6 +76,10 @@ user_progress_collection = db['user_progress']  # Activity logs and progress tra
 badges_collection = db['badges']  # Achievement badges system
 qa_sessions_collection = db['qa_sessions']  # Expert Q&A sessions
 spotlights_collection = db['spotlights']  # Transformation spotlights
+community_threads_collection = db['community_threads']  # Messenger threads
+community_messages_collection = db['community_messages']  # Messenger message history
+gamification_stats_collection = db['gamification_stats']  # XP, streaks, rewards
+gamification_quests_collection = db['gamification_quests']  # Quest definitions and rewards
 
 # Live Sessions
 live_sessions_collection = db['live_sessions']  # Live training sessions (Zoom/Meet)

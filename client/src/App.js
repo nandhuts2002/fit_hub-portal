@@ -17,6 +17,7 @@ import ShopPage from './pages/ShopPage';
 import WishlistPage from './pages/WishlistPage';
 import CartPage from './pages/CartPage';
 import CommunityPage from './pages/CommunityPage';
+import ExtendedCommunityPage from './components/community/ExtendedCommunityPage';
 import QueryDetailPage from './pages/QueryDetailPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
@@ -151,12 +152,13 @@ function App() {
             <CartPage />
           </ProtectedRoute>
         } />
-        {/* Community feed (Instagram-like) */}
+        {/* Community hub */}
         <Route path="/community" element={
           <ProtectedRoute>
-            <CommunityPage />
+            <ExtendedCommunityPage />
           </ProtectedRoute>
         } />
+        {/* Legacy posts view still available if needed */}
         <Route path="/community-posts" element={
           <ProtectedRoute>
             <CommunityPage />

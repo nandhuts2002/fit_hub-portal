@@ -27,6 +27,10 @@ from os import path as _path
 from flask import send_from_directory, Response, request, jsonify
 import requests
 from socketio_instance import socketio
+from svm_workout_classifier import WorkoutPerformanceClassifier
+from flask_jwt_extended import jwt_required, get_jwt_identity
+
+classifier = WorkoutPerformanceClassifier()
 
 load_dotenv(dotenv_path=_path.join(_path.dirname(__file__), '.env'), override=True)
 
@@ -40,10 +44,9 @@ VERCEL_BACKEND_URL = os.getenv('VERCEL_URL', 'https://fit-hub-portal-1.vercel.ap
 # CORS configuration - allow all origins for development and production
 CORS(app, 
     resources={r"/*": {
-        "origins": "*",  # Allow all origins for now
+        "origins": "*",  # Allow all origins
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"],
-        "supports_credentials": True
+        "allow_headers": ["Content-Type", "Authorization"]
     }}
 )
 
@@ -280,6 +283,37 @@ def proxy_bmi():
         return jsonify(data), r.status_code
     except requests.RequestException as e:
         return jsonify({'error': 'Upstream request failed', 'details': str(e)}), 502
+
+@app.route('/api/predict-performance', methods=['POST'])
+@jwt_required()
+def predict_workout_performance():
+    try:
+        current_user = get_jwt_identity()
+        user_email = current_user if isinstance(current_user, str) else current_user.get('email')
+        if not user_email:
+            return jsonify({'ok': False, 'error': 'User email not found'}), 400
+        data = request.get_json() or {}
+        # Expect: { sets, totalReps, totalTime, caloriesBurned }
+        features = {
+            'sets': data.get('sets', 0),
+            'totalReps': data.get('totalReps', 0),
+            'totalTime': data.get('totalTime', 0),
+            'caloriesBurned': data.get('caloriesBurned', 0)
+        }
+        label = classifier.predict_next(user_email, features)
+        return jsonify({'ok': True, 'predictedPerformance': label})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+@app.after_request
+def add_cors_headers(response):
+    try:
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+    except Exception:
+        pass
+    return response
 
 if __name__ == '__main__':
     try:

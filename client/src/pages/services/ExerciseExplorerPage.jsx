@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import customExerciseService from '../../utils/customExerciseService';
 import TrainerExerciseUpload from '../../components/TrainerExerciseUpload';
+import RepCounter from '../../components/RepCounter';
 import api from '../../utils/api';
 import SessionManager from '../../utils/sessionManager';
 
@@ -24,6 +25,8 @@ export default function ExerciseExplorerPage() {
   const [selectedExercise, setSelectedExercise] = useState(null);
   const [showExerciseModal, setShowExerciseModal] = useState(false);
   const [showTrackModal, setShowTrackModal] = useState(false);
+  const [showRepCounter, setShowRepCounter] = useState(false);
+  const [repCount, setRepCount] = useState(0);
   const [trackingData, setTrackingData] = useState({
     sets: 3,
     reps: 10,
@@ -32,6 +35,9 @@ export default function ExerciseExplorerPage() {
   });
   const [timeMinutes, setTimeMinutes] = useState(0);
   const [timeSeconds, setTimeSeconds] = useState(0);
+  const [predictedPerformance, setPredictedPerformance] = useState(null);
+  const [predicting, setPredicting] = useState(false);
+  const [predictionError, setPredictionError] = useState('');
 
   useEffect(() => {
     // Check if body part is specified in URL
@@ -175,6 +181,34 @@ export default function ExerciseExplorerPage() {
       alert('Failed to track progress. Please try again.');
     }
   };
+
+  const getPerformancePrediction = async (params) => {
+    try {
+      setPredicting(true);
+      setPredictionError('');
+      const res = await api.post('/api/predict-performance', params);
+      setPredictedPerformance(res.data.predictedPerformance || res.data.label || null);
+      setPredicting(false);
+    } catch (error) {
+      setPredictionError('Prediction unavailable');
+      setPredictedPerformance(null);
+      setPredicting(false);
+    }
+  };
+
+  // Update prediction when modal is open & any tracked fields change
+  useEffect(() => {
+    if (showTrackModal) {
+      const totalTimeInSeconds = (timeMinutes * 60) + timeSeconds;
+      getPerformancePrediction({
+        sets: trackingData.sets,
+        totalReps: trackingData.sets * trackingData.reps,
+        totalTime: totalTimeInSeconds,
+        caloriesBurned: 0 // actual backend logic will fallback/calcuate
+      });
+    }
+    // eslint-disable-next-line
+  }, [showTrackModal, trackingData.sets, trackingData.reps, timeMinutes, timeSeconds]);
 
 
   return (
@@ -382,20 +416,38 @@ export default function ExerciseExplorerPage() {
                   </details>
                 )}
                 
-                {/* Track Progress Button */}
-                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                {/* Action Buttons */}
+                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex gap-2">
+                  <button
+                    onClick={() => {
+                      setSelectedExercise(c);
+                      setShowRepCounter(true);
+                    }}
+                    className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1 ${
+                      isDark 
+                        ? 'bg-purple-600 hover:bg-purple-700 text-white' 
+                        : 'bg-purple-600 hover:bg-purple-700 text-white'
+                    }`}
+                    title="Start Rep Counter"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    Rep Counter
+                  </button>
                   <button
                     onClick={() => {
                       setSelectedExercise(c);
                       handleTrackProgress();
                     }}
-                    className={`w-full px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
+                    className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
                       isDark 
                         ? 'bg-blue-600 hover:bg-blue-700 text-white' 
                         : 'bg-blue-600 hover:bg-blue-700 text-white'
                     }`}
+                    title="Track Progress"
                   >
-                    📈 Track Progress
+                    📈 Track
                   </button>
                 </div>
               </div>
@@ -491,23 +543,35 @@ export default function ExerciseExplorerPage() {
                     )}
                   </div>
                   
-                  {/* Action Buttons for Trainers */}
-                  {selectedExercise.source === 'trainer' && localStorage.getItem('userRole') === 'trainer' && (
-                    <div className="flex gap-3">
+                  {/* Action Buttons */}
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        setShowExerciseModal(false);
+                        setShowRepCounter(true);
+                      }}
+                      className={`flex-1 px-4 py-2 rounded-lg font-medium ${isDark ? 'bg-purple-600 hover:bg-purple-700 text-white' : 'bg-purple-600 hover:bg-purple-700 text-white'} transition-colors flex items-center justify-center gap-2`}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      Start Rep Counter
+                    </button>
+                    {selectedExercise.source === 'trainer' && localStorage.getItem('userRole') === 'trainer' && (
                       <button
                         onClick={() => {
                           setShowExerciseModal(false);
                           deleteExercise(selectedExercise.id);
                         }}
-                        className={`flex-1 px-4 py-2 rounded-lg font-medium ${isDark ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-red-600 hover:bg-red-700 text-white'} transition-colors flex items-center justify-center gap-2`}
+                        className={`px-4 py-2 rounded-lg font-medium ${isDark ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-red-600 hover:bg-red-700 text-white'} transition-colors flex items-center justify-center gap-2`}
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
-                        Delete Exercise
+                        Delete
                       </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
 
                 {/* Instructions Section */}
@@ -671,6 +735,22 @@ export default function ExerciseExplorerPage() {
                 </p>
               </div>
 
+              {showTrackModal && (
+                <div style={{ marginBottom: '1rem', marginTop: '1rem' }}>
+                  {predicting ? (
+                    <div className='text-blue-600 font-semibold'>Predicting Performance…</div>
+                  ) : predictionError ? (
+                    <div className='text-red-600 font-semibold'>{predictionError}</div>
+                  ) : predictedPerformance ? (
+                    <div className={`text-lg font-bold rounded px-4 py-2 mt-3 mb-0 w-fit ${predictedPerformance==='high'?'bg-green-100 text-green-700':predictedPerformance==='medium'?'bg-orange-100 text-orange-700':'bg-red-100 text-red-700'}`}>{
+                        predictedPerformance.charAt(0).toUpperCase() + predictedPerformance.slice(1)
+                      } Performance
+                      <span className='block text-xs font-normal mt-1'>This is a live prediction for your next workout using your past progress.</span>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+
               {/* Notes */}
               <div>
                 <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -704,6 +784,21 @@ export default function ExerciseExplorerPage() {
             </div>
           </motion.div>
         </div>
+      )}
+
+      {/* Rep Counter Modal */}
+      {showRepCounter && selectedExercise && (
+        <RepCounter
+          exercise={selectedExercise}
+          onClose={() => {
+            setShowRepCounter(false);
+            // Optionally update tracking data with rep count
+            if (repCount > 0) {
+              setTrackingData(prev => ({ ...prev, reps: repCount }));
+            }
+          }}
+          onRepsCounted={(count) => setRepCount(count)}
+        />
       )}
     </div>
   );

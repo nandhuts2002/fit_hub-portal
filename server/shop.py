@@ -1482,7 +1482,18 @@ def create_order():
                 'status': payment_method.get('status') or ('pending' if (payment_method.get('type') or 'razorpay') == 'razorpay' else 'cod_pending'),
             },
             'created_at': datetime.utcnow(),
-            'updated_at': datetime.now(timezone.utc)
+            'updated_at': datetime.now(timezone.utc),
+            # Embed items for downstream analytics/recommendations
+            'items': [
+                {
+                    'product_id': it['product_id'],
+                    'quantity': it['quantity'],
+                    'unit_price': it['unit_price'],
+                    'total_price': it['total_price'],
+                    'variant': it.get('variant', {})
+                }
+                for it in order_items
+            ]
         }
         
         result = orders_collection.insert_one(order)
@@ -1928,6 +1939,23 @@ def get_product_recommendations(user_email):
         
         # Fetch orders and products data
         orders = list(orders_collection.find({}))
+        # Join order items if not embedded (backward compatibility)
+        for o in orders:
+            if not o.get('items'):
+                try:
+                    oid = o.get('_id')
+                    items = list(order_items_collection.find({'order_id': oid}))
+                except Exception:
+                    items = []
+                o['items'] = [
+                    {
+                        'product_id': str(item.get('product_id')),
+                        'quantity': item.get('quantity', 1),
+                        'unit_price': item.get('unit_price', 0),
+                        'total_price': item.get('total_price', 0)
+                    }
+                    for item in items
+                ]
         products = list(products_collection.find({}))
         
         # Initialize recommender
@@ -1994,6 +2022,23 @@ def get_recent_based_recommendations(user_email):
         
         # Fetch data
         orders = list(orders_collection.find({}))
+        # Join order items if not embedded (backward compatibility)
+        for o in orders:
+            if not o.get('items'):
+                try:
+                    oid = o.get('_id')
+                    items = list(order_items_collection.find({'order_id': oid}))
+                except Exception:
+                    items = []
+                o['items'] = [
+                    {
+                        'product_id': str(item.get('product_id')),
+                        'quantity': item.get('quantity', 1),
+                        'unit_price': item.get('unit_price', 0),
+                        'total_price': item.get('total_price', 0)
+                    }
+                    for item in items
+                ]
         products = list(products_collection.find({}))
         
         # Get recommendations
