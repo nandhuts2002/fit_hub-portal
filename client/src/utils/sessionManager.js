@@ -1,6 +1,6 @@
 class SessionManager {
   static STORAGE_KEY = 'fitness_app_session';
-  
+
   /**
    * Set user session data
    * @param {Object} userData - User data to store
@@ -27,21 +27,21 @@ class SessionManager {
     try {
       const sessionStr = localStorage.getItem(this.STORAGE_KEY);
       console.log('SessionManager.getSession - raw session:', sessionStr);
-      
+
       if (!sessionStr) return null;
-      
+
       const session = JSON.parse(sessionStr);
-      
+
       // Check if session is expired (24 hours)
       const now = Date.now();
       const oneDay = 24 * 60 * 60 * 1000;
-      
+
       if (now - session.timestamp > oneDay) {
         console.log('Session expired, clearing...');
         this.clearSession();
         return null;
       }
-      
+
       return session;
     } catch (error) {
       console.error('Failed to get session:', error);
@@ -67,13 +67,13 @@ class SessionManager {
     try {
       const session = this.getSession();
       console.log('SessionManager.isAuthenticated - session:', session);
-      
+
       // Legacy check for older session format
       if (!session) {
         const legacyToken = localStorage.getItem('token');
         const legacyUserName = localStorage.getItem('userName');
         console.log('SessionManager.isAuthenticated - legacy check:', { legacyToken: !!legacyToken, legacyUserName: !!legacyUserName });
-        
+
         if (legacyToken && legacyUserName) {
           // Migrate legacy session
           this.setSession({
@@ -91,12 +91,12 @@ class SessionManager {
         console.log('SessionManager.isAuthenticated - no valid session found');
         return false;
       }
-      
+
       // Validate session has required fields
       const isValid = !!(session.token && session.name && session.email);
-      console.log('SessionManager.isAuthenticated - validation result:', isValid, { 
-        hasToken: !!session.token, 
-        hasName: !!session.name, 
+      console.log('SessionManager.isAuthenticated - validation result:', isValid, {
+        hasToken: !!session.token,
+        hasName: !!session.name,
         hasEmail: !!session.email,
         token: session.token ? 'present' : 'missing',
         name: session.name ? 'present' : 'missing',
@@ -116,7 +116,7 @@ class SessionManager {
     try {
       console.log('SessionManager.clearSession called');
       localStorage.removeItem(this.STORAGE_KEY);
-      
+
       // Also clear legacy items if they exist
       localStorage.removeItem('token');
       localStorage.removeItem('userName');
