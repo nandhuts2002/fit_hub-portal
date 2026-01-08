@@ -21,6 +21,7 @@ const ExtendedCommunityPage = () => {
   const [newPostText, setNewPostText] = useState('');
   const [newPostImage, setNewPostImage] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
+  const [targetChatUser, setTargetChatUser] = useState(null);
 
   const tabs = [
     { id: 'feed', label: 'Feed', icon: Users },
@@ -84,7 +85,7 @@ const ExtendedCommunityPage = () => {
 
   const fetchActivitySummary = async () => {
     if (!userEmail) return;
-    
+
     try {
       const response = await fetch(`/community/user/${userEmail}/activity-summary`);
       const data = await response.json();
@@ -159,6 +160,13 @@ const ExtendedCommunityPage = () => {
     console.log('Comment on post:', postId);
   };
 
+  const handleMessage = (email) => {
+    if (email) {
+      setTargetChatUser(email);
+      setActiveTab('messenger');
+    }
+  };
+
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -178,7 +186,7 @@ const ExtendedCommunityPage = () => {
 
   const handleCreatePost = async (e) => {
     e.preventDefault();
-    
+
     if (!newPostText.trim() && !newPostImage) {
       alert('Please add some text or an image to your post');
       return;
@@ -187,9 +195,9 @@ const ExtendedCommunityPage = () => {
     try {
       const currentUser = SessionManager.getCurrentUser();
       const token = currentUser?.token;
-      
+
       let imageUrl = null;
-      
+
       // Handle image upload if present
       if (newPostImage) {
         try {
@@ -200,13 +208,13 @@ const ExtendedCommunityPage = () => {
           return;
         }
       }
-      
+
       // Create post with or without image
       const postData = {
         text: newPostText,
         imageUrl: imageUrl
       };
-      
+
       const response = await fetch('/community/posts', {
         method: 'POST',
         headers: {
@@ -215,18 +223,18 @@ const ExtendedCommunityPage = () => {
         },
         body: JSON.stringify(postData)
       });
-      
+
       const data = await response.json();
       if (!data.ok) {
         throw new Error(data.error || 'Failed to create post');
       }
-      
+
       // Reset form
       setNewPostText('');
       setNewPostImage(null);
       setPreviewImage(null);
       setShowCreatePost(false);
-      
+
       // Refresh posts
       fetchPosts();
     } catch (error) {
@@ -286,11 +294,10 @@ const ExtendedCommunityPage = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                    activeTab === tab.id
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
+                  className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
                 >
                   <Icon className="w-4 h-4" />
                   {tab.label}
@@ -317,20 +324,20 @@ const ExtendedCommunityPage = () => {
                 <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
-                    <button 
+                    <button
                       onClick={() => setShowCreatePost(!showCreatePost)}
                       className="flex-1 text-left px-4 py-3 bg-gray-100 text-gray-500 rounded-full hover:bg-gray-200 transition-colors"
                     >
                       What's on your mind? Share your fitness journey...
                     </button>
-                    <button 
+                    <button
                       onClick={() => setShowCreatePost(!showCreatePost)}
                       className="p-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
                     >
                       <Plus className="w-5 h-5" />
                     </button>
                   </div>
-                  
+
                   {/* Post Creation Form */}
                   {showCreatePost && (
                     <motion.div
@@ -347,12 +354,12 @@ const ExtendedCommunityPage = () => {
                           className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           rows="3"
                         />
-                        
+
                         {previewImage && (
                           <div className="mt-3 relative">
-                            <img 
-                              src={previewImage} 
-                              alt="Preview" 
+                            <img
+                              src={previewImage}
+                              alt="Preview"
                               className="max-h-64 rounded-lg object-contain"
                             />
                             <button
@@ -366,7 +373,7 @@ const ExtendedCommunityPage = () => {
                             </button>
                           </div>
                         )}
-                        
+
                         <div className="flex items-center justify-between mt-3">
                           <label className="flex items-center gap-2 cursor-pointer text-gray-600 hover:text-blue-600">
                             <ImageIcon className="w-5 h-5" />
@@ -378,7 +385,7 @@ const ExtendedCommunityPage = () => {
                               className="hidden"
                             />
                           </label>
-                          
+
                           <div className="flex gap-2">
                             <button
                               type="button"
@@ -415,6 +422,7 @@ const ExtendedCommunityPage = () => {
                       onComment={handleComment}
                       onReact={handleReact}
                       onVote={handleVote}
+                      onMessage={handleMessage}
                     />
                   ))}
                 </div>
@@ -425,7 +433,7 @@ const ExtendedCommunityPage = () => {
             {activeTab === 'badges' && <BadgesSection userEmail={userEmail} />}
             {activeTab === 'qa' && <QASection />}
             {activeTab === 'spotlights' && <SpotlightsSection />}
-            {activeTab === 'messenger' && <MessengerPanel userEmail={userEmail} />}
+            {activeTab === 'messenger' && <MessengerPanel userEmail={userEmail} targetChatUser={targetChatUser} />}
             {activeTab === 'gamification' && (
               <GamificationPanel activitySummary={activitySummary} />
             )}

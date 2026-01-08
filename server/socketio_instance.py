@@ -13,4 +13,11 @@ socketio = SocketIO(
     transports=['websocket', 'polling']
 )
 
+# Define namespace handlers to allow connections
+@socketio.on('connect', namespace='/community')
+def handle_community_connect():
+    print('[SOCKET] Client connected to /community namespace')
 
+@socketio.on('disconnect', namespace='/community')
+def handle_community_disconnect():
+    print('[SOCKET] Client disconnected from /community namespace')

@@ -74,7 +74,7 @@ from models import (
     order_items_collection,
     reviews_collection,
     inventory_collection,
-    coupons_collection,
+    coupons_collection, user_coupons_collection,
     addresses_collection,
     payment_methods_collection,
     shipping_collection
@@ -1503,6 +1503,24 @@ def create_order():
         for item in order_items:
             item['order_id'] = ObjectId(order_id)
             order_items_collection.insert_one(item)
+        
+        # Mark coupon as used if it was a user-specific coupon
+        if coupon_code:
+            user_coupon = user_coupons_collection.find_one({
+                'user_email': user_email,
+                'coupon_code': coupon_code
+            })
+            if user_coupon:
+                user_coupons_collection.update_one(
+                    {'_id': user_coupon['_id']},
+                    {
+                        '$set': {
+                            'is_used': True,
+                            'used_at': datetime.utcnow()
+                        }
+                    }
+                )
+                print(f"[ORDER] Marked coupon {coupon_code} as used for user {user_email}")
             
         # Update inventory
         for item in items:
@@ -1623,10 +1641,18 @@ def create_review(product_id):
 
 # COUPONS API
 @shop_bp.route('/api/coupons/validate', methods=['POST'])
+@jwt_required(optional=True)  # Allow optional authentication
 def validate_coupon():
     try:
         data = request.get_json()
         code = data.get('code')
+        print(f"[COUPON] Validating coupon code: {code}")
+        
+        # Get user email if authenticated
+        identity = get_jwt_identity()
+        user_email = None
+        if identity:
+            user_email = _get_email_from_identity(identity)
         
         coupon = coupons_collection.find_one({
             'code': code,
@@ -1634,8 +1660,36 @@ def validate_coupon():
             'expires_at': {'$gt': datetime.utcnow()}
         })
         
+        print(f"[COUPON] Found coupon: {coupon}")
+        
         if not coupon:
+            print(f"[COUPON] Invalid or expired coupon: {code}")
             return jsonify({'success': False, 'error': 'Invalid or expired coupon'}), 400
+        
+        # Check if coupon is user-specific
+        coupon_user = coupon.get('user_email')
+        if coupon_user and user_email:
+            # Normalize emails for comparison
+            coupon_user_normalized = coupon_user.lower().strip()
+            user_email_normalized = user_email.lower().strip()
+            
+            if coupon_user_normalized != user_email_normalized:
+                print(f"[COUPON] Coupon {code} is for {coupon_user}, but user is {user_email}")
+                return jsonify({'success': False, 'error': 'This coupon is not available for your account'}), 403
+            
+            # Check if coupon has already been used (for user-specific coupons)
+            user_coupon = user_coupons_collection.find_one({
+                'user_email': user_email,
+                'coupon_code': code
+            })
+            
+            if user_coupon and user_coupon.get('is_used', False):
+                print(f"[COUPON] Coupon {code} already used by user")
+                return jsonify({'success': False, 'error': 'This coupon has already been used'}), 400
+        
+        elif coupon_user and not user_email:
+            # User-specific coupon but user not authenticated
+            return jsonify({'success': False, 'error': 'Please login to use this coupon'}), 401
             
         return jsonify({
             'success': True,
@@ -1643,11 +1697,68 @@ def validate_coupon():
                 'code': coupon['code'],
                 'type': coupon['type'],
                 'value': coupon['value'],
-                'description': coupon.get('description', '')
+                'description': coupon.get('description', ''),
+                'max_discount': coupon.get('max_discount'),
+                'min_amount': coupon.get('min_amount', 0)
             }
         })
         
     except Exception as e:
+        print(f"[COUPON] Error validating coupon: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# Initialize coupons endpoint
+@shop_bp.route('/api/init-coupons', methods=['POST'])
+def init_coupons():
+    """Initialize sample coupons in the database"""
+    try:
+        # Sample coupons
+        coupons = [
+            {
+                'code': 'WELCOME10',
+                'type': 'percentage',
+                'value': 10,
+                'description': '10% off for new customers',
+                'min_amount': 1000,
+                'max_discount': 500,
+                'is_active': True,
+                'expires_at': datetime.utcnow() + timedelta(days=30)
+            },
+            {
+                'code': 'FITNESS20',
+                'type': 'fixed',
+                'value': 200,
+                'description': '₹200 off on orders above ₹2000',
+                'min_amount': 2000,
+                'max_discount': 200,
+                'is_active': True,
+                'expires_at': datetime.utcnow() + timedelta(days=60)
+            },
+            {
+                'code': 'MEGA50',
+                'type': 'fixed',
+                'value': 500,
+                'description': '₹500 off on orders above ₹5000',
+                'min_amount': 5000,
+                'max_discount': 500,
+                'is_active': True,
+                'expires_at': datetime.utcnow() + timedelta(days=90)
+            }
+        ]
+        
+        # Clear existing coupons and insert new ones
+        coupons_collection.delete_many({})
+        coupons_collection.insert_many(coupons)
+        
+        print(f"[COUPON] Initialized {len(coupons)} coupons")
+        return jsonify({
+            'success': True,
+            'message': f'{len(coupons)} coupons initialized successfully',
+            'coupons': [{'code': c['code'], 'description': c['description']} for c in coupons]
+        })
+        
+    except Exception as e:
+        print(f"[COUPON] Error initializing coupons: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # Initialize sample data
@@ -1854,6 +1965,12 @@ def get_notifications(user_email):
             print(f"Authorization failed - Current user: {current_user_email}, Requested: {decoded_email}")
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
+        # Get read notifications for this user (stored in a simple collection)
+        from models import db
+        read_notifications_collection = db['read_notifications']
+        user_read_notifs = read_notifications_collection.find_one({'user_email': decoded_email}) or {}
+        read_notif_ids = set(user_read_notifs.get('notification_ids', []))
+
         # Synthesize notifications from recent order updates as a simple, zero-DB model demo
         orders = list(orders_collection.find({'user_email': decoded_email}).sort('updated_at', -1))
 
@@ -1880,16 +1997,17 @@ def get_notifications(user_email):
                 notif_type = 'order_cancelled'
                 message = f"Order {order_number} was cancelled."
 
+            notif_id = str(order.get('_id')) + '_' + status.lower()
             notifications.append({
-                'id': str(order.get('_id')) + '_' + status.lower(),
+                'id': notif_id,
                 'type': notif_type,
                 'title': f"Order {order_number}",
                 'message': message,
-                'read': False,
+                'read': notif_id in read_notif_ids,  # Check if user has marked this as read
                 'createdAt': updated_at.isoformat() + 'Z'
             })
 
-        print(f"Returning {len(notifications)} notifications to client")
+        print(f"Returning {len(notifications)} notifications to client ({len(read_notif_ids)} marked as read)")
         return jsonify({'success': True, 'notifications': notifications})
         
     except Exception as e:
@@ -1911,8 +2029,21 @@ def mark_notification_read(user_email):
         if not notification_id:
             return jsonify({'success': False, 'error': 'Notification ID required'}), 400
 
-        # In a real app, this would update the notification in the database
-        # For now, just return success
+        # Store the read notification ID for this user
+        from models import db
+        read_notifications_collection = db['read_notifications']
+        
+        # Use $addToSet to add notification_id to the array if it doesn't exist
+        read_notifications_collection.update_one(
+            {'user_email': user_email},
+            {
+                '$addToSet': {'notification_ids': notification_id},
+                '$set': {'updated_at': datetime.now(timezone.utc)}
+            },
+            upsert=True
+        )
+        
+        print(f"[NOTIFICATION] Marked {notification_id} as read for {user_email}")
         return jsonify({'success': True, 'message': 'Notification marked as read'})
         
     except Exception as e:

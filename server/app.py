@@ -42,11 +42,14 @@ VERCEL_FRONTEND_URL = os.getenv('VERCEL_FRONTEND_URL', 'https://fit-hub-portal-2
 VERCEL_BACKEND_URL = os.getenv('VERCEL_URL', 'https://fit-hub-portal-1.vercel.app')
 
 # CORS configuration - allow all origins for development and production
+# CORS configuration - allow all origins for development and production
 CORS(app, 
     resources={r"/*": {
-        "origins": "*",  # Allow all origins
+        "origins": [FRONTEND_URL, VERCEL_FRONTEND_URL, "http://localhost:3000"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"]
+        "allow_headers": ["Content-Type", "Authorization"],
+        "expose_headers": ["Content-Range", "X-Content-Range"],
+        "supports_credentials": True
     }}
 )
 
@@ -305,15 +308,7 @@ def predict_workout_performance():
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
-@app.after_request
-def add_cors_headers(response):
-    try:
-        response.headers['Access-Control-Allow-Origin'] = '*'
-        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-    except Exception:
-        pass
-    return response
+
 
 if __name__ == '__main__':
     try:

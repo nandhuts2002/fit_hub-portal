@@ -118,6 +118,11 @@ export const activityApi = {
   getUserSummary: (email) => apiCall(`/community/user/${email}/activity-summary`)
 };
 
+// Coupons API
+export const couponsApi = {
+  getMyCoupons: () => apiCall('/community/coupons/my-coupons')
+};
+
 export default {
   challengesApi,
   badgesApi,
@@ -126,5 +131,6 @@ export default {
   interactivePostsApi,
   activityApi,
   messengerApi,
-  gamificationApi
+  gamificationApi,
+  couponsApi
 };

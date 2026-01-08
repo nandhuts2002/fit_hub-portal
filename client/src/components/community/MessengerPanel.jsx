@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Loader2, MessageSquarePlus, Send, Users } from 'lucide-react';
 import { messengerApi } from '../../utils/communityExtendedApi';
+import { getCommunitySocket } from '../../utils/communityService';
 
 const formatTime = (timestamp) => {
   if (!timestamp) return '';
@@ -14,7 +15,8 @@ const formatDate = (timestamp) => {
   return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
 };
 
-const MessengerPanel = ({ userEmail }) => {
+const MessengerPanel = ({ userEmail, targetChatUser }) => {
+  console.log('[MESSENGER] Component mounted with userEmail:', userEmail, 'targetChatUser:', targetChatUser);
   const [threads, setThreads] = useState([]);
   const [selectedThreadId, setSelectedThreadId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -47,17 +49,22 @@ const MessengerPanel = ({ userEmail }) => {
     if (!userEmail) return;
     setLoadingThreads(true);
     setError('');
+    console.log('[MESSENGER] Loading threads for user:', userEmail);
     try {
       const response = await messengerApi.getThreads();
+      console.log('[MESSENGER] getThreads response:', response);
       if (response.ok) {
         setThreads(response.data);
+        console.log('[MESSENGER] Loaded threads:', response.data);
         if (!selectedThreadId && response.data.length) {
           setSelectedThreadId(response.data[0].id);
         }
       } else {
+        console.error('[MESSENGER] Error loading threads:', response.error);
         setError(response.error || 'Unable to fetch conversations');
       }
     } catch (err) {
+      console.error('[MESSENGER] Exception loading threads:', err);
       setError(err.message || 'Unable to fetch conversations');
     } finally {
       setLoadingThreads(false);
@@ -83,10 +90,85 @@ const MessengerPanel = ({ userEmail }) => {
   }, []);
 
   useEffect(() => {
+    console.log('[MESSENGER] useEffect triggered - userEmail:', userEmail);
     if (userEmail) {
       loadThreads();
+    } else {
+      console.warn('[MESSENGER] userEmail is empty, not loading threads');
     }
   }, [userEmail, loadThreads]);
+
+  // Handle target chat user (start chat from post)
+  useEffect(() => {
+    if (targetChatUser && threads.length > 0 && !loadingThreads) {
+      // Check if we already have a DM with this user
+      const existingThread = threads.find(t =>
+        t.type === 'direct' &&
+        t.members.some(m => m.toLowerCase() === targetChatUser.toLowerCase())
+      );
+
+      if (existingThread) {
+        setSelectedThreadId(existingThread.id);
+      } else {
+        // Prepare to create a new thread
+        setShowComposer(true);
+        setNewThreadMembers(targetChatUser);
+        // Optional: Auto-submit or just let user confirm
+      }
+    }
+  }, [targetChatUser, threads, loadingThreads]);
+
+  // Socket.IO Real-time updates
+  useEffect(() => {
+    const socket = getCommunitySocket();
+    if (!socket) return;
+
+    if (!socket.connected) {
+      socket.connect();
+    }
+
+    const onNewMessage = (data) => {
+      // data: { threadId, message }
+      const { threadId, message } = data;
+
+      // 1. Update threads list (move to top, update preview)
+      setThreads(prev => {
+        const idx = prev.findIndex(t => t.id === threadId);
+        if (idx === -1) {
+          // New thread we don't know about yet? Refresh threads
+          loadThreads();
+          return prev;
+        }
+
+        const updatedThread = {
+          ...prev[idx],
+          last_message_at: message.created_at,
+          lastMessage: message,
+          lastMessagePreview: message.content
+        };
+
+        const newThreads = [...prev];
+        newThreads.splice(idx, 1);
+        newThreads.unshift(updatedThread);
+        return newThreads;
+      });
+
+      // 2. If this is the active thread, append message
+      if (selectedThreadId === threadId) {
+        setMessages(prev => {
+          // Avoid duplicates if we sent it ourselves and it came back via socket
+          if (prev.some(m => m.id === message.id)) return prev;
+          return [...prev, message];
+        });
+      }
+    };
+
+    socket.on('messenger:new_message', onNewMessage);
+
+    return () => {
+      socket.off('messenger:new_message', onNewMessage);
+    };
+  }, [selectedThreadId, loadThreads]);
 
   useEffect(() => {
     if (selectedThreadId) {
@@ -161,9 +243,8 @@ const MessengerPanel = ({ userEmail }) => {
       <button
         key={thread.id}
         onClick={() => setSelectedThreadId(thread.id)}
-        className={`w-full text-left px-4 py-3 rounded-xl transition ${
-          isActive ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50'
-        }`}
+        className={`w-full text-left px-4 py-3 rounded-xl transition ${isActive ? 'bg-blue-50 border border-blue-200' : 'hover:bg-gray-50'
+          }`}
       >
         <div className="flex items-center justify-between">
           <p className="font-semibold text-gray-900 truncate">{thread.name}</p>
@@ -187,9 +268,8 @@ const MessengerPanel = ({ userEmail }) => {
         className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
       >
         <div
-          className={`max-w-[75%] rounded-2xl px-4 py-3 shadow-sm ${
-            isMine ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-gray-900 rounded-bl-none'
-          }`}
+          className={`max-w-[75%] rounded-2xl px-4 py-3 shadow-sm ${isMine ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-gray-900 rounded-bl-none'
+            }`}
         >
           <div className="flex items-center justify-between gap-4">
             <p className="text-sm font-semibold">{isMine ? 'You' : message.senderName}</p>
@@ -208,9 +288,8 @@ const MessengerPanel = ({ userEmail }) => {
               {message.attachments.map((item, index) => (
                 <span
                   key={index}
-                  className={`text-xs px-3 py-1 rounded-full ${
-                    isMine ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'
-                  }`}
+                  className={`text-xs px-3 py-1 rounded-full ${isMine ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-700'
+                    }`}
                 >
                   {item.label || 'Attachment'}
                 </span>

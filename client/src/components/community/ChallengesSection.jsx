@@ -5,6 +5,7 @@ import { validateChallenge } from '../../utils/formValidation';
 import { challengesApi } from '../../utils/communityExtendedApi';
 import { useToast } from '../../contexts/ToastContext';
 import SessionManager from '../../utils/sessionManager';
+import ScratchCard from './ScratchCard';
 
 const ChallengesSection = ({ onSwitchToProgress }) => {
   const [challenges, setChallenges] = useState([]);
@@ -17,11 +18,13 @@ const ChallengesSection = ({ onSwitchToProgress }) => {
   const [showChallengeDetails, setShowChallengeDetails] = useState(null);
   const [userProgress, setUserProgress] = useState(null);
   const [loadingProgress, setLoadingProgress] = useState(false);
+  const [showRewardModal, setShowRewardModal] = useState(false);
+  const [rewardData, setRewardData] = useState(null);
   const { showSuccess, showError, showWarning, showInfo } = useToast();
 
   useEffect(() => {
     fetchChallenges();
-    
+
     // Get current user info
     const currentUser = SessionManager.getCurrentUser();
     const token = currentUser?.token;
@@ -69,11 +72,11 @@ const ChallengesSection = ({ onSwitchToProgress }) => {
         setLoadingProgress(false);
         return;
       }
-      
+
       console.log('[fetchChallengeProgress] Fetching MY progress for challenge:', challengeId);
       const progressData = await challengesApi.getMyProgress(challengeId);
       console.log('[fetchChallengeProgress] My progress data:', progressData);
-      
+
       if (progressData.ok && progressData.data) {
         setUserProgress(progressData.data);
       } else {
@@ -96,7 +99,7 @@ const ChallengesSection = ({ onSwitchToProgress }) => {
 
     try {
       setJoiningChallengeId(challengeId);
-      
+
       const currentUser = SessionManager.getCurrentUser();
       const token = currentUser?.token;
       if (!token) {
@@ -134,7 +137,7 @@ const ChallengesSection = ({ onSwitchToProgress }) => {
 
   const leaveChallenge = async (challengeId) => {
     console.log('Leave challenge clicked for ID:', challengeId);
-    
+
     if (!window.confirm('Are you sure you want to leave this challenge? Your progress will be lost.')) {
       console.log('User cancelled leave challenge');
       return;
@@ -144,7 +147,7 @@ const ChallengesSection = ({ onSwitchToProgress }) => {
       console.log('Calling challengesApi.leave for ID:', challengeId);
       const data = await challengesApi.leave(challengeId);
       console.log('Leave challenge response:', data);
-      
+
       if (data.ok) {
         showSuccess('Successfully left challenge!');
         // Wait for the refresh to complete before UI updates
@@ -285,7 +288,7 @@ const ChallengesSection = ({ onSwitchToProgress }) => {
                 <p className="text-gray-600 text-base mb-4 line-clamp-3">
                   {challenge.description}
                 </p>
-                
+
                 {/* Challenge Stats */}
                 <div className="flex items-center justify-between text-base text-gray-600 font-medium">
                   <div className="flex items-center gap-2">
@@ -307,10 +310,10 @@ const ChallengesSection = ({ onSwitchToProgress }) => {
                     Goal: {challenge.goalValue} {challenge.goalType}
                   </span>
                 </div>
-                
+
                 {/* Progress Bar */}
                 <div className="w-full bg-gray-200 rounded-full h-3 mb-5">
-                  <div 
+                  <div
                     className="bg-blue-500 h-3 rounded-full transition-all duration-300"
                     style={{ width: '45%' }}
                   ></div>
@@ -321,7 +324,7 @@ const ChallengesSection = ({ onSwitchToProgress }) => {
                   {(() => {
                     const userEmail = currentUser?.email ? String(currentUser.email).toLowerCase().trim() : '';
                     const rawParticipants = challenge.participants || [];
-                    
+
                     // Comprehensive normalization to handle all possible formats
                     const normalizedParticipants = rawParticipants
                       .filter(p => p) // Remove null/undefined
@@ -339,9 +342,9 @@ const ChallengesSection = ({ onSwitchToProgress }) => {
                         return String(p).toLowerCase().trim();
                       })
                       .filter(email => email.length > 0); // Remove empty strings
-                    
+
                     const isParticipant = userEmail && normalizedParticipants.includes(userEmail);
-                    
+
                     // Enhanced debug logging
                     console.log('=== CHALLENGE PARTICIPATION CHECK ===');
                     console.log('Challenge:', challenge.name);
@@ -351,14 +354,14 @@ const ChallengesSection = ({ onSwitchToProgress }) => {
                     console.log('Normalized participants:', normalizedParticipants);
                     console.log('Is participant:', isParticipant);
                     console.log('================================');
-                    
+
                     const isJoining = joiningChallengeId === challenge.id;
-                    
+
                     if (isParticipant) {
                       // For now, we'll show the button as active since we need to fetch progress per challenge
                       // TODO: Implement per-challenge progress checking
                       const isCompleted = false;
-                      
+
                       return (
                         <>
                           <button
@@ -369,11 +372,10 @@ const ChallengesSection = ({ onSwitchToProgress }) => {
                               }
                               onSwitchToProgress?.();
                             }}
-                            className={`w-full px-4 py-3 text-white text-sm font-bold rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 ${
-                              isCompleted 
-                                ? 'bg-green-600 hover:bg-green-700 cursor-not-allowed' 
-                                : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
-                            }`}
+                            className={`w-full px-4 py-3 text-white text-sm font-bold rounded-lg transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 ${isCompleted
+                              ? 'bg-green-600 hover:bg-green-700 cursor-not-allowed'
+                              : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'
+                              }`}
                             disabled={isCompleted}
                           >
                             <TrendingUp className="w-4 h-4" />
@@ -409,23 +411,22 @@ const ChallengesSection = ({ onSwitchToProgress }) => {
                         <button
                           onClick={() => joinChallenge(challenge.id)}
                           disabled={isJoining}
-                          className={`w-full px-4 py-3 text-white text-base font-bold rounded-lg transition-colors ${
-                            isJoining 
-                              ? 'bg-gray-400 cursor-not-allowed' 
-                              : 'bg-blue-600 hover:bg-blue-700'
-                          }`}
+                          className={`w-full px-4 py-3 text-white text-base font-bold rounded-lg transition-colors ${isJoining
+                            ? 'bg-gray-400 cursor-not-allowed'
+                            : 'bg-blue-600 hover:bg-blue-700'
+                            }`}
                         >
                           {isJoining ? 'Joining...' : 'Join Challenge'}
                         </button>
                       );
                     }
                   })()}
-                  
+
                   {/* Organized button layout */}
                   {(() => {
                     const userEmail = currentUser?.email ? String(currentUser.email).toLowerCase().trim() : '';
                     const rawParticipantsGrid = challenge.participants || [];
-                    
+
                     // Use same normalization logic as above for consistency
                     const normalizedParticipants = rawParticipantsGrid
                       .filter(p => p)
@@ -440,9 +441,9 @@ const ChallengesSection = ({ onSwitchToProgress }) => {
                         return String(p).toLowerCase().trim();
                       })
                       .filter(email => email.length > 0);
-                    
+
                     const isParticipantGrid = userEmail && normalizedParticipants.includes(userEmail);
-                    
+
                     console.log('=== GRID BUTTON CHECK ===');
                     console.log('Grid - Challenge:', challenge.name);
                     console.log('Grid - User email:', userEmail);
@@ -452,73 +453,73 @@ const ChallengesSection = ({ onSwitchToProgress }) => {
                     console.log('========================');
 
                     return (
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      onClick={() => {
-                        setShowChallengeDetails(challenge);
-                        fetchChallengeProgress(challenge.id);
-                        fetchLeaderboard(challenge.id);
-                      }}
-                      className="px-3 py-2.5 bg-purple-600 text-white text-sm font-semibold rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <TrendingUp className="w-4 h-4" />
-                      Track Progress
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSelectedChallenge(challenge);
-                        fetchLeaderboard(challenge.id);
-                      }}
-                      className="px-3 py-2.5 bg-orange-600 text-white text-sm font-semibold rounded-lg hover:bg-orange-700 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Trophy className="w-4 h-4" />
-                      Leaderboard
-                    </button>
-                    <button
-                      onClick={() => {
-                        setShowChallengeDetails(challenge);
-                        fetchChallengeProgress(challenge.id);
-                        fetchLeaderboard(challenge.id);
-                      }}
-                      className="px-3 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
-                    >
-                      <Target className="w-4 h-4" />
-                      View Details
-                    </button>
-                    {isParticipantGrid ? (
-                      <button
-                        onClick={() => {
-                          console.log('Leave button clicked for challenge:', challenge.id);
-                          leaveChallenge(challenge.id);
-                        }}
-                        className="px-3 py-2.5 text-red-600 hover:text-red-700 border-2 border-red-300 rounded-lg hover:bg-red-50 transition-colors flex items-center justify-center gap-2 font-semibold text-sm"
-                        title="Leave challenge"
-                      >
-                        <X className="w-4 h-4" />
-                        Leave
-                      </button>
-                    ) : canDeleteChallenge() ? (
-                      <button
-                        onClick={() => handleDeleteChallenge(challenge.id)}
-                        className="px-3 py-2.5 text-red-600 hover:text-red-700 border-2 border-red-300 rounded-lg hover:bg-red-50 transition-colors flex items-center justify-center gap-2 font-semibold text-sm"
-                        title="Delete challenge"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        Delete
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          showInfo('You are not currently participating in this challenge. Click "Join Challenge" to participate.');
-                        }}
-                        className="px-3 py-2.5 text-gray-600 hover:text-gray-700 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 font-semibold text-sm"
-                        title="Not participating"
-                      >
-                        <Eye className="w-4 h-4" />
-                        View
-                      </button>
-                    )}
-                  </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          onClick={() => {
+                            setShowChallengeDetails(challenge);
+                            fetchChallengeProgress(challenge.id);
+                            fetchLeaderboard(challenge.id);
+                          }}
+                          className="px-3 py-2.5 bg-purple-600 text-white text-sm font-semibold rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
+                        >
+                          <TrendingUp className="w-4 h-4" />
+                          Track Progress
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedChallenge(challenge);
+                            fetchLeaderboard(challenge.id);
+                          }}
+                          className="px-3 py-2.5 bg-orange-600 text-white text-sm font-semibold rounded-lg hover:bg-orange-700 transition-colors flex items-center justify-center gap-2"
+                        >
+                          <Trophy className="w-4 h-4" />
+                          Leaderboard
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowChallengeDetails(challenge);
+                            fetchChallengeProgress(challenge.id);
+                            fetchLeaderboard(challenge.id);
+                          }}
+                          className="px-3 py-2.5 bg-green-600 text-white text-sm font-semibold rounded-lg hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                        >
+                          <Target className="w-4 h-4" />
+                          View Details
+                        </button>
+                        {isParticipantGrid ? (
+                          <button
+                            onClick={() => {
+                              console.log('Leave button clicked for challenge:', challenge.id);
+                              leaveChallenge(challenge.id);
+                            }}
+                            className="px-3 py-2.5 text-red-600 hover:text-red-700 border-2 border-red-300 rounded-lg hover:bg-red-50 transition-colors flex items-center justify-center gap-2 font-semibold text-sm"
+                            title="Leave challenge"
+                          >
+                            <X className="w-4 h-4" />
+                            Leave
+                          </button>
+                        ) : canDeleteChallenge() ? (
+                          <button
+                            onClick={() => handleDeleteChallenge(challenge.id)}
+                            className="px-3 py-2.5 text-red-600 hover:text-red-700 border-2 border-red-300 rounded-lg hover:bg-red-50 transition-colors flex items-center justify-center gap-2 font-semibold text-sm"
+                            title="Delete challenge"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            Delete
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              showInfo('You are not currently participating in this challenge. Click "Join Challenge" to participate.');
+                            }}
+                            className="px-3 py-2.5 text-gray-600 hover:text-gray-700 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 font-semibold text-sm"
+                            title="Not participating"
+                          >
+                            <Eye className="w-4 h-4" />
+                            View
+                          </button>
+                        )}
+                      </div>
                     );
                   })()}
                 </div>
@@ -573,17 +574,15 @@ const ChallengesSection = ({ onSwitchToProgress }) => {
                     {leaderboard.map((entry, index) => (
                       <div
                         key={entry.userEmail}
-                        className={`flex items-center gap-4 p-3 rounded-lg ${
-                          index < 3 ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200' : 'bg-gray-50'
-                        }`}
+                        className={`flex items-center gap-4 p-3 rounded-lg ${index < 3 ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200' : 'bg-gray-50'
+                          }`}
                       >
                         {/* Rank */}
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
-                          index === 0 ? 'bg-yellow-500 text-white' :
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${index === 0 ? 'bg-yellow-500 text-white' :
                           index === 1 ? 'bg-gray-400 text-white' :
-                          index === 2 ? 'bg-orange-500 text-white' :
-                          'bg-gray-200 text-gray-600'
-                        }`}>
+                            index === 2 ? 'bg-orange-500 text-white' :
+                              'bg-gray-200 text-gray-600'
+                          }`}>
                           {entry.rank}
                         </div>
 
@@ -603,7 +602,7 @@ const ChallengesSection = ({ onSwitchToProgress }) => {
                             {Math.round(entry.progress)}%
                           </div>
                           <div className="w-16 bg-gray-200 rounded-full h-2">
-                            <div 
+                            <div
                               className="bg-blue-500 h-2 rounded-full transition-all duration-300"
                               style={{ width: `${Math.min(100, entry.progress)}%` }}
                             ></div>
@@ -641,7 +640,16 @@ const ChallengesSection = ({ onSwitchToProgress }) => {
                 });
                 if (data.ok) {
                   const message = data.message || 'Progress updated successfully!';
-                  showSuccess(message);
+
+                  // Check if user just completed challenge and show scratch card
+                  if (data.justCompleted && data.coupon) {
+                    setRewardData(data.coupon);
+                    setShowRewardModal(true);
+                    showSuccess(message);
+                  } else {
+                    showSuccess(message);
+                  }
+
                   // Update progress immediately from response if available
                   if (data.currentValue !== undefined) {
                     setUserProgress({
@@ -703,6 +711,17 @@ const ChallengesSection = ({ onSwitchToProgress }) => {
           />
         )}
       </AnimatePresence>
+
+      {/* Scratch Card Reward Modal */}
+      {showRewardModal && rewardData && (
+        <ScratchCard
+          reward={rewardData}
+          onClose={() => {
+            setShowRewardModal(false);
+            setRewardData(null);
+          }}
+        />
+      )}
     </div>
   );
 };
@@ -721,7 +740,7 @@ const CreateChallengeModal = ({ onClose, onSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-    
+
     // Validate form
     const errors = validateChallenge(formData);
     if (Object.keys(errors).length > 0) {
@@ -729,7 +748,7 @@ const CreateChallengeModal = ({ onClose, onSuccess }) => {
       setSubmitting(false);
       return;
     }
-    
+
     const startDate = Date.now();
     const endDate = startDate + (formData.duration * 24 * 60 * 60 * 1000);
 
@@ -772,7 +791,7 @@ const CreateChallengeModal = ({ onClose, onSuccess }) => {
           <h3 className="text-lg font-semibold text-gray-800 mb-4">
             Create New Challenge
           </h3>
-          
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -782,14 +801,13 @@ const CreateChallengeModal = ({ onClose, onSuccess }) => {
                 type="text"
                 value={formData.name}
                 onChange={(e) => {
-                  setFormData({...formData, name: e.target.value});
+                  setFormData({ ...formData, name: e.target.value });
                   if (formErrors.name) {
-                    setFormErrors({...formErrors, name: ''});
+                    setFormErrors({ ...formErrors, name: '' });
                   }
                 }}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  formErrors.name ? 'border-red-500' : 'border-gray-300'
-                }`}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${formErrors.name ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 placeholder="e.g., 30-Day Fitness Challenge"
               />
               {formErrors.name && (
@@ -804,14 +822,13 @@ const CreateChallengeModal = ({ onClose, onSuccess }) => {
               <textarea
                 value={formData.description}
                 onChange={(e) => {
-                  setFormData({...formData, description: e.target.value});
+                  setFormData({ ...formData, description: e.target.value });
                   if (formErrors.description) {
-                    setFormErrors({...formErrors, description: ''});
+                    setFormErrors({ ...formErrors, description: '' });
                   }
                 }}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  formErrors.description ? 'border-red-500' : 'border-gray-300'
-                }`}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${formErrors.description ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 rows="3"
                 placeholder="Describe the challenge goals and rules..."
               />
@@ -827,7 +844,7 @@ const CreateChallengeModal = ({ onClose, onSuccess }) => {
                 </label>
                 <select
                   value={formData.goalType}
-                  onChange={(e) => setFormData({...formData, goalType: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, goalType: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="workouts">Workouts</option>
@@ -845,14 +862,13 @@ const CreateChallengeModal = ({ onClose, onSuccess }) => {
                   type="number"
                   value={formData.goalValue}
                   onChange={(e) => {
-                    setFormData({...formData, goalValue: parseInt(e.target.value) || 0});
+                    setFormData({ ...formData, goalValue: parseInt(e.target.value) || 0 });
                     if (formErrors.goalValue) {
-                      setFormErrors({...formErrors, goalValue: ''});
+                      setFormErrors({ ...formErrors, goalValue: '' });
                     }
                   }}
-                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                    formErrors.goalValue ? 'border-red-500' : 'border-gray-300'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${formErrors.goalValue ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   min="1"
                   placeholder="10"
                 />
@@ -870,14 +886,13 @@ const CreateChallengeModal = ({ onClose, onSuccess }) => {
                 type="number"
                 value={formData.duration}
                 onChange={(e) => {
-                  setFormData({...formData, duration: parseInt(e.target.value) || 0});
+                  setFormData({ ...formData, duration: parseInt(e.target.value) || 0 });
                   if (formErrors.duration) {
-                    setFormErrors({...formErrors, duration: ''});
+                    setFormErrors({ ...formErrors, duration: '' });
                   }
                 }}
-                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  formErrors.duration ? 'border-red-500' : 'border-gray-300'
-                }`}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${formErrors.duration ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 min="1"
                 max="365"
                 placeholder="7"
@@ -945,17 +960,17 @@ const ChallengeDetailsModal = ({ challenge, userProgress, leaderboard, onClose, 
   const handleLogSubmit = (e) => {
     e.preventDefault();
     const value = parseInt(logValue) || 0;
-    
+
     if (value <= 0) {
       alert('Please enter a value greater than 0');
       return;
     }
-    
+
     if (isCompleted) {
       alert(`You have already completed this challenge! Goal: ${targetValue} ${challenge.goalType}`);
       return;
     }
-    
+
     if (value > remaining) {
       const confirmMsg = `You can only add ${remaining} more ${challenge.goalType} to reach the goal of ${targetValue}. Do you want to add ${remaining} instead of ${value}?`;
       if (!window.confirm(confirmMsg)) {
@@ -964,7 +979,7 @@ const ChallengeDetailsModal = ({ challenge, userProgress, leaderboard, onClose, 
       // Will be handled by backend, but we can set it here too
       setLogValue(remaining);
     }
-    
+
     onLogProgress(value, logDescription);
     setShowLogForm(false);
     setLogValue(1);
@@ -1018,21 +1033,19 @@ const ChallengeDetailsModal = ({ challenge, userProgress, leaderboard, onClose, 
           <div className="flex gap-4">
             <button
               onClick={() => setActiveTab('progress')}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'progress'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-600 hover:text-gray-900'
-              }`}
+              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'progress'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+                }`}
             >
               📊 My Progress
             </button>
             <button
               onClick={() => setActiveTab('leaderboard')}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'leaderboard'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-600 hover:text-gray-900'
-              }`}
+              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'leaderboard'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+                }`}
             >
               🏆 Leaderboard
             </button>
@@ -1067,7 +1080,7 @@ const ChallengeDetailsModal = ({ challenge, userProgress, leaderboard, onClose, 
                         <p className="text-sm text-gray-600">Complete</p>
                       </div>
                     </div>
-                    
+
                     {/* Progress Bar */}
                     <div className="w-full bg-gray-200 rounded-full h-4">
                       <div
@@ -1205,22 +1218,20 @@ const ChallengeDetailsModal = ({ challenge, userProgress, leaderboard, onClose, 
                 leaderboard.map((entry, index) => (
                   <div
                     key={entry.userEmail}
-                    className={`flex items-center gap-4 p-4 rounded-lg ${
-                      index < 3
-                        ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-200'
-                        : 'bg-gray-50 border border-gray-200'
-                    }`}
+                    className={`flex items-center gap-4 p-4 rounded-lg ${index < 3
+                      ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-200'
+                      : 'bg-gray-50 border border-gray-200'
+                      }`}
                   >
                     <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${
-                        index === 0
-                          ? 'bg-yellow-500 text-white'
-                          : index === 1
+                      className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${index === 0
+                        ? 'bg-yellow-500 text-white'
+                        : index === 1
                           ? 'bg-gray-400 text-white'
                           : index === 2
-                          ? 'bg-orange-500 text-white'
-                          : 'bg-gray-200 text-gray-600'
-                      }`}
+                            ? 'bg-orange-500 text-white'
+                            : 'bg-gray-200 text-gray-600'
+                        }`}
                     >
                       {entry.rank}
                     </div>

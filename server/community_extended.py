@@ -5,7 +5,7 @@ from models import (
     qa_sessions_collection, spotlights_collection, community_posts_collection,
     users_collection, user_profiles_collection, community_threads_collection,
     community_messages_collection, gamification_stats_collection,
-    gamification_quests_collection
+    gamification_quests_collection, coupons_collection, user_coupons_collection
 )
 from datetime import datetime, timedelta
 import uuid
@@ -15,23 +15,7 @@ from socketio_instance import socketio
 community_extended_bp = Blueprint('community_extended', __name__)
 
 # Add explicit OPTIONS handler for CORS preflight requests
-@community_extended_bp.before_request
-def handle_preflight():
-    if request.method == "OPTIONS":
-        response = jsonify()
-        response.headers.add("Access-Control-Allow-Origin", "*")
-        response.headers.add('Access-Control-Allow-Headers', "*")
-        response.headers.add('Access-Control-Allow-Methods', "*")
-        response.headers.add('Access-Control-Allow-Credentials', "true")
-        return response
 
-# Add CORS headers to all responses
-@community_extended_bp.after_request
-def after_request(response):
-    response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
-    response.headers.add('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS')
-    return response
 
 def _now_ms():
     return int(time.time() * 1000)
@@ -521,6 +505,9 @@ def update_challenge_progress(challenge_id):
                 {'$set': {'targetValue': target_value}}
             )
         
+        # Track if this was already completed before this update
+        was_already_completed = current_value >= target_value
+        
         # Calculate new value and cap at target
         new_value = current_value + activity_value
         capped_value = min(new_value, target_value)
@@ -550,17 +537,128 @@ def update_challenge_progress(challenge_id):
             }
         )
         
+        # Check if challenge just got completed
+        is_now_completed = capped_value >= target_value
+        just_completed = is_now_completed and not was_already_completed
+        
         message = 'Progress updated successfully'
-        if capped_value < new_value:
+        coupon_data = None
+        
+        if just_completed:
+            # Luck-based reward system with scratch card!
+            try:
+                import random
+                import string
+                
+                # Check if user already has a reward attempt for this challenge
+                existing_coupon = user_coupons_collection.find_one({
+                    'user_email': user_email,
+                    'challenge_id': challenge_id
+                })
+                
+                if not existing_coupon:
+                    # 60% chance to win a coupon (luck-based)
+                    won_coupon = random.random() < 0.6
+                    
+                    if won_coupon:
+                        # Generate unique coupon code
+                        random_chars = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                        coupon_code = f'CHALLENGE15-{random_chars}'
+                        
+                        # Create coupon in coupons collection
+                        now = datetime.utcnow()
+                        expiry_date = now + timedelta(days=30)
+                        
+                        coupon = {
+                            'code': coupon_code,
+                            'type': 'percentage',
+                            'value': 15,  # 15% discount
+                            'description': f'Challenge Completion Reward: {challenge.get("name", "Challenge")}',
+                            'min_amount': 500,  # Minimum ₹500 purchase
+                            'max_discount': 300,  # Maximum ₹300 discount
+                            'is_active': True,
+                            'expires_at': expiry_date,
+                            'user_email': user_email,  # User-specific coupon
+                            'source': 'challenge_reward',
+                            'source_id': challenge_id,
+                            'created_at': now
+                        }
+                        
+                        coupons_collection.insert_one(coupon)
+                        
+                        # Track in user_coupons collection
+                        user_coupon = {
+                            'user_email': user_email,
+                            'coupon_code': coupon_code,
+                            'earned_from': 'challenge_completion',
+                            'challenge_id': challenge_id,
+                            'challenge_name': challenge.get('name', 'Challenge'),
+                            'earned_at': now,
+                            'used_at': None,
+                            'is_used': False,
+                            'won': True
+                        }
+                        
+                        user_coupons_collection.insert_one(user_coupon)
+                        
+                        coupon_data = {
+                            'won': True,
+                            'code': coupon_code,
+                            'discount': '15%',
+                            'max_discount': 300,
+                            'expires_at': expiry_date.isoformat(),
+                            'min_purchase': 500
+                        }
+                        
+                        message = f'🎉 Challenge completed! You won a 15% discount coupon: {coupon_code}'
+                    
+                    else:
+                        # Better luck next time!
+                        now = datetime.utcnow()
+                        
+                        # Still track the attempt so they don't get unlimited tries
+                        user_coupon = {
+                            'user_email': user_email,
+                            'coupon_code': None,
+                            'earned_from': 'challenge_completion',
+                            'challenge_id': challenge_id,
+                            'challenge_name': challenge.get('name', 'Challenge'),
+                            'earned_at': now,
+                            'used_at': None,
+                            'is_used': False,
+                            'won': False
+                        }
+                        
+                        user_coupons_collection.insert_one(user_coupon)
+                        
+                        coupon_data = {
+                            'won': False,
+                            'message': 'Better luck next time!'
+                        }
+                        
+                        message = 'Challenge completed! Try another challenge for another chance to win!'
+            
+            except Exception as coupon_error:
+                print(f'[COUPON GENERATION ERROR] {str(coupon_error)}')
+                # Don't fail the progress update if coupon generation fails
+                message = 'Challenge completed!'
+        
+        elif capped_value < new_value:
             message = f'Progress updated. Goal reached! (Added {actual_increment} instead of {activity_value} to reach goal of {target_value})'
         
-        return jsonify({
+        response_data = {
             'ok': True,
             'message': message,
             'currentValue': capped_value,
             'targetValue': target_value,
-            'isCompleted': capped_value >= target_value
-        })
+            'isCompleted': is_now_completed,
+            'justCompleted': just_completed
+        }
+        
+        if coupon_data:
+            response_data['coupon'] = coupon_data
+        
+        return jsonify(response_data)
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)}), 500
 
@@ -692,6 +790,82 @@ def get_my_challenge_progress(challenge_id):
 
         return jsonify({'ok': True, 'data': data})
     except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
+# ================================
+# 1.5 USER COUPONS MANAGEMENT
+# ================================
+
+@community_extended_bp.route('/coupons/my-coupons', methods=['GET'])
+@jwt_required()
+def get_my_coupons():
+    """Get all coupons earned by the authenticated user"""
+    current_user = get_jwt_identity()
+    if isinstance(current_user, str):
+        user_email = _normalize_email(current_user)
+    else:
+        user_email = _normalize_email((current_user or {}).get('email'))
+    
+    try:
+        # Get all user's coupons
+        user_coupons = list(user_coupons_collection.find({
+            'user_email': user_email
+        }).sort('earned_at', -1))
+        
+        # Enrich with coupon details and expiration status
+        enriched_coupons = []
+        now = datetime.utcnow()
+        
+        for user_coupon in user_coupons:
+            coupon_code = user_coupon.get('coupon_code')
+            coupon = coupons_collection.find_one({'code': coupon_code})
+            
+            if coupon:
+                is_expired = coupon.get('expires_at', now) < now
+                is_active = coupon.get('is_active', False) and not is_expired
+                is_used = user_coupon.get('is_used', False)
+                
+                enriched_coupons.append({
+                    '_id': str(user_coupon.get('_id')),
+                    'code': coupon_code,
+                    'discount_type': coupon.get('type', 'percentage'),
+                    'discount_value': coupon.get('value', 0),
+                    'max_discount': coupon.get('max_discount'),
+                    'min_purchase': coupon.get('min_amount', 0),
+                    'description': coupon.get('description', ''),
+                    'challenge_name': user_coupon.get('challenge_name', ''),
+                    'earned_at': user_coupon.get('earned_at').isoformat() if user_coupon.get('earned_at') else None,
+                    'expires_at': coupon.get('expires_at').isoformat() if coupon.get('expires_at') else None,
+                    'is_used': is_used,
+                    'used_at': user_coupon.get('used_at').isoformat() if user_coupon.get('used_at') else None,
+                    'is_expired': is_expired,
+                    'is_active': is_active and not is_used,
+                    'status': 'used' if is_used else ('expired' if is_expired else 'active')
+                })
+        
+        # Separate active and inactive coupons
+        active_coupons = [c for c in enriched_coupons if c['status'] == 'active']
+        used_coupons = [c for c in enriched_coupons if c['status'] == 'used']
+        expired_coupons = [c for c in enriched_coupons if c['status'] == 'expired']
+        
+        return jsonify({
+            'ok': True,
+            'data': {
+                'all': enriched_coupons,
+                'active': active_coupons,
+                'used': used_coupons,
+                'expired': expired_coupons,
+                'stats': {
+                    'total': len(enriched_coupons),
+                    'active': len(active_coupons),
+                    'used': len(used_coupons),
+                    'expired': len(expired_coupons)
+                }
+            }
+        })
+    except Exception as e:
+        print(f'[GET MY COUPONS ERROR] {str(e)}')
         return jsonify({'ok': False, 'error': str(e)}), 500
 
 
@@ -1385,10 +1559,15 @@ def tag_users_in_post(post_id):
 def get_messenger_threads():
     """Return messenger threads for the authenticated user."""
     user_email = _get_identity_email()
+    print(f"[GET_THREADS] User email: {user_email}")
     try:
         threads = list(community_threads_collection.find({
             'members': user_email
         }).sort('last_message_at', -1))
+        
+        print(f"[GET_THREADS] Found {len(threads)} threads for user {user_email}")
+        for t in threads:
+            print(f"[GET_THREADS]   Thread {t.get('id')}: members={t.get('members')}, name={t.get('name')}")
 
         if not threads:
             onboarding_thread = {
@@ -1416,10 +1595,19 @@ def get_messenger_threads():
 
         summaries = []
         for thread in threads:
+            # Convert ObjectId to string
+            if '_id' in thread:
+                thread['_id'] = str(thread['_id'])
+            
             last_message = community_messages_collection.find_one(
                 {'threadId': thread.get('id')},
                 sort=[('created_at', -1)]
             )
+            
+            # Convert ObjectId in last_message if present
+            if last_message and '_id' in last_message:
+                last_message['_id'] = str(last_message['_id'])
+            
             summaries.append({
                 'id': thread.get('id'),
                 'name': _build_thread_name(thread, user_email),
@@ -1451,9 +1639,11 @@ def create_messenger_thread():
     payload = request.get_json(silent=True) or {}
 
     member_emails = payload.get('members') or []
+    print(f"[CREATE_THREAD] Creator: {user_email}, Raw members from request: {member_emails}")
     cleaned_members = {_normalize_email(member) for member in member_emails if member}
     cleaned_members.add(user_email)
     members = sorted(cleaned_members)
+    print(f"[CREATE_THREAD] Final members list: {members}")
 
     if len(members) < 2:
         return jsonify({'ok': False, 'error': 'Need at least two participants'}), 400
@@ -1468,12 +1658,20 @@ def create_messenger_thread():
         'last_message_at': _now_ms(),
         'last_message_preview': ''
     }
+    
+    print(f"[CREATE_THREAD] Creating thread: id={thread['id']}, members={thread['members']}, type={thread['type']}")
 
     community_threads_collection.insert_one(thread)
+    # Remove the MongoDB _id field to avoid serialization issues
+    if '_id' in thread:
+        thread['_id'] = str(thread['_id'])
     summary = {
         **thread,
         'name': _build_thread_name(thread, user_email)
     }
+    # Ensure _id is string in summary too
+    if '_id' in summary:
+        summary['_id'] = str(summary['_id'])
     return jsonify({'ok': True, 'data': summary})
 
 
@@ -1539,6 +1737,10 @@ def send_thread_message(thread_id):
     }
 
     community_messages_collection.insert_one(message)
+
+    # Convert ObjectId to string to avoid JSON serialization error
+    if '_id' in message:
+        message['_id'] = str(message['_id'])
 
     community_threads_collection.update_one(
         {'id': thread_id},
@@ -1734,19 +1936,33 @@ def delete_spotlight(spotlight_id):
 @community_extended_bp.route('/challenges/<challenge_id>', methods=['DELETE'])
 @jwt_required()
 def delete_challenge(challenge_id):
-    """Delete a challenge (admin/trainer only)"""
+    """Delete a challenge (admin/trainer/creator only)"""
     current_user = get_jwt_identity()
-    user_role = current_user.get('role', 'user')
     
-    if user_role not in ['admin', 'trainer']:
-        return jsonify({'ok': False, 'error': 'Only admins and trainers can delete challenges'}), 403
+    # Handle case where current_user is a string (email) vs dict
+    if isinstance(current_user, str):
+        user_email = _normalize_email(current_user)
+        # Look up user to get role
+        user_doc = users_collection.find_one({'email': user_email}) or {}
+        user_role = user_doc.get('role', 'user')
+    else:
+        user_role = current_user.get('role', 'user')
+        user_email = _normalize_email(current_user.get('email'))
     
     try:
         challenge = challenges_collection.find_one({'id': challenge_id})
         if not challenge:
             return jsonify({'ok': False, 'error': 'Challenge not found'}), 404
         
+        # Check if user is admin, trainer, or the creator
+        if user_role not in ['admin', 'trainer'] and challenge.get('createdBy') != user_email:
+            return jsonify({'ok': False, 'error': 'Unauthorized to delete this challenge'}), 403
+        
+        # Delete the challenge
         challenges_collection.delete_one({'id': challenge_id})
+        
+        # Delete all related progress records
+        user_progress_collection.delete_many({'challengeId': challenge_id})
         
         return jsonify({'ok': True, 'message': 'Challenge deleted successfully'})
     except Exception as e:

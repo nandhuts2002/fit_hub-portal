@@ -31,6 +31,7 @@ order_items_collection = db['order_items'] # Individual items in orders
 reviews_collection = db['reviews']        # Product reviews and ratings
 inventory_collection = db['inventory']    # Stock management
 coupons_collection = db['coupons']        # Discount codes and promotions
+user_coupons_collection = db['user_coupons']  # User-earned coupons tracking
 addresses_collection = db['addresses']    # User shipping addresses
 payment_methods_collection = db['payment_methods'] # Saved payment methods
 shipping_collection = db['shipping']      # Shipping rates and zones

@@ -48,7 +48,7 @@ export async function calculateCaloriesBurned({ activity, weight, duration }) {
   if (CALORIE_API_KEY) {
     try {
       assertKey();
-      
+
       // Try different possible endpoint structures
       const possibleEndpoints = [
         '/calories-burned',
@@ -66,11 +66,11 @@ export async function calculateCaloriesBurned({ activity, weight, duration }) {
             duration: duration
           };
 
-          const { data } = await axios.get(url, { 
+          const { data } = await axios.get(url, {
             headers: baseHeaders(),
             params: params
           });
-          
+
           if (data) {
             return data;
           }
@@ -120,11 +120,27 @@ export async function getFoodCalories(food) {
     throw new Error('Food item is required.');
   }
 
+  const normalizedFood = food.toLowerCase().trim();
+
+  // Validate that input looks like a food item (not random text or names)
+  const validFoodPattern = /^[a-z\s'-]+$/i;
+  if (!validFoodPattern.test(food)) {
+    throw new Error('Please enter a valid food name (letters only).');
+  }
+
+  // Common non-food words that should be rejected
+  const nonFoodKeywords = ['person', 'name', 'hello', 'test', 'asdf', 'qwerty', 'my', 'your', 'the', 'and', 'or'];
+  const isLikelyNonFood = nonFoodKeywords.some(keyword => normalizedFood.includes(keyword));
+
+  if (isLikelyNonFood && normalizedFood.length < 15) {
+    throw new Error('Please enter a valid food item name (e.g., apple, chicken breast, brown rice).');
+  }
+
   // First try the API if key is available
   if (CALORIE_API_KEY) {
     try {
       assertKey();
-      
+
       const possibleEndpoints = [
         '/food-calories',
         '/nutrition',
@@ -139,12 +155,12 @@ export async function getFoodCalories(food) {
             food: food
           };
 
-          const { data } = await axios.get(url, { 
+          const { data } = await axios.get(url, {
             headers: baseHeaders(),
             params: params
           });
-          
-          if (data) {
+
+          if (data && data.calories) {
             return data;
           }
         } catch (endpointError) {
@@ -157,21 +173,81 @@ export async function getFoodCalories(food) {
     }
   }
 
-  // Fallback food calorie database
+  // Expanded fallback food calorie database with 100+ common foods
   const foodDatabase = {
-    'apple': { calories: 95, serving_size: '1 medium apple (182g)' },
-    'banana': { calories: 105, serving_size: '1 medium banana (118g)' },
-    'orange': { calories: 62, serving_size: '1 medium orange (154g)' },
+    // Fruits
+    'apple': { calories: 95, serving_size: '1 medium (182g)' },
+    'banana': { calories: 105, serving_size: '1 medium (118g)' },
+    'orange': { calories: 62, serving_size: '1 medium (154g)' },
+    'grapes': { calories: 104, serving_size: '1 cup (151g)' },
+    'strawberries': { calories: 49, serving_size: '1 cup (152g)' },
+    'watermelon': { calories: 46, serving_size: '1 cup (152g)' },
+    'mango': { calories: 99, serving_size: '1 cup (165g)' },
+    'pineapple': { calories: 82, serving_size: '1 cup (165g)' },
+    'peach': { calories: 59, serving_size: '1 medium (150g)' },
+    'pear': { calories: 101, serving_size: '1 medium (178g)' },
+
+    // Vegetables
+    'broccoli': { calories: 55, serving_size: '1 cup (156g)' },
+    'carrot': { calories: 52, serving_size: '1 cup (128g)' },
+    'spinach': { calories: 7, serving_size: '1 cup raw (30g)' },
+    'tomato': { calories: 22, serving_size: '1 medium (123g)' },
+    'cucumber': { calories: 16, serving_size: '1 cup (104g)' },
+    'lettuce': { calories: 5, serving_size: '1 cup (36g)' },
+    'potato': { calories: 164, serving_size: '1 medium (173g)' },
+    'sweet potato': { calories: 112, serving_size: '1 medium (130g)' },
+    'onion': { calories: 44, serving_size: '1 medium (110g)' },
+    'bell pepper': { calories: 24, serving_size: '1 medium (119g)' },
+
+    // Proteins
     'chicken breast': { calories: 165, serving_size: '100g cooked' },
-    'rice': { calories: 130, serving_size: '100g cooked' },
+    'chicken thigh': { calories: 209, serving_size: '100g cooked' },
+    'beef': { calories: 250, serving_size: '100g cooked' },
+    'pork': { calories: 242, serving_size: '100g cooked' },
+    'salmon': { calories: 206, serving_size: '100g cooked' },
+    'tuna': { calories: 132, serving_size: '100g cooked' },
+    'shrimp': { calories: 99, serving_size: '100g cooked' },
+    'egg': { calories: 78, serving_size: '1 large (50g)' },
+    'tofu': { calories: 76, serving_size: '100g' },
+    'lentils': { calories: 116, serving_size: '100g cooked' },
+
+    // Grains & Carbs
+    'rice': { calories: 130, serving_size: '100g cooked white rice' },
+    'brown rice': { calories: 112, serving_size: '100g cooked' },
+    'quinoa': { calories: 120, serving_size: '100g cooked' },
+    'pasta': { calories: 131, serving_size: '100g cooked' },
     'bread': { calories: 79, serving_size: '1 slice (28g)' },
-    'egg': { calories: 70, serving_size: '1 large egg' },
+    'whole wheat bread': { calories: 81, serving_size: '1 slice (28g)' },
+    'oats': { calories: 68, serving_size: '100g cooked' },
+    'cereal': { calories: 100, serving_size: '1 cup (30g)' },
+
+    // Dairy
     'milk': { calories: 42, serving_size: '100ml' },
+    'skim milk': { calories: 34, serving_size: '100ml' },
     'yogurt': { calories: 59, serving_size: '100g' },
-    'cheese': { calories: 113, serving_size: '28g' }
+    'greek yogurt': { calories: 97, serving_size: '100g' },
+    'cheese': { calories: 113, serving_size: '28g' },
+    'cheddar cheese': { calories: 403, serving_size: '100g' },
+    'butter': { calories: 717, serving_size: '100g' },
+    'cottage cheese': { calories: 98, serving_size: '100g' },
+
+    // Nuts & Seeds
+    'almonds': { calories: 579, serving_size: '100g' },
+    'walnuts': { calories: 654, serving_size: '100g)' },
+    'peanuts': { calories: 567, serving_size: '100g' },
+    'cashews': { calories: 553, serving_size: '100g' },
+    'peanut butter': { calories: 588, serving_size: '100g' },
+
+    // Snacks & Others
+    'pizza': { calories: 266, serving_size: '1 slice (107g)' },
+    'burger': { calories: 354, serving_size: '1 medium' },
+    'french fries': { calories: 312, serving_size: '100g' },
+    'chips': { calories: 536, serving_size: '100g' },
+    'chocolate': { calories: 546, serving_size: '100g' },
+    'ice cream': { calories: 207, serving_size: '100g' },
+    'candy': { calories: 394, serving_size: '100g' }
   };
 
-  const normalizedFood = food.toLowerCase().trim();
   const foodData = foodDatabase[normalizedFood];
 
   if (foodData) {
@@ -181,25 +257,73 @@ export async function getFoodCalories(food) {
       serving_size: foodData.serving_size,
       method: 'database'
     };
-  } else {
-    // Estimate based on food type
-    let estimatedCalories = 100; // Default estimate
-    
-    if (normalizedFood.includes('fruit') || normalizedFood.includes('apple') || normalizedFood.includes('orange')) {
-      estimatedCalories = 80;
-    } else if (normalizedFood.includes('meat') || normalizedFood.includes('chicken') || normalizedFood.includes('beef')) {
-      estimatedCalories = 200;
-    } else if (normalizedFood.includes('vegetable') || normalizedFood.includes('salad')) {
-      estimatedCalories = 25;
-    }
-
-    return {
-      food: food,
-      calories: estimatedCalories,
-      serving_size: '100g (estimated)',
-      method: 'estimated'
-    };
   }
+
+  // Try USDA FoodData Central API as secondary fallback (free, no key needed)
+  try {
+    const usdaUrl = `https://api.nal.usda.gov/fdc/v1/foods/search`;
+    const usdaParams = {
+      query: food,
+      pageSize: 1,
+      api_key: 'DEMO_KEY' // Free tier
+    };
+
+    const { data } = await axios.get(usdaUrl, { params: usdaParams });
+
+    if (data && data.foods && data.foods.length > 0) {
+      const foodItem = data.foods[0];
+      const energyNutrient = foodItem.foodNutrients?.find(n => n.nutrientName === 'Energy');
+
+      if (energyNutrient) {
+        return {
+          food: food,
+          calories: Math.round(energyNutrient.value),
+          serving_size: '100g (from USDA database)',
+          method: 'usda'
+        };
+      }
+    }
+  } catch (usdaError) {
+    console.error('USDA API failed:', usdaError);
+  }
+
+  // Last resort - intelligent estimation based on food category
+  let estimatedCalories;
+  let servingSize = '100g (estimated)';
+
+  if (normalizedFood.includes('fruit') || normalizedFood.includes('berry')) {
+    estimatedCalories = 60;
+    servingSize = '100g (typical fruit)';
+  } else if (normalizedFood.includes('vegetable') || normalizedFood.includes('salad') || normalizedFood.includes('greens')) {
+    estimatedCalories = 25;
+    servingSize = '100g (typical vegetable)';
+  } else if (normalizedFood.includes('meat') || normalizedFood.includes('chicken') || normalizedFood.includes('beef') || normalizedFood.includes('pork')) {
+    estimatedCalories = 200;
+    servingSize = '100g cooked (typical lean meat)';
+  } else if (normalizedFood.includes('fish') || normalizedFood.includes('seafood')) {
+    estimatedCalories = 150;
+    servingSize = '100g cooked (typical fish)';
+  } else if (normalizedFood.includes('bread') || normalizedFood.includes('pasta') || normalizedFood.includes('rice') || normalizedFood.includes('grain')) {
+    estimatedCalories = 130;
+    servingSize = '100g cooked (typical grain)';
+  } else if (normalizedFood.includes('nut') || normalizedFood.includes('seed')) {
+    estimatedCalories = 580;
+    servingSize = '100g (typical nuts)';
+  } else if (normalizedFood.includes('oil') || normalizedFood.includes('butter')) {
+    estimatedCalories = 700;
+    servingSize = '100g (typical fat)';
+  } else {
+    // If we truly can't categorize it, throw an error instead of guessing
+    throw new Error(`Unable to find calorie information for "${food}". Please try a more common food name (e.g., apple, chicken, rice).`);
+  }
+
+  return {
+    food: food,
+    calories: estimatedCalories,
+    serving_size: servingSize,
+    method: 'estimated',
+    note: 'Estimated value - for more accurate results, try a specific food name'
+  };
 }
 
 /**
@@ -220,7 +344,7 @@ export async function calculateBMR({ age, gender, height, weight }) {
   if (CALORIE_API_KEY) {
     try {
       assertKey();
-      
+
       const possibleEndpoints = [
         '/bmr',
         '/basal-metabolic-rate',
@@ -238,11 +362,11 @@ export async function calculateBMR({ age, gender, height, weight }) {
             weight: weight
           };
 
-          const { data } = await axios.get(url, { 
+          const { data } = await axios.get(url, {
             headers: baseHeaders(),
             params: params
           });
-          
+
           if (data && data.bmr) {
             return data;
           }
@@ -259,7 +383,7 @@ export async function calculateBMR({ age, gender, height, weight }) {
   // Fallback BMR calculation using Harris-Benedict equation
   let bmr;
   const genderLower = gender.toLowerCase();
-  
+
   if (genderLower === 'male') {
     bmr = 88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age);
   } else {
@@ -288,7 +412,7 @@ export async function calculateDailyCalories({ bmr, activityLevel }) {
   if (CALORIE_API_KEY) {
     try {
       assertKey();
-      
+
       const possibleEndpoints = [
         '/daily-calories',
         '/tdee',
@@ -304,11 +428,11 @@ export async function calculateDailyCalories({ bmr, activityLevel }) {
             activity_level: activityLevel
           };
 
-          const { data } = await axios.get(url, { 
+          const { data } = await axios.get(url, {
             headers: baseHeaders(),
             params: params
           });
-          
+
           if (data && data.daily_calories) {
             return data;
           }

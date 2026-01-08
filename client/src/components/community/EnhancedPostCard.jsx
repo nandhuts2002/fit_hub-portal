@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Heart, MessageCircle, Share, MoreHorizontal, Users, BarChart3 } from 'lucide-react';
 
-const EnhancedPostCard = ({ post, onLike, onComment, onReact, onVote }) => {
+const EnhancedPostCard = ({ post, onLike, onComment, onReact, onVote, onMessage }) => {
   const [showReactions, setShowReactions] = useState(false);
   const [selectedPollOption, setSelectedPollOption] = useState(null);
 
@@ -28,10 +28,10 @@ const EnhancedPostCard = ({ post, onLike, onComment, onReact, onVote }) => {
 
   const getPollResults = () => {
     if (!post.poll) return null;
-    
+
     const totalVotes = post.poll.votes?.length || 0;
     const optionCounts = new Array(post.poll.options.length).fill(0);
-    
+
     post.poll.votes?.forEach(vote => {
       if (vote.optionIndex < optionCounts.length) {
         optionCounts[vote.optionIndex]++;
@@ -108,21 +108,20 @@ const EnhancedPostCard = ({ post, onLike, onComment, onReact, onVote }) => {
               <BarChart3 className="w-4 h-4" />
               {post.poll.question}
             </h4>
-            
+
             <div className="space-y-2">
               {post.poll.options.map((option, index) => {
                 const result = pollResults?.[index];
                 const isSelected = selectedPollOption === index;
-                
+
                 return (
                   <button
                     key={index}
                     onClick={() => handlePollVote(index)}
-                    className={`w-full text-left p-3 rounded-lg border transition-all ${
-                      isSelected 
-                        ? 'border-blue-500 bg-blue-50' 
-                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-                    }`}
+                    className={`w-full text-left p-3 rounded-lg border transition-all ${isSelected
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      }`}
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-gray-800">{option}</span>
@@ -132,10 +131,10 @@ const EnhancedPostCard = ({ post, onLike, onComment, onReact, onVote }) => {
                         </span>
                       )}
                     </div>
-                    
+
                     {result && (
                       <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
-                        <div 
+                        <div
                           className="bg-blue-500 h-2 rounded-full transition-all duration-300"
                           style={{ width: `${result.percentage}%` }}
                         ></div>
@@ -145,7 +144,7 @@ const EnhancedPostCard = ({ post, onLike, onComment, onReact, onVote }) => {
                 );
               })}
             </div>
-            
+
             <div className="mt-3 text-sm text-gray-500">
               {post.poll.votes?.length || 0} total votes
             </div>
@@ -244,6 +243,15 @@ const EnhancedPostCard = ({ post, onLike, onComment, onReact, onVote }) => {
             <Share className="w-5 h-5" />
             <span className="text-sm">Share</span>
           </button>
+
+          {/* Message Button (New) */}
+          <button
+            onClick={() => onMessage?.(post.user.email)}
+            className="flex items-center gap-2 text-gray-600 hover:text-purple-500 transition-colors"
+          >
+            <MessageCircle className="w-5 h-5" />
+            <span className="text-sm">Message</span>
+          </button>
         </div>
       </div>
 
@@ -273,7 +281,7 @@ const EnhancedPostCard = ({ post, onLike, onComment, onReact, onVote }) => {
                 </div>
               </div>
             ))}
-            
+
             {post.comments.length > 2 && (
               <button
                 onClick={() => onComment(post.id)}
