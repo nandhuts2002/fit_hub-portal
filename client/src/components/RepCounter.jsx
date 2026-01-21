@@ -1,9 +1,10 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Camera, X, Play, Pause, Volume2, VolumeX, RefreshCw, Trophy, Clock, Activity } from 'lucide-react';
+import { Camera, X, Play, Pause, Volume2, VolumeX, RefreshCw, Trophy, Clock, Activity, Target } from 'lucide-react';
 import * as tf from '@tensorflow/tfjs-core';
 import '@tensorflow/tfjs-backend-webgl';
 import * as poseDetection from '@tensorflow-models/pose-detection';
+import RepCounterEngine from '../utils/repCounterEngine';
 
 const RepCounter = ({ exercise, onClose, onRepsCounted }) => {
   const videoRef = useRef(null);
@@ -19,7 +20,9 @@ const RepCounter = ({ exercise, onClose, onRepsCounted }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [stream, setStream] = useState(null);
   const [isAssistantEnabled, setIsAssistantEnabled] = useState(true);
-  const [useMotionMode, setUseMotionMode] = useState(true); // Default to motion mode
+  const [useMotionMode, setUseMotionMode] = useState(false); // AI mode by default for better accuracy
+  const [postureScore, setPostureScore] = useState(1.0);
+  const [movementState, setMovementState] = useState('idle');
 
   // Session Stats
   const [startTime, setStartTime] = useState(null);
@@ -32,7 +35,10 @@ const RepCounter = ({ exercise, onClose, onRepsCounted }) => {
   const lastFrameData = useRef(null);
   const motionState = useRef({ stage: 'down', count: 0, lastMotion: 0 });
 
-  // Rep counting state
+  // Rep Counter Engine (new)
+  const repEngineRef = useRef(null);
+
+  // Legacy state for motion mode
   const exerciseState = useRef({
     count: 0,
     stage: 'down',
@@ -42,6 +48,14 @@ const RepCounter = ({ exercise, onClose, onRepsCounted }) => {
     mode: '',
     debugTarget: ''
   });
+
+  // Initialize Rep Counter Engine
+  useEffect(() => {
+    if (exercise?.name && !useMotionMode) {
+      repEngineRef.current = new RepCounterEngine(exercise.name);
+      console.log('✅ Rep Counter Engine initialized for:', exercise.name);
+    }
+  }, [exercise, useMotionMode]);
 
   const synth = useRef(window.speechSynthesis);
 
@@ -119,200 +133,32 @@ const RepCounter = ({ exercise, onClose, onRepsCounted }) => {
     }
   }, [speak]); // eslint-disable-line
 
-  // Handle Rep Logic - SIMPLIFIED ZONE/COORDINATE BASED
-  const checkRep = useCallback((keypoints) => {
-    if (!keypoints) return;
+  // Process with new Rep Counter Engine
+  const processWithEngine = useCallback((keypoints) => {
+    if (!keypoints || !repEngineRef.current) return;
 
-    const exName = (exercise?.name || '').toLowerCase();
+    const result = repEngineRef.current.process(keypoints);
 
-    let feedbackText = '';
-    const state = exerciseState.current;
-
-    // Flags
-    const isSquat = exName.includes('squat');
-    const isCurl = exName.includes('curl') || exName.includes('bicep');
-    const isPushup = exName.includes('push') || exName.includes('press');
-
-    // Get useful keypoints
-    // Note: Y coordinates increase DOWNWARD (0 is top, 480 is bottom)
-
-    // General
-    const nose = keypoints.find(k => k.name === 'nose');
-
-    // Left side
-    const l_shoulder = keypoints.find(k => k.name === 'left_shoulder');
-    const l_elbow = keypoints.find(k => k.name === 'left_elbow');
-    const l_wrist = keypoints.find(k => k.name === 'left_wrist');
-    const l_hip = keypoints.find(k => k.name === 'left_hip');
-    const l_knee = keypoints.find(k => k.name === 'left_knee');
-
-    // Right side
-    const r_shoulder = keypoints.find(k => k.name === 'right_shoulder');
-    const r_elbow = keypoints.find(k => k.name === 'right_elbow');
-    const r_wrist = keypoints.find(k => k.name === 'right_wrist');
-    const r_hip = keypoints.find(k => k.name === 'right_hip');
-    const r_knee = keypoints.find(k => k.name === 'right_knee');
-
-    const now = Date.now();
-    let debugVal = 0;
-
-    // --- SQUAT LOGIC (Vertical Hip Travel) ---
-    // Rule: Stand up (Hip high/small Y) -> Squat down (Hip low/large Y)
-    // Using simple Hip vs Knee comparison
-    if (isSquat) {
-      // Use average hip Y, but fall back to single side if one is missing
-      const getAvgY = (p1, p2) => {
-        if (p1?.score > 0.3 && p2?.score > 0.3) return (p1.y + p2.y) / 2;
-        if (p1?.score > 0.3) return p1.y;
-        if (p2?.score > 0.3) return p2.y;
-        return null;
-      };
-
-      const hipY = getAvgY(l_hip, r_hip);
-      const kneeY = getAvgY(l_knee, r_knee);
-
-      if (hipY !== null && kneeY !== null) {
-        const distance = kneeY - hipY;
-        debugVal = Math.round(distance);
-        state.debugTarget = '< 20px'; // Easier target
-
-        // Relaxed: Just need to stand up somewhat
-        if (distance > 50) {
-          state.stage = 'up';
-          feedbackText = 'Squat Down';
-        }
-
-        // Relaxed: Just need to get hips near knees
-        if (state.stage === 'up' && distance < 30) {
-          state.stage = 'down';
-          state.count += 1;
-          setRepCount(state.count);
-          setRepTimes(prev => [...prev, now]);
-          onRepsCounted?.(state.count);
-          speakMotivation(state.count);
-        }
-      } else {
-        feedbackText = 'Stand back - Full body';
-      }
+    // Update state from engine
+    if (result.repCount !== repCount) {
+      setRepCount(result.repCount);
+      setRepTimes(prev => [...prev, Date.now()]);
+      onRepsCounted?.(result.repCount);
+      speakMotivation(result.repCount);
     }
 
-    // --- CURL LOGIC (Wrist vs Elbow Height) ---
-    // Rule: Wrist starts below elbow, moves above elbow
-    else if (isCurl) {
-      // Check if wrist is ABOVE elbow (Y is smaller)
-      // We check both arms, take the best one
+    setFeedback(result.feedback);
+    setPostureScore(result.debugInfo.postureScore);
+    setMovementState(result.state);
 
-      let leftActive = false;
-      let rightActive = false;
+    // Update debug info for display
+    exerciseState.current.mode = 'AI Engine';
+    exerciseState.current.lastAngle = result.debugInfo.currentAngle;
+    exerciseState.current.debugTarget = result.debugInfo.targetAngle;
+    exerciseState.current.debugStage = result.state;
+    exerciseState.current.activeScore = result.debugInfo.postureScore;
 
-      // Left Arm
-      if (l_wrist?.score > 0.1 && l_elbow?.score > 0.1) {
-        const dist = l_wrist.y - l_elbow.y; // Positive = Wrist below elbow (Down). Negative = Wrist above elbow (Up).
-        // Relaxed reset: just needs to be below elbow
-        if (dist > 10) {
-          state.leftStage = 'down';
-        }
-        // Relaxed count: just needs to be near/above elbow
-        if (state.leftStage === 'down' && dist < 10) {
-          leftActive = true;
-          state.leftStage = 'up'; // Debounce
-        }
-        debugVal = Math.round(dist);
-      }
-
-      // Right Arm
-      if (r_wrist?.score > 0.1 && r_elbow?.score > 0.1) {
-        const dist = r_wrist.y - r_elbow.y;
-        if (dist > 10) {
-          state.rightStage = 'down';
-        }
-        if (state.rightStage === 'down' && dist < 10) {
-          rightActive = true;
-          state.rightStage = 'up';
-        }
-        // Prioritize showing the active value
-        if (!leftActive) debugVal = Math.round(dist);
-      }
-
-      state.debugTarget = 'Wrist > Elbow';
-
-      if (leftActive || rightActive) {
-        state.count += 1;
-        setRepCount(state.count);
-        setRepTimes(prev => [...prev, now]);
-        onRepsCounted?.(state.count);
-        speakMotivation(state.count);
-      }
-    }
-
-    // --- GENERIC/JUMPING JACK (Wrist vs Shoulder) ---
-    else {
-      // Hands go above head?
-      // Let's use simple vertical oscillation of wrist vs shoulder
-      let handsUp = false;
-
-      if (l_wrist?.score > 0.25 && l_shoulder?.score > 0.25) {
-        if (l_wrist.y < l_shoulder.y) handsUp = true; // Wrist above shoulder
-      }
-      if (r_wrist?.score > 0.25 && r_shoulder?.score > 0.25) {
-        if (r_wrist.y < r_shoulder.y) handsUp = true;
-      }
-
-      state.debugTarget = 'Hands Up';
-
-      if (!handsUp) {
-        state.stage = 'down';
-        feedbackText = 'Hands Up!';
-      }
-
-      if (state.stage === 'down' && handsUp) {
-        state.stage = 'up';
-        state.count += 1;
-        setRepCount(state.count);
-        setRepTimes(prev => [...prev, now]);
-        onRepsCounted?.(state.count);
-        speakMotivation(state.count);
-      }
-    }
-
-    if (feedbackText && feedbackText !== feedback) {
-      setFeedback(feedbackText);
-    }
-
-    // Store for debug
-    state.lastAngle = debugVal;
-    state.mode = isSquat ? 'SQUAT (Zone)' : isCurl ? 'CURL (Zone)' : 'GENERIC (Zone)';
-
-    // Debug Stage Info
-    const currentStage = isSquat ? state.stage : isCurl ? `L:${state.leftStage} R:${state.rightStage}` : state.stage;
-    state.debugStage = currentStage;
-
-    const activeScore = Math.max(
-      l_wrist?.score || 0, r_wrist?.score || 0,
-      l_hip?.score || 0, r_hip?.score || 0
-    );
-    state.activeScore = activeScore;
-
-    // Low confidence warning
-    if (isCurl) {
-      if ((l_wrist?.score || 0) < 0.1 && (r_wrist?.score || 0) < 0.1) {
-        setFeedback("Can't see ARMS");
-      }
-    } else if (isSquat) {
-      if ((l_hip?.score || 0) < 0.1 && (r_hip?.score || 0) < 0.1) {
-        setFeedback("Can't see HIPS");
-      }
-    } else {
-      const activeScore = Math.max(
-        l_wrist?.score || 0, r_wrist?.score || 0,
-        l_hip?.score || 0, r_hip?.score || 0
-      );
-      if (activeScore < 0.1) {
-        setFeedback("Can't see body clearly");
-      }
-    }
-
-  }, [exercise, onRepsCounted, speakMotivation, feedback]);
+  }, [repCount, onRepsCounted, speakMotivation]);
 
   // Force re-render for debug overlay
   const [, forceUpdate] = useState();
@@ -507,7 +353,7 @@ const RepCounter = ({ exercise, onClose, onRepsCounted }) => {
         }
 
         if (isCounting && poses.length > 0) {
-          checkRep(poses[0].keypoints);
+          processWithEngine(poses[0].keypoints);
         }
       } catch (e) {
         console.error('Detection error:', e);
@@ -517,7 +363,7 @@ const RepCounter = ({ exercise, onClose, onRepsCounted }) => {
     if (isActive) {
       requestRef.current = requestAnimationFrame(runPosenet);
     }
-  }, [isActive, isCounting, checkRep, useMotionMode, detectMotion]);
+  }, [isActive, isCounting, processWithEngine, useMotionMode, detectMotion]);
 
   // Webcam Handling
   useEffect(() => {
@@ -594,6 +440,13 @@ const RepCounter = ({ exercise, onClose, onRepsCounted }) => {
     setStartTime(null);
     setRepTimes([]);
     setShowSummary(false);
+    setPostureScore(1.0);
+    setMovementState('idle');
+
+    // Reset the engine
+    if (repEngineRef.current) {
+      repEngineRef.current.reset();
+    }
   };
 
   const getSessionStats = () => {
@@ -682,6 +535,29 @@ const RepCounter = ({ exercise, onClose, onRepsCounted }) => {
                   )}
                 </div>
 
+                {/* Posture Score Display (AI Mode Only) */}
+                {!useMotionMode && isCounting && (
+                  <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Form Quality</span>
+                      <Target size={16} className={`${postureScore >= 0.8 ? 'text-green-500' :
+                        postureScore >= 0.6 ? 'text-yellow-500' : 'text-red-500'
+                        }`} />
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+                      <div
+                        className={`h-full transition-all duration-300 ${postureScore >= 0.8 ? 'bg-green-500' :
+                          postureScore >= 0.6 ? 'bg-yellow-500' : 'bg-red-500'
+                          }`}
+                        style={{ width: `${postureScore * 100}%` }}
+                      ></div>
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-center">
+                      {Math.round(postureScore * 100)}% - {movementState}
+                    </div>
+                  </div>
+                )}
+
                 {/* Instructions */}
                 <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow">
                   <h4 className="font-semibold mb-3 text-gray-800 dark:text-white flex items-center">
@@ -689,26 +565,45 @@ const RepCounter = ({ exercise, onClose, onRepsCounted }) => {
                     How to Perform
                   </h4>
                   <ol className="text-sm space-y-2 text-gray-700 dark:text-gray-300">
-                    <li className="flex items-start">
-                      <span className="font-bold mr-2 text-blue-500">1.</span>
-                      <span>Stand in frame, click START</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="font-bold mr-2 text-blue-500">2.</span>
-                      <span>Stay STILL for 1 second</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="font-bold mr-2 text-blue-500">3.</span>
-                      <span>Do your exercise movement</span>
-                    </li>
-                    <li className="flex items-start">
-                      <span className="font-bold mr-2 text-blue-500">4.</span>
-                      <span>Return to STILL = Rep counted!</span>
-                    </li>
-                    <li className="flex items-start text-xs text-gray-500">
-                      <span className="mr-1">💡</span>
-                      <span>Watch for 🏃 (moving) → ⏸️ (still) indicator</span>
-                    </li>
+                    {useMotionMode ? (
+                      <>
+                        <li className="flex items-start">
+                          <span className="font-bold mr-2 text-blue-500">1.</span>
+                          <span>Stand in frame, click START</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="font-bold mr-2 text-blue-500">2.</span>
+                          <span>Stay STILL for 1 second</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="font-bold mr-2 text-blue-500">3.</span>
+                          <span>Do your exercise movement</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="font-bold mr-2 text-blue-500">4.</span>
+                          <span>Return to STILL = Rep counted!</span>
+                        </li>
+                      </>
+                    ) : (
+                      <>
+                        <li className="flex items-start">
+                          <span className="font-bold mr-2 text-green-500">1.</span>
+                          <span>Get in starting position</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="font-bold mr-2 text-green-500">2.</span>
+                          <span>Perform full movement with good form</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="font-bold mr-2 text-green-500">3.</span>
+                          <span>Return to start = Rep counted!</span>
+                        </li>
+                        <li className="flex items-start text-xs text-gray-500">
+                          <span className="mr-1">💡</span>
+                          <span>Watch form quality bar - keep it green!</span>
+                        </li>
+                      </>
+                    )}
                   </ol>
                 </div>
 
@@ -759,6 +654,83 @@ const RepCounter = ({ exercise, onClose, onRepsCounted }) => {
                         : 'bg-gray-500/50'
                         }`}>
                         {exerciseState.current.debugStage?.includes('ACTIVE') ? '🏃' : '⏸️'}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Angle Gauge Visualization (AI Mode Only) */}
+                  {!useMotionMode && isCounting && exerciseState.current.lastAngle > 0 && (
+                    <div className="absolute top-4 left-4 bg-black/70 rounded-lg p-4">
+                      <div className="text-white text-xs mb-2 text-center font-semibold">Arm Angle</div>
+                      <svg width="120" height="80" viewBox="0 0 120 80">
+                        {/* Background arc */}
+                        <path
+                          d="M 10 70 A 50 50 0 0 1 110 70"
+                          fill="none"
+                          stroke="#333"
+                          strokeWidth="8"
+                        />
+
+                        {/* Target range arc (green zone) */}
+                        {exerciseState.current.debugTarget && (
+                          <>
+                            {/* Parse target range and draw green zone */}
+                            <path
+                              d="M 10 70 A 50 50 0 0 1 110 70"
+                              fill="none"
+                              stroke="#22c55e"
+                              strokeWidth="8"
+                              strokeDasharray="157"
+                              strokeDashoffset={`${157 - (157 * 0.3)}`}
+                              opacity="0.3"
+                            />
+                          </>
+                        )}
+
+                        {/* Current angle indicator */}
+                        <g transform={`rotate(${-90 + (exerciseState.current.lastAngle || 0)} 60 70)`}>
+                          <line
+                            x1="60"
+                            y1="70"
+                            x2="60"
+                            y2="25"
+                            stroke={`${movementState === 'in_progress' ? '#fbbf24' :
+                              movementState === 'completing' ? '#22c55e' :
+                                movementState === 'starting' ? '#3b82f6' : '#ef4444'
+                              }`}
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                          />
+                          <circle
+                            cx="60"
+                            cy="25"
+                            r="4"
+                            fill={`${movementState === 'in_progress' ? '#fbbf24' :
+                              movementState === 'completing' ? '#22c55e' :
+                                movementState === 'starting' ? '#3b82f6' : '#ef4444'
+                              }`}
+                          />
+                        </g>
+
+                        {/* Center dot */}
+                        <circle cx="60" cy="70" r="3" fill="white" />
+
+                        {/* Angle labels */}
+                        <text x="10" y="75" fill="white" fontSize="10">0°</text>
+                        <text x="100" y="75" fill="white" fontSize="10">180°</text>
+                      </svg>
+
+                      {/* Current angle display */}
+                      <div className="text-center mt-2">
+                        <div className={`text-2xl font-bold ${movementState === 'in_progress' ? 'text-yellow-400' :
+                          movementState === 'completing' ? 'text-green-400' :
+                            movementState === 'starting' ? 'text-blue-400' : 'text-red-400'
+                          }`}>
+                          {exerciseState.current.lastAngle}°
+                        </div>
+                        <div className="text-xs text-gray-400 mt-1">
+                          Target: {exerciseState.current.debugTarget || 'N/A'}
+                        </div>
                       </div>
                     </div>
                   )}

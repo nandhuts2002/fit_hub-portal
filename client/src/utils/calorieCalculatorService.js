@@ -173,7 +173,7 @@ export async function getFoodCalories(food) {
     }
   }
 
-  // Expanded fallback food calorie database with 100+ common foods
+  // Expanded fallback food calorie database with 150+ common foods
   const foodDatabase = {
     // Fruits
     'apple': { calories: 95, serving_size: '1 medium (182g)' },
@@ -238,14 +238,69 @@ export async function getFoodCalories(food) {
     'cashews': { calories: 553, serving_size: '100g' },
     'peanut butter': { calories: 588, serving_size: '100g' },
 
-    // Snacks & Others
+    // Indian & South Asian Foods
+    'biryani': { calories: 290, serving_size: '1 cup (200g)' },
+    'biriyani': { calories: 290, serving_size: '1 cup (200g)' },
+    'chicken biryani': { calories: 320, serving_size: '1 cup (200g)' },
+    'mutton biryani': { calories: 350, serving_size: '1 cup (200g)' },
+    'veg biryani': { calories: 260, serving_size: '1 cup (200g)' },
+    'dal': { calories: 104, serving_size: '1 cup (200g)' },
+    'dal makhani': { calories: 168, serving_size: '1 cup (200g)' },
+    'chicken curry': { calories: 180, serving_size: '1 cup (200g)' },
+    'butter chicken': { calories: 220, serving_size: '1 cup (200g)' },
+    'tikka masala': { calories: 200, serving_size: '1 cup (200g)' },
+    'paneer tikka': { calories: 280, serving_size: '100g' },
+    'paneer butter masala': { calories: 265, serving_size: '1 cup (200g)' },
+    'palak paneer': { calories: 160, serving_size: '1 cup (200g)' },
+    'chole': { calories: 164, serving_size: '1 cup (200g)' },
+    'rajma': { calories: 140, serving_size: '1 cup (200g)' },
+    'samosa': { calories: 262, serving_size: '1 piece (100g)' },
+    'pakora': { calories: 250, serving_size: '100g' },
+    'dosa': { calories: 168, serving_size: '1 plain dosa (100g)' },
+    'idli': { calories: 39, serving_size: '1 piece (40g)' },
+    'vada': { calories: 100, serving_size: '1 piece (50g)' },
+    'upma': { calories: 163, serving_size: '1 cup (200g)' },
+    'poha': { calories: 180, serving_size: '1 cup (150g)' },
+    'paratha': { calories: 280, serving_size: '1 piece (100g)' },
+    'aloo paratha': { calories: 320, serving_size: '1 piece (120g)' },
+    'roti': { calories: 71, serving_size: '1 piece (40g)' },
+    'chapati': { calories: 71, serving_size: '1 piece (40g)' },
+    'naan': { calories: 262, serving_size: '1 piece (90g)' },
+    'puri': { calories: 161, serving_size: '1 piece (40g)' },
+    'pulao': { calories: 220, serving_size: '1 cup (200g)' },
+    'khichdi': { calories: 150, serving_size: '1 cup (200g)' },
+    'pongal': { calories: 190, serving_size: '1 cup (200g)' },
+    'gulab jamun': { calories: 175, serving_size: '1 piece (50g)' },
+    'rasgulla': { calories: 106, serving_size: '1 piece (50g)' },
+    'jalebi': { calories: 150, serving_size: '1 piece (30g)' },
+    'ladoo': { calories: 186, serving_size: '1 piece (40g)' },
+    'barfi': { calories: 165, serving_size: '1 piece (30g)' },
+
+    // Asian Foods
+    'fried rice': { calories: 228, serving_size: '1 cup (200g)' },
+    'noodles': { calories: 190, serving_size: '1 cup (200g)' },
+    'chow mein': { calories: 237, serving_size: '1 cup (200g)' },
+    'pad thai': { calories: 375, serving_size: '1 plate (300g)' },
+    'sushi': { calories: 140, serving_size: '1 roll (6 pieces)' },
+    'ramen': { calories: 436, serving_size: '1 bowl (400g)' },
+    'spring roll': { calories: 140, serving_size: '1 piece (80g)' },
+    'dumpling': { calories: 40, serving_size: '1 piece (20g)' },
+    'momo': { calories: 35, serving_size: '1 piece (20g)' },
+
+    // Fast Food & Snacks
     'pizza': { calories: 266, serving_size: '1 slice (107g)' },
     'burger': { calories: 354, serving_size: '1 medium' },
     'french fries': { calories: 312, serving_size: '100g' },
     'chips': { calories: 536, serving_size: '100g' },
     'chocolate': { calories: 546, serving_size: '100g' },
     'ice cream': { calories: 207, serving_size: '100g' },
-    'candy': { calories: 394, serving_size: '100g' }
+    'candy': { calories: 394, serving_size: '100g' },
+    'sandwich': { calories: 250, serving_size: '1 sandwich' },
+    'hot dog': { calories: 290, serving_size: '1 hot dog' },
+    'taco': { calories: 226, serving_size: '1 taco' },
+    'burrito': { calories: 450, serving_size: '1 burrito' },
+    'shawarma': { calories: 400, serving_size: '1 wrap' },
+    'kebab': { calories: 280, serving_size: '100g' }
   };
 
   const foodData = foodDatabase[normalizedFood];
@@ -264,23 +319,40 @@ export async function getFoodCalories(food) {
     const usdaUrl = `https://api.nal.usda.gov/fdc/v1/foods/search`;
     const usdaParams = {
       query: food,
-      pageSize: 1,
+      pageSize: 5, // Get top 5 results to check for better matches
       api_key: 'DEMO_KEY' // Free tier
     };
 
     const { data } = await axios.get(usdaUrl, { params: usdaParams });
 
     if (data && data.foods && data.foods.length > 0) {
-      const foodItem = data.foods[0];
-      const energyNutrient = foodItem.foodNutrients?.find(n => n.nutrientName === 'Energy');
+      // Find a food item that actually matches our search query
+      const matchingFood = data.foods.find(item => {
+        const itemDescription = (item.description || '').toLowerCase();
+        const searchTerm = normalizedFood;
 
-      if (energyNutrient) {
-        return {
-          food: food,
-          calories: Math.round(energyNutrient.value),
-          serving_size: '100g (from USDA database)',
-          method: 'usda'
-        };
+        // Check if the food description contains the search term or vice versa
+        const isRelevant = itemDescription.includes(searchTerm) ||
+          searchTerm.includes(itemDescription.split(/[\s,]+/)[0]);
+
+        // Also check the score if available (higher is better match)
+        const hasGoodScore = !item.score || item.score > 500;
+
+        return isRelevant && hasGoodScore;
+      });
+
+      if (matchingFood) {
+        const energyNutrient = matchingFood.foodNutrients?.find(n => n.nutrientName === 'Energy');
+
+        if (energyNutrient && energyNutrient.value > 0) {
+          return {
+            food: food,
+            calories: Math.round(energyNutrient.value),
+            serving_size: '100g (from USDA database)',
+            method: 'usda',
+            description: matchingFood.description
+          };
+        }
       }
     }
   } catch (usdaError) {

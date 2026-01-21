@@ -545,10 +545,45 @@ def update_challenge_progress(challenge_id):
         coupon_data = None
         
         if just_completed:
-            # Luck-based reward system with scratch card!
+            # MILESTONE-BASED REWARD SYSTEM
+            # Only give scratch card every 5th challenge completion!
             try:
                 import random
                 import string
+                
+                # Get user's current profile to track total challenges completed
+                from models import users_collection
+                user_profile = users_collection.find_one({'email': user_email})
+                
+                # Initialize or increment challenge counter
+                total_challenges = user_profile.get('challenges_completed', 0) if user_profile else 0
+                total_challenges += 1
+                
+                # Update user's challenge count
+                if user_profile:
+                    users_collection.update_one(
+                        {'email': user_email},
+                        {'$set': {'challenges_completed': total_challenges}}
+                    )
+                
+                # Calculate milestone progress
+                milestone_interval = 5
+                current_progress = total_challenges % milestone_interval
+                if current_progress == 0:
+                    current_progress = milestone_interval
+                progress_to_next = milestone_interval - current_progress
+                
+                # Determine milestone tier for special visuals
+                milestone_tier = 'bronze'  # Default
+                if total_challenges >= 50:
+                    milestone_tier = 'diamond'
+                elif total_challenges >= 25:
+                    milestone_tier = 'gold'
+                elif total_challenges >= 10:
+                    milestone_tier = 'silver'
+                
+                # Check if this is a milestone (every 5th challenge)
+                is_milestone = (total_challenges % milestone_interval == 0)
                 
                 # Check if user already has a reward attempt for this challenge
                 existing_coupon = user_coupons_collection.find_one({
@@ -556,7 +591,10 @@ def update_challenge_progress(challenge_id):
                     'challenge_id': challenge_id
                 })
                 
-                if not existing_coupon:
+                coupon_data = None
+                
+                if not existing_coupon and is_milestone:
+                    # MILESTONE ACHIEVED! Award scratch card
                     # 60% chance to win a coupon (luck-based)
                     won_coupon = random.random() < 0.6
                     
@@ -573,7 +611,7 @@ def update_challenge_progress(challenge_id):
                             'code': coupon_code,
                             'type': 'percentage',
                             'value': 15,  # 15% discount
-                            'description': f'Challenge Completion Reward: {challenge.get("name", "Challenge")}',
+                            'description': f'Milestone #{total_challenges} Reward: {challenge.get("name", "Challenge")}',
                             'min_amount': 500,  # Minimum ₹500 purchase
                             'max_discount': 300,  # Maximum ₹300 discount
                             'is_active': True,
@@ -581,6 +619,8 @@ def update_challenge_progress(challenge_id):
                             'user_email': user_email,  # User-specific coupon
                             'source': 'challenge_reward',
                             'source_id': challenge_id,
+                            'milestone': total_challenges,
+                            'milestone_tier': milestone_tier,
                             'created_at': now
                         }
                         
@@ -593,6 +633,8 @@ def update_challenge_progress(challenge_id):
                             'earned_from': 'challenge_completion',
                             'challenge_id': challenge_id,
                             'challenge_name': challenge.get('name', 'Challenge'),
+                            'milestone': total_challenges,
+                            'milestone_tier': milestone_tier,
                             'earned_at': now,
                             'used_at': None,
                             'is_used': False,
@@ -607,22 +649,27 @@ def update_challenge_progress(challenge_id):
                             'discount': '15%',
                             'max_discount': 300,
                             'expires_at': expiry_date.isoformat(),
-                            'min_purchase': 500
+                            'min_purchase': 500,
+                            'milestone': total_challenges,
+                            'milestone_tier': milestone_tier,
+                            'is_milestone': True
                         }
                         
-                        message = f'🎉 Challenge completed! You won a 15% discount coupon: {coupon_code}'
+                        message = f'🎉 Milestone #{total_challenges} achieved! You won a 15% discount coupon: {coupon_code}'
                     
                     else:
-                        # Better luck next time!
+                        # Milestone reached but didn't win
                         now = datetime.utcnow()
                         
-                        # Still track the attempt so they don't get unlimited tries
+                        # Still track the attempt
                         user_coupon = {
                             'user_email': user_email,
                             'coupon_code': None,
                             'earned_from': 'challenge_completion',
                             'challenge_id': challenge_id,
                             'challenge_name': challenge.get('name', 'Challenge'),
+                            'milestone': total_challenges,
+                            'milestone_tier': milestone_tier,
                             'earned_at': now,
                             'used_at': None,
                             'is_used': False,
@@ -633,15 +680,35 @@ def update_challenge_progress(challenge_id):
                         
                         coupon_data = {
                             'won': False,
-                            'message': 'Better luck next time!'
+                            'message': 'Better luck next time!',
+                            'milestone': total_challenges,
+                            'milestone_tier': milestone_tier,
+                            'is_milestone': True
                         }
                         
-                        message = 'Challenge completed! Try another challenge for another chance to win!'
+                        message = f'🏆 Milestone #{total_challenges} reached! Better luck on the next scratch card!'
+                
+                elif not is_milestone:
+                    # Not a milestone - just show progress
+                    message = f'✨ Challenge completed! {progress_to_next} more challenge{"s" if progress_to_next > 1 else ""} until your next reward! ({current_progress}/{milestone_interval})'
+                    
+                    # Include progress data but no scratch card
+                    coupon_data = {
+                        'is_milestone': False,
+                        'progress': current_progress,
+                        'progress_to_next': progress_to_next,
+                        'total_challenges': total_challenges,
+                        'message': f'Complete {progress_to_next} more to earn a scratch card!'
+                    }
+                else:
+                    # Already got reward for this challenge
+                    message = 'Challenge completed!'
             
             except Exception as coupon_error:
-                print(f'[COUPON GENERATION ERROR] {str(coupon_error)}')
-                # Don't fail the progress update if coupon generation fails
+                print(f'[MILESTONE REWARD ERROR] {str(coupon_error)}')
+                # Don't fail the progress update if reward logic fails
                 message = 'Challenge completed!'
+
         
         elif capped_value < new_value:
             message = f'Progress updated. Goal reached! (Added {actual_increment} instead of {activity_value} to reach goal of {target_value})'

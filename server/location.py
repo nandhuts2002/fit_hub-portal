@@ -27,6 +27,19 @@ def generate_event_ticket(booking_data, booking_id, event):
     """Generate a ticket for the event booking"""
     try:
         print(f'🎫 Generating ticket for booking: {booking_id}')
+        print(f'📋 Event data received: {event.get("title") if event else "NO EVENT DATA"}')
+        
+        if not event:
+            print(f'❌ ERROR: Event data is None/empty!')
+            print(f'📦 Booking data: event_id={booking_data.get("event_id")}, event_title={booking_data.get("event_title")}')
+            # Use booking data as fallback if event is missing
+            event = {
+                'title': booking_data.get('event_title', 'Unknown Event'),
+                'date': booking_data.get('event_date', ''),
+                'time': booking_data.get('event_time', ''),
+                'location': booking_data.get('event_location', '')
+            }
+            print(f'⚠️ Using fallback event data from booking')
         
         # Generate unique ticket ID
         ticket_id = f"TKT-{booking_id[:8].upper()}-{str(uuid.uuid4())[:8].upper()}"
@@ -1013,9 +1026,11 @@ def get_trainers_by_city():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @location_bp.route('/events-by-city', methods=['GET'])
+@jwt_required()
 def get_events_by_city():
     """Get events by city name"""
     try:
+        identity = get_jwt_identity()
         
         city = request.args.get('city', '').lower()
         state = request.args.get('state', 'kerala').lower()
@@ -1062,9 +1077,14 @@ def get_events_by_city():
         events = list(events_collection.find(query))
         print(f"Found {len(events)} events for {city}, {state}")
         
-        # Convert ObjectId to string and add mock distance for display
+        # Convert ObjectId to string, serialize datetime, and add mock distance for display
         for event in events:
             event['_id'] = str(event['_id'])  # Convert ObjectId to string
+            # Convert datetime to ISO string for JSON serialization
+            if 'date' in event and isinstance(event['date'], datetime):
+                event['date'] = event['date'].isoformat()
+            if 'created_at' in event and isinstance(event['created_at'], datetime):
+                event['created_at'] = event['created_at'].isoformat()
             event['distance'] = 1.0  # Mock distance
         
         return jsonify({
@@ -1397,9 +1417,13 @@ def verify_event_payment():
                 print(f'❌ Event not found: {event_id}')
                 return jsonify({'success': False, 'error': 'Event not found'}), 404
 
-            # Create booking record
+            # Create booking record with all event details for ticket generation
             booking_data = {
                 'event_id': event_object_id,
+                'event_title': event.get('title', ''),
+                'event_date': event.get('date', ''),
+                'event_time': event.get('time', ''),
+                'event_location': event.get('location', ''),
                 'user_email': user_data.get('email', ''),
                 'user_data': user_data,
                 'amount': event.get('price', 0),

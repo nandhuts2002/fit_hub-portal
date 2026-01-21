@@ -91,10 +91,10 @@ const ProfessionalLoginPage = () => {
       const params = new URLSearchParams(location.search);
       const fromQuery = params.get('from');
       console.log('Login successful, checking redirect sources:', { fromState, fromQuery });
-      
+
       // Prefer state over query parameter
       let redirectPath = fromState || fromQuery;
-      
+
       if (redirectPath) {
         try {
           // Decode if it's a query parameter
@@ -112,7 +112,7 @@ const ProfessionalLoginPage = () => {
           console.error('Error decoding redirect path:', decodeError);
         }
       }
-      
+
       // Fallback to role-based redirect
       const defaultPath = SessionManager.getRedirectPath(res.data.user.role || 'user');
       console.log('Redirecting to default path:', defaultPath);
@@ -152,10 +152,10 @@ const ProfessionalLoginPage = () => {
         const params = new URLSearchParams(location.search);
         const fromQuery = params.get('from');
         console.log('Google login successful, checking redirect sources:', { fromState, fromQuery });
-        
+
         // Prefer state over query parameter
         let redirectPath = fromState || fromQuery;
-        
+
         if (redirectPath) {
           try {
             // Decode if it's a query parameter
@@ -173,7 +173,7 @@ const ProfessionalLoginPage = () => {
             console.error('Error decoding redirect path:', decodeError);
           }
         }
-        
+
         // Fallback to role-based redirect
         const defaultPath = SessionManager.getRedirectPath(response.data.user.role || 'user');
         console.log('Redirecting to default path:', defaultPath);
@@ -251,7 +251,7 @@ const ProfessionalLoginPage = () => {
             className="flex items-center gap-2 px-4 py-2 bg-white/80 backdrop-blur-sm text-secondary-700 rounded-lg hover:bg-white hover:text-secondary-900 transition-all duration-200 shadow-sm hover:shadow-md"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M19 12H5M12 19l-7-7 7-7"/>
+              <path d="M19 12H5M12 19l-7-7 7-7" />
             </svg>
             Back to Home
           </button>

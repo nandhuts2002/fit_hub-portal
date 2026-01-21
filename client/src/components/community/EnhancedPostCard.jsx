@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Heart, MessageCircle, Share, MoreHorizontal, Users, BarChart3 } from 'lucide-react';
 
-const EnhancedPostCard = ({ post, onLike, onComment, onReact, onVote, onMessage }) => {
+const EnhancedPostCard = ({ post, onLike, onComment, onReact, onVote }) => {
   const [showReactions, setShowReactions] = useState(false);
   const [selectedPollOption, setSelectedPollOption] = useState(null);
 
@@ -60,25 +60,61 @@ const EnhancedPostCard = ({ post, onLike, onComment, onReact, onVote, onMessage 
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden hover:shadow-lg transition-shadow"
+      style={{
+        background: 'rgba(255, 255, 255, 0.9)',
+        backdropFilter: 'blur(15px)',
+        WebkitBackdropFilter: 'blur(15px)',
+        borderRadius: '1.5rem',
+        overflow: 'hidden',
+        boxShadow: '0 10px 40px rgba(0, 0, 0, 0.1)',
+        border: '1px solid rgba(255, 255, 255, 0.5)',
+        transition: 'all 0.3s ease',
+        borderLeft: '4px solid transparent',
+        borderImageSlice: 1,
+        borderImageSource: 'linear-gradient(180deg, #667eea, #764ba2, #f093fb)'
+      }}
+      className="hover:shadow-2xl"
     >
-      {/* Post Header */}
-      <div className="p-4 border-b border-gray-100">
+      <div className="p-6 border-b" style={{ borderColor: 'rgba(0,0,0,0.05)' }}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gray-200 rounded-full overflow-hidden">
-              <img
-                src={post.user.avatar || '/api/placeholder/40/40'}
-                alt={post.user.name}
-                className="w-full h-full object-cover"
-              />
+            <div style={{
+              width: '3rem',
+              height: '3rem',
+              borderRadius: '50%',
+              overflow: 'hidden',
+              border: '2px solid #f093fb',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff',
+              fontWeight: '700',
+              boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)'
+            }}>
+              {post.user.avatar ? (
+                <img
+                  src={post.user.avatar}
+                  alt={post.user.name}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+              ) : (
+                <span>{post.user.name?.charAt(0).toUpperCase()}</span>
+              )}
             </div>
             <div>
-              <div className="font-medium text-gray-800">{post.user.name}</div>
-              <div className="text-sm text-gray-500">{formatDate(post.created_at)}</div>
+              <div style={{ fontWeight: '600', color: '#1e293b', fontSize: '1.125rem' }}>{post.user.name}</div>
+              <div style={{ fontSize: '0.875rem', color: '#64748b' }}>{formatDate(post.created_at)}</div>
             </div>
           </div>
-          <button className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100">
+          <button style={{
+            padding: '0.5rem',
+            color: '#64748b',
+            borderRadius: '0.75rem',
+            transition: 'all 0.2s ease',
+            border: 'none',
+            background: 'transparent'
+          }} className="hover:bg-purple-50 hover:text-purple-600">
             <MoreHorizontal className="w-5 h-5" />
           </button>
         </div>
@@ -189,22 +225,20 @@ const EnhancedPostCard = ({ post, onLike, onComment, onReact, onVote, onMessage 
       <div className="px-4 py-3 border-t border-gray-100">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-6">
-            {/* Like Button */}
             <button
               onClick={() => onLike(post.id)}
-              className="flex items-center gap-2 text-gray-600 hover:text-red-500 transition-colors"
+              className="flex items-center gap-2 text-gray-600 hover:text-red-500 transition-all hover:scale-110 transform"
             >
-              <Heart className="w-5 h-5" />
-              <span className="text-sm">{post.likes?.length || 0}</span>
+              <Heart className="w-5 h-5" fill={post.likes?.some(like => like.email === post.user.email) ? "currentColor" : "none"} />
+              <span className="text-sm font-semibold">{post.likes?.length || 0}</span>
             </button>
 
-            {/* Comment Button */}
             <button
               onClick={() => onComment(post.id)}
-              className="flex items-center gap-2 text-gray-600 hover:text-blue-500 transition-colors"
+              className="flex items-center gap-2 text-gray-600 hover:text-blue-500 transition-all hover:scale-110 transform"
             >
               <MessageCircle className="w-5 h-5" />
-              <span className="text-sm">{post.comments?.length || 0}</span>
+              <span className="text-sm font-semibold">{post.comments?.length || 0}</span>
             </button>
 
             {/* Reaction Button */}
@@ -238,19 +272,9 @@ const EnhancedPostCard = ({ post, onLike, onComment, onReact, onVote, onMessage 
             </div>
           </div>
 
-          {/* Share Button */}
-          <button className="flex items-center gap-2 text-gray-600 hover:text-green-500 transition-colors">
+          <button className="flex items-center gap-2 text-gray-600 hover:text-green-500 transition-all hover:scale-110 transform">
             <Share className="w-5 h-5" />
-            <span className="text-sm">Share</span>
-          </button>
-
-          {/* Message Button (New) */}
-          <button
-            onClick={() => onMessage?.(post.user.email)}
-            className="flex items-center gap-2 text-gray-600 hover:text-purple-500 transition-colors"
-          >
-            <MessageCircle className="w-5 h-5" />
-            <span className="text-sm">Message</span>
+            <span className="text-sm font-semibold">Share</span>
           </button>
         </div>
       </div>

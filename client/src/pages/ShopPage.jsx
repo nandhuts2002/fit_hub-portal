@@ -4,15 +4,8 @@ import SessionManager from "../utils/sessionManager";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
-  ShoppingCart,
-  ShoppingBag,
-  Truck,
-  Grid3X3,
-  List,
-  SlidersHorizontal,
-  Package,
-  Heart,
-  User
+  ShoppingCart, Heart, Search, SlidersHorizontal, Grid3X3, List,
+  ChevronDown, X, Star, Truck, Package, User, ShoppingBag, Tag
 } from "lucide-react";
 import ProductCard from "../components/ProductCard";
 import FilterSidebar from "../components/FilterSidebar";
@@ -20,6 +13,7 @@ import ProductModal from "../components/ProductModal";
 import CartSidebar from "../components/CartSidebar";
 import CheckoutModal from "../components/CheckoutModal";
 import OrderSuccessModal from "../components/OrderSuccessModal";
+import ScratchCard from "../components/community/ScratchCard";
 import OrderHistory from "../components/OrderHistory";
 import NotificationSystem from "../components/NotificationSystem";
 import FlyToCartDumbbell from "../components/FlyToCartDumbbell";
@@ -160,13 +154,13 @@ const categories = [
 const ShopPage = () => {
   const navigate = useNavigate();
   const location = useLocation(); // Add this to track location changes
-  
+
   console.log('FitHub Shop: Page loaded successfully');
   const cartBtnRef = useRef(null);
   const [flyAnim, setFlyAnim] = useState(null); // {start, end, key}
   const [cart, setCart] = useState(() => {
     const user = SessionManager.getCurrentUser();
-    const key = user?.email ? `fithub-cart:${user.email}` : 'fithub-cart';
+    const key = user?.email ? `fithub - cart:${user.email} ` : 'fithub-cart';
     const savedPerUser = user?.email ? localStorage.getItem(key) : null;
     const savedLegacy = localStorage.getItem('fithub-cart');
     const initial = savedPerUser || savedLegacy;
@@ -174,7 +168,7 @@ const ShopPage = () => {
   });
   const [wishlist, setWishlist] = useState(() => {
     const user = SessionManager.getCurrentUser();
-    const key = user?.email ? `fithub-wishlist:${user.email}` : 'fithub-wishlist';
+    const key = user?.email ? `fithub - wishlist:${user.email} ` : 'fithub-wishlist';
     const savedPerUser = user?.email ? localStorage.getItem(key) : null;
     const savedLegacy = localStorage.getItem('fithub-wishlist');
     const initial = savedPerUser || savedLegacy;
@@ -208,12 +202,14 @@ const ShopPage = () => {
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [orderDetails, setOrderDetails] = useState(null);
   const [formErrors, setFormErrors] = useState([]);
+  const [scratchCardReward, setScratchCardReward] = useState(null);
+  const [showScratchCard, setShowScratchCard] = useState(false);
   const [orderHistoryOpen, setOrderHistoryOpen] = useState(false);
 
   // Sync cart with localStorage whenever it changes
   useEffect(() => {
     const user = SessionManager.getCurrentUser();
-    const key = user?.email ? `fithub-cart:${user.email}` : 'fithub-cart';
+    const key = user?.email ? `fithub - cart:${user.email} ` : 'fithub-cart';
     localStorage.setItem(key, JSON.stringify(cart));
     if (user?.email) localStorage.removeItem('fithub-cart');
   }, [cart]);
@@ -225,8 +221,8 @@ const ShopPage = () => {
         const currentUser = SessionManager.getCurrentUser();
         if (!currentUser?.token || !currentUser?.email) return;
         // Don't encode the email here, let the browser handle it automatically
-        const { data } = await api.get(`/shop/api/wishlist/${encodeURIComponent(currentUser.email)}`, {
-          headers: { Authorization: `Bearer ${currentUser.token}` }
+        const { data } = await api.get(`/ shop / api / wishlist / ${encodeURIComponent(currentUser.email)} `, {
+          headers: { Authorization: `Bearer ${currentUser.token} ` }
         });
         const items = data?.wishlist?.items || [];
         // Normalize to product-like objects used by UI
@@ -252,7 +248,7 @@ const ShopPage = () => {
   useEffect(() => {
     try {
       const currentUser = SessionManager.getCurrentUser();
-      const addrKey = currentUser?.email ? `fithub-address:${currentUser.email}` : 'fithub-address:guest';
+      const addrKey = currentUser?.email ? `fithub - address:${currentUser.email} ` : 'fithub-address:guest';
       const saved = localStorage.getItem(addrKey);
       if (saved) {
         const obj = JSON.parse(saved);
@@ -265,12 +261,12 @@ const ShopPage = () => {
 
   // Auto-save shipping address when it looks complete (to avoid retyping like Amazon/Flipkart)
   useEffect(() => {
-    const required = ['name','email','phone','address','city','state','pincode'];
+    const required = ['name', 'email', 'phone', 'address', 'city', 'state', 'pincode'];
     const hasAll = required.every((k) => String(shippingAddress[k] || '').trim().length > 0);
     if (!hasAll) return;
     try {
       const currentUser = SessionManager.getCurrentUser();
-      const addrKey = currentUser?.email ? `fithub-address:${currentUser.email}` : 'fithub-address:guest';
+      const addrKey = currentUser?.email ? `fithub - address:${currentUser.email} ` : 'fithub-address:guest';
       localStorage.setItem(addrKey, JSON.stringify({
         name: shippingAddress.name,
         email: shippingAddress.email,
@@ -292,7 +288,7 @@ const ShopPage = () => {
         const currentUser = SessionManager.getCurrentUser();
         if (!currentUser?.token) return;
         await api.post('/shop/api/cart/init', {}, {
-          headers: { Authorization: `Bearer ${currentUser.token}` }
+          headers: { Authorization: `Bearer ${currentUser.token} ` }
         });
       } catch (e) {
         // non-fatal; keep local cart working even if server init fails
@@ -310,7 +306,7 @@ const ShopPage = () => {
         const productsResponse = await api.get('/shop/api/products');
         const productsData = productsResponse.data;
         console.log('Products API response:', productsData);
-        
+
         // Only initialize sample data if no products exist
         if (productsData.success && productsData.products.length === 0) {
           console.log('No products found, initializing sample data...');
@@ -318,59 +314,21 @@ const ShopPage = () => {
           if (currentUser?.token) {
             try {
               await api.post('/shop/api/init-shop-data', {}, {
-                headers: { Authorization: `Bearer ${currentUser.token}` }
+                headers: { Authorization: `Bearer ${currentUser.token} ` }
               });
             } catch (initError) {
               console.error('Error initializing shop data:', initError);
             }
           }
-          
+
           // Reload products after initialization
           const newProductsResponse = await api.get('/shop/api/products');
           const newProductsData = newProductsResponse.data;
           if (newProductsData.success) {
-            // Fix image URLs for Vercel deployment
-            const fixedProducts = newProductsData.products.map(product => {
-              if (product.images && product.images.length > 0) {
-                const fixedImages = product.images.map(img => {
-                  // If it's already a full URL, keep it
-                  if (img.startsWith('http')) {
-                    return img;
-                  }
-                  // If it's a relative path, prepend the base URL
-                  if (img.startsWith('/')) {
-                    return `${process.env.REACT_APP_API_BASE_URL || ''}${img}`;
-                  }
-                  // Otherwise, return as is
-                  return img;
-                });
-                return { ...product, images: fixedImages };
-              }
-              return product;
-            });
-            setApiProducts(fixedProducts);
+            setApiProducts(newProductsData.products);
           }
         } else if (productsData.success) {
-          // Fix image URLs for Vercel deployment
-          const fixedProducts = productsData.products.map(product => {
-            if (product.images && product.images.length > 0) {
-              const fixedImages = product.images.map(img => {
-                // If it's already a full URL, keep it
-                if (img.startsWith('http')) {
-                  return img;
-                }
-                // If it's a relative path, prepend the base URL
-                if (img.startsWith('/')) {
-                  return `${process.env.REACT_APP_API_BASE_URL || ''}${img}`;
-                }
-                // Otherwise, return as is
-                return img;
-              });
-              return { ...product, images: fixedImages };
-            }
-            return product;
-          });
-          setApiProducts(fixedProducts);
+          setApiProducts(productsData.products);
         }
 
         // Load categories
@@ -409,7 +367,7 @@ const ShopPage = () => {
   // Save wishlist to localStorage whenever it changes
   useEffect(() => {
     const user = SessionManager.getCurrentUser();
-    const key = user?.email ? `fithub-wishlist:${user.email}` : 'fithub-wishlist';
+    const key = user?.email ? `fithub - wishlist:${user.email} ` : 'fithub-wishlist';
     localStorage.setItem(key, JSON.stringify(wishlist));
     if (user?.email) localStorage.removeItem('fithub-wishlist');
   }, [wishlist]);
@@ -420,28 +378,9 @@ const ShopPage = () => {
       const productsResponse = await api.get('/shop/api/products');
       const productsData = productsResponse.data;
       if (productsData.success) {
-        // Fix image URLs for Vercel deployment
-        const fixedProducts = productsData.products.map(product => {
-          if (product.images && product.images.length > 0) {
-            const fixedImages = product.images.map(img => {
-              // If it's already a full URL, keep it
-              if (img.startsWith('http')) {
-                return img;
-              }
-              // If it's a relative path, prepend the base URL
-              if (img.startsWith('/')) {
-                return `${process.env.REACT_APP_API_BASE_URL || ''}${img}`;
-              }
-              // Otherwise, return as is
-              return img;
-            });
-            return { ...product, images: fixedImages };
-          }
-          return product;
-        });
-        setApiProducts(fixedProducts);
-        console.log('Products refreshed:', fixedProducts.length);
-        console.log('First product images:', fixedProducts[0]?.images);
+        setApiProducts(productsData.products);
+        console.log('Products refreshed:', productsData.products.length);
+        console.log('First product images:', productsData.products[0]?.images);
       }
     } catch (error) {
       console.error('Error refreshing products:', error);
@@ -456,7 +395,7 @@ const ShopPage = () => {
   const filteredProducts = allProducts
     .filter(product => {
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           product.brand.toLowerCase().includes(searchTerm.toLowerCase());
+        product.brand.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = selectedCategory === "All" || product.category === selectedCategory;
       const matchesPrice = product.price >= priceRange[0] && product.price <= priceRange[1];
       return matchesSearch && matchesCategory && matchesPrice;
@@ -492,21 +431,21 @@ const ShopPage = () => {
   const addToCart = (product, variant = null) => {
     console.log('Adding to cart:', product, variant);
     console.log('Current cart:', cart);
-    
+
     // Get the product ID (handle both id and _id)
     const productId = product.id || product._id;
-    
+
     if (!productId) {
       console.error('Product ID not found:', product);
       return;
     }
-    
+
     // Check for existing item with same product ID
     const existingItem = cart.find(item => {
       const itemProductId = item.id || item._id;
       return itemProductId === productId;
     });
-    
+
     // Enforce stock limit
     const available = getAvailableStock(product);
     const currentQtyForProduct = cart
@@ -518,7 +457,7 @@ const ShopPage = () => {
     }
 
     console.log('Existing item found:', existingItem);
-    
+
     let updatedCart;
     if (existingItem) {
       // Update quantity of existing item
@@ -546,7 +485,7 @@ const ShopPage = () => {
       console.log('Adding new item to cart:', cartItem);
       updatedCart = [...cart, cartItem];
     }
-    
+
     console.log('Updated cart:', updatedCart);
     setCart(updatedCart);
   };
@@ -609,7 +548,7 @@ const ShopPage = () => {
       if (!currentUser?.token || !currentUser?.email) return; // if not logged, keep local only
       // Don't encode the email here, let the browser handle it automatically
       await api.post(
-        `/shop/api/wishlist/${encodeURIComponent(currentUser.email)}/toggle`,
+        `/ shop / api / wishlist / ${encodeURIComponent(currentUser.email)}/toggle`,
         { product_id: (product.id || product._id) },
         { headers: { Authorization: `Bearer ${currentUser.token}` } }
       );
@@ -637,7 +576,7 @@ const ShopPage = () => {
   // Checkout functions
   const applyCoupon = async () => {
     if (!couponCode.trim()) return;
-    
+
     try {
       const response = await api.post('/shop/api/coupons/validate', { code: couponCode });
       const data = response.data;
@@ -655,7 +594,7 @@ const ShopPage = () => {
 
   const calculateDiscount = () => {
     if (!appliedCoupon) return 0;
-    
+
     const subtotal = getTotalPrice();
     if (appliedCoupon.type === 'percentage') {
       return Math.min(subtotal * (appliedCoupon.value / 100), appliedCoupon.max_discount || subtotal);
@@ -687,7 +626,7 @@ const ShopPage = () => {
     const isEmailValid = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
     const isPhoneValid = (v) => /^\d{10}$/.test(v);
     const isPincodeValid = (v) => /^\d{6}$/.test(v);
-    const req = ['name','email','phone','address','city','state','pincode'];
+    const req = ['name', 'email', 'phone', 'address', 'city', 'state', 'pincode'];
     req.forEach((f) => { if (!String(shippingAddress[f] || '').trim()) errs.push(`${f} is required`); });
     if (shippingAddress.email && !isEmailValid(shippingAddress.email)) errs.push('Enter a valid email');
     if (shippingAddress.phone && !isPhoneValid(shippingAddress.phone)) errs.push('Enter a valid 10-digit phone');
@@ -727,12 +666,12 @@ const ShopPage = () => {
       console.log('Order creation response:', data);
       console.log('Order ID for navigation:', data.order_id);
       console.log('Order number:', data.order_number);
-      
+
       if (data.success) {
         if (selectedPayment === 'cod') {
           // For COD: no Razorpay, just show success page with Pending payment status
           console.log('COD order created successfully, redirecting to:', `/orders/${data.order_id}`);
-          
+
           // Store order data in localStorage as backup
           const orderData = {
             _id: data.order_id,
@@ -755,7 +694,7 @@ const ShopPage = () => {
           };
           localStorage.setItem(`order_${data.order_id}`, JSON.stringify(orderData));
           console.log('Order data stored in localStorage:', orderData);
-          
+
           setCart([]);
           localStorage.removeItem('fithub-cart');
           setAppliedCoupon(null);
@@ -779,6 +718,9 @@ const ShopPage = () => {
         }
 
         // Open Razorpay checkout
+        // Store order ID for navigation after scratch card
+        sessionStorage.setItem('last_order_id', data.order_id);
+
         const options = {
           key: key_id,
           amount: rzpOrder.amount,
@@ -788,19 +730,31 @@ const ShopPage = () => {
           order_id: rzpOrder.id,
           handler: async (resp) => {
             try {
-              await api.post('/shop/api/razorpay/verify', {
+              const verifyResponse = await api.post('/shop/api/razorpay/verify', {
                 razorpay_order_id: resp.razorpay_order_id,
                 razorpay_payment_id: resp.razorpay_payment_id,
                 razorpay_signature: resp.razorpay_signature,
                 internal_order_id: data.order_id
               });
-              // success -> redirect to summary
+
+              // Check if there's a scratch card reward
+              const couponReward = verifyResponse.data?.coupon;
+
+              // success -> clear cart and close checkout
               setCart([]);
               localStorage.removeItem('fithub-cart');
               setAppliedCoupon(null);
               setCouponCode('');
               setCheckoutOpen(false);
-              navigate(`/orders/${data.order_id}`);
+
+              // If there's a reward, show scratch card first
+              if (couponReward) {
+                setScratchCardReward(couponReward);
+                setShowScratchCard(true);
+              } else {
+                // No reward, navigate directly to order page
+                navigate(`/orders/${data.order_id}`);
+              }
             } catch (e) {
               alert('Payment verification failed');
             }
@@ -878,11 +832,11 @@ const ShopPage = () => {
                 <span className="font-medium">Free shipping on orders over ₹999</span>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-3">
               {/* Notifications */}
               <NotificationSystem />
-              
+
               {/* Profile Button */}
               <button
                 onClick={() => navigate('/shop/profile')}
@@ -900,7 +854,7 @@ const ShopPage = () => {
               >
                 <Package className="w-6 h-6 group-hover:scale-110 transition-transform" />
               </button>
-              
+
               {/* Wishlist Button */}
               <button
                 onClick={() => navigate('/wishlist')}
@@ -914,7 +868,16 @@ const ShopPage = () => {
                   </span>
                 )}
               </button>
-              
+
+              {/* My Coupons Button */}
+              <button
+                onClick={() => navigate('/coupons')}
+                className="relative p-3 text-yellow-600 hover:bg-yellow-100 rounded-xl transition-all duration-200 group border border-yellow-200"
+                title="My Coupons"
+              >
+                <Tag className="w-6 h-6 group-hover:scale-110 transition-transform" />
+              </button>
+
               {/* Cart Button */}
               <button
                 ref={cartBtnRef}
@@ -994,21 +957,19 @@ const ShopPage = () => {
                 <div className="bg-white p-1 rounded-lg shadow-sm border-2 border-gray-200">
                   <button
                     onClick={() => setViewMode("grid")}
-                    className={`p-3 rounded-lg transition-all duration-200 font-semibold ${
-                      viewMode === "grid" 
-                        ? "bg-blue-600 text-white shadow-md border-2 border-blue-600" 
-                        : "text-gray-700 hover:text-blue-600 hover:bg-blue-50 border-2 border-transparent"
-                    }`}
+                    className={`p-3 rounded-lg transition-all duration-200 font-semibold ${viewMode === "grid"
+                      ? "bg-blue-600 text-white shadow-md border-2 border-blue-600"
+                      : "text-gray-700 hover:text-blue-600 hover:bg-blue-50 border-2 border-transparent"
+                      }`}
                   >
                     <Grid3X3 className="w-5 h-5" />
                   </button>
                   <button
                     onClick={() => setViewMode("list")}
-                    className={`p-3 rounded-lg transition-all duration-200 font-semibold ${
-                      viewMode === "list" 
-                        ? "bg-blue-600 text-white shadow-md border-2 border-blue-600" 
-                        : "text-gray-700 hover:text-blue-600 hover:bg-blue-50 border-2 border-transparent"
-                    }`}
+                    className={`p-3 rounded-lg transition-all duration-200 font-semibold ${viewMode === "list"
+                      ? "bg-blue-600 text-white shadow-md border-2 border-blue-600"
+                      : "text-gray-700 hover:text-blue-600 hover:bg-blue-50 border-2 border-transparent"
+                      }`}
                   >
                     <List className="w-5 h-5" />
                   </button>
@@ -1044,11 +1005,10 @@ const ShopPage = () => {
                 </button>
               </div>
             ) : (
-              <div className={`grid gap-8 ${
-                viewMode === "grid" 
-                  ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" 
-                  : "grid-cols-1"
-              }`}>
+              <div className={`grid gap-8 ${viewMode === "grid"
+                ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                : "grid-cols-1"
+                }`}>
                 {filteredProducts.map((product) => (
                   <ProductCard
                     key={product.id || product._id}
@@ -1077,20 +1037,20 @@ const ShopPage = () => {
               <div className="mt-12">
                 <div className="space-y-8">
                   {/* Based on Recent Orders */}
-                  <ProductRecommendations 
+                  <ProductRecommendations
                     userEmail={SessionManager.getCurrentUser()?.email}
                     type="recent_orders"
                     title="🛍️ Based on your recent orders"
                   />
-                  
+
                   {/* Trending Products */}
-                  <ProductRecommendations 
+                  <ProductRecommendations
                     type="trending"
                     title="🔥 Trending now"
                   />
-                  
+
                   {/* Similar Users */}
-                  <ProductRecommendations 
+                  <ProductRecommendations
                     userEmail={SessionManager.getCurrentUser()?.email}
                     type="similar_users"
                     title="👥 Customers with similar preferences also bought"
@@ -1132,13 +1092,13 @@ const ShopPage = () => {
         loading={loading}
         canCheckout={
           cart.length > 0 &&
-          String(shippingAddress.name||'').trim() &&
-          /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(shippingAddress.email||'') &&
-          /^\d{10}$/.test(shippingAddress.phone||'') &&
-          String(shippingAddress.address||'').trim() &&
-          String(shippingAddress.city||'').trim() &&
-          String(shippingAddress.state||'').trim() &&
-          /^\d{6}$/.test(shippingAddress.pincode||'')
+          String(shippingAddress.name || '').trim() &&
+          /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(shippingAddress.email || '') &&
+          /^\d{10}$/.test(shippingAddress.phone || '') &&
+          String(shippingAddress.address || '').trim() &&
+          String(shippingAddress.city || '').trim() &&
+          String(shippingAddress.state || '').trim() &&
+          /^\d{6}$/.test(shippingAddress.pincode || '')
         }
       />
 
@@ -1164,6 +1124,25 @@ const ShopPage = () => {
         isOpen={orderHistoryOpen}
         onClose={() => setOrderHistoryOpen(false)}
       />
+
+      {/* Scratch Card Reward - Purchase */}
+      {showScratchCard && scratchCardReward && (
+        <ScratchCard
+          reward={scratchCardReward}
+          title="🎉 Purchase Successful!"
+          context="purchase"
+          onClose={() => {
+            setShowScratchCard(false);
+            // Navigate to orders page after closing scratch card
+            // The order ID should be stored when initiating payment
+            const lastOrderId = sessionStorage.getItem('last_order_id');
+            if (lastOrderId) {
+              navigate(`/orders/${lastOrderId}`);
+              sessionStorage.removeItem('last_order_id');
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

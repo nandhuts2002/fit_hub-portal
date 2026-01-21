@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  X, 
-  MapPin, 
-  Clock, 
+import {
+  X,
+  MapPin,
+  Clock,
   Calendar,
   Users,
   DollarSign,
@@ -12,8 +12,10 @@ import {
   CheckCircle
 } from 'lucide-react';
 import paymentService from '../utils/paymentService';
+import { useToast } from '../contexts/ToastContext';
 
-const EventDetailsModal = ({ event, isOpen, onClose }) => {
+const EventDetailsModal = ({ event, isOpen, onClose, onEventJoined }) => {
+  const { showSuccess, showError, showWarning } = useToast();
   const [showJoinForm, setShowJoinForm] = useState(false);
   const [showCalendarOptions, setShowCalendarOptions] = useState(false);
   const [joinForm, setJoinForm] = useState({
@@ -32,31 +34,31 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
   // Form validation
   const validateForm = () => {
     const errors = {};
-    
+
     if (!joinForm.name.trim()) {
       errors.name = 'Name is required';
     } else if (joinForm.name.trim().length < 2) {
       errors.name = 'Name must be at least 2 characters';
     }
-    
+
     if (!joinForm.email.trim()) {
       errors.email = 'Email is required';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(joinForm.email)) {
       errors.email = 'Please enter a valid email address';
     }
-    
+
     if (!joinForm.phone.trim()) {
       errors.phone = 'Phone number is required';
     } else if (!/^[6-9]\d{9}$/.test(joinForm.phone.replace(/\D/g, ''))) {
       errors.phone = 'Please enter a valid 10-digit Indian phone number';
     }
-    
+
     if (!joinForm.emergencyContact.trim()) {
       errors.emergencyContact = 'Emergency contact is required';
     } else if (!/^[6-9]\d{9}$/.test(joinForm.emergencyContact.replace(/\D/g, ''))) {
       errors.emergencyContact = 'Please enter a valid 10-digit Indian phone number';
     }
-    
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -64,13 +66,13 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
   // Add to calendar function
   const addToCalendar = () => {
     if (!event.date || !event.time) {
-      alert('Event date and time are required to add to calendar');
+      showWarning('Event date and time are required to add to calendar');
       return;
     }
 
     const eventDate = new Date(`${event.date}T${event.time}`);
     const endDate = new Date(eventDate.getTime() + 2 * 60 * 60 * 1000); // 2 hours duration
-    
+
     const calendarData = {
       title: event.title,
       start: eventDate.toISOString(),
@@ -82,7 +84,7 @@ const EventDetailsModal = ({ event, isOpen, onClose }) => {
 
     // Create Google Calendar URL
     const googleCalendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(calendarData.title)}&dates=${eventDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z/${endDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z&details=${encodeURIComponent(calendarData.description)}&location=${encodeURIComponent(calendarData.location)}`;
-    
+
     // Create ICS file for other calendar apps
     const icsContent = `BEGIN:VCALENDAR
 VERSION:2.0
@@ -100,7 +102,7 @@ END:VCALENDAR`;
 
     // Show calendar options modal instead of using confirm
     setShowCalendarOptions(true);
-    
+
     // Store calendar data for use in modal
     window._calendarData = { googleCalendarUrl, icsContent, eventTitle: event.title };
   };
@@ -108,7 +110,7 @@ END:VCALENDAR`;
   const handleCalendarChoice = (choice) => {
     setShowCalendarOptions(false);
     const { googleCalendarUrl, icsContent, eventTitle } = window._calendarData || {};
-    
+
     if (choice === 'google' && googleCalendarUrl) {
       window.open(googleCalendarUrl, '_blank');
     } else if (choice === 'ics' && icsContent) {
@@ -122,7 +124,7 @@ END:VCALENDAR`;
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     }
-    
+
     // Clean up
     delete window._calendarData;
   };
@@ -130,19 +132,19 @@ END:VCALENDAR`;
   const handleJoinEvent = async (e) => {
     e.preventDefault();
     setIsValidating(true);
-    
+
     // Validate form first
     if (!validateForm()) {
       setIsValidating(false);
       return;
     }
-    
+
     setIsJoining(true);
 
     try {
       // Check if event is free or paid
       const isFree = event.price === 'Free' || event.price === '0' || !event.price;
-      
+
       if (isFree) {
         // Free event - create booking directly
         const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000'}/location/api/event-bookings`, {
@@ -159,10 +161,11 @@ END:VCALENDAR`;
         });
 
         if (response.ok) {
-          alert('Successfully joined the free event! You will receive confirmation details via email.');
+          showSuccess('Successfully joined the free event! You will receive confirmation details via email.', 5000);
           setShowJoinForm(false);
           setJoinForm({ name: '', phone: '', email: '', emergencyContact: '', specialRequirements: '' });
-          onClose(); // Close modal after successful join
+          if (onEventJoined) onEventJoined(); // Refresh tickets
+          setTimeout(() => onClose(), 1500); // Close modal after successful join
         } else {
           throw new Error('Failed to join event');
         }
@@ -174,7 +177,7 @@ END:VCALENDAR`;
         if (amount > 0) {
           // Ensure Razorpay is loaded
           await paymentService.ensureRazorpayLoaded();
-          
+
           // Create payment order
           const paymentOrder = await paymentService.createEventPaymentOrder(event, joinForm);
 
@@ -199,7 +202,7 @@ END:VCALENDAR`;
           };
 
           const paymentResponse = await paymentService.openRazorpayCheckout(options);
-          
+
           // Verify payment
           const verificationResult = await paymentService.verifyPayment({
             razorpay_order_id: paymentResponse.razorpay_order_id,
@@ -213,23 +216,24 @@ END:VCALENDAR`;
           if (verificationResult.ticket) {
             // Store ticket data for display
             localStorage.setItem('latest_ticket', JSON.stringify(verificationResult.ticket));
-            alert('Payment successful! You have joined the event. Your ticket has been generated and saved to your account.');
+            showSuccess('🎉 Payment successful! Your ticket has been generated and saved to your account.', 6000);
           } else {
-            alert('Payment successful! You have joined the event. Confirmation details will be sent to your email.');
+            showSuccess('Payment successful! You have joined the event. Confirmation details will be sent to your email.', 5000);
           }
-          
+
           setShowJoinForm(false);
           setJoinForm({ name: '', phone: '', email: '', emergencyContact: '', specialRequirements: '' });
-          onClose(); // Close modal after successful payment
+          if (onEventJoined) onEventJoined(); // Refresh tickets
+          setTimeout(() => onClose(), 1500); // Close modal after successful payment
         }
       }
     } catch (error) {
       console.error('Error joining event:', error);
       // Provide a more user-friendly error message for event not found
       if (error.message.includes('Event not found')) {
-        alert('This event is no longer available. It may have been removed or has already ended. Please refresh the page and try another event.');
+        showError('This event is no longer available. It may have been removed or has already ended. Please refresh the page and try another event.', 6000);
       } else {
-        alert(`Error joining event: ${error.message}`);
+        showError(`Error joining event: ${error.message}`, 5000);
       }
     } finally {
       setIsJoining(false);
@@ -378,7 +382,7 @@ END:VCALENDAR`;
                   </div>
                 </div>
               </div>
-              
+
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <Users className="w-5 h-5 text-purple-500" />
@@ -519,9 +523,9 @@ END:VCALENDAR`;
                         placeholder="Full Name"
                         value={joinForm.name}
                         onChange={(e) => {
-                          setJoinForm({...joinForm, name: e.target.value});
+                          setJoinForm({ ...joinForm, name: e.target.value });
                           if (formErrors.name) {
-                            setFormErrors({...formErrors, name: ''});
+                            setFormErrors({ ...formErrors, name: '' });
                           }
                         }}
                         className={`border rounded-lg px-3 py-2 w-full ${formErrors.name ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}`}
@@ -537,9 +541,9 @@ END:VCALENDAR`;
                         placeholder="Phone Number"
                         value={joinForm.phone}
                         onChange={(e) => {
-                          setJoinForm({...joinForm, phone: e.target.value});
+                          setJoinForm({ ...joinForm, phone: e.target.value });
                           if (formErrors.phone) {
-                            setFormErrors({...formErrors, phone: ''});
+                            setFormErrors({ ...formErrors, phone: '' });
                           }
                         }}
                         className={`border rounded-lg px-3 py-2 w-full ${formErrors.phone ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}`}
@@ -556,9 +560,9 @@ END:VCALENDAR`;
                       placeholder="Email Address"
                       value={joinForm.email}
                       onChange={(e) => {
-                        setJoinForm({...joinForm, email: e.target.value});
+                        setJoinForm({ ...joinForm, email: e.target.value });
                         if (formErrors.email) {
-                          setFormErrors({...formErrors, email: ''});
+                          setFormErrors({ ...formErrors, email: '' });
                         }
                       }}
                       className={`border rounded-lg px-3 py-2 w-full ${formErrors.email ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}`}
@@ -574,9 +578,9 @@ END:VCALENDAR`;
                       placeholder="Emergency Contact Number"
                       value={joinForm.emergencyContact}
                       onChange={(e) => {
-                        setJoinForm({...joinForm, emergencyContact: e.target.value});
+                        setJoinForm({ ...joinForm, emergencyContact: e.target.value });
                         if (formErrors.emergencyContact) {
-                          setFormErrors({...formErrors, emergencyContact: ''});
+                          setFormErrors({ ...formErrors, emergencyContact: '' });
                         }
                       }}
                       className={`border rounded-lg px-3 py-2 w-full ${formErrors.emergencyContact ? 'border-red-500 focus:ring-red-500' : 'focus:ring-blue-500'}`}
@@ -589,7 +593,7 @@ END:VCALENDAR`;
                   <textarea
                     placeholder="Any special requirements or medical conditions we should know about?"
                     value={joinForm.specialRequirements}
-                    onChange={(e) => setJoinForm({...joinForm, specialRequirements: e.target.value})}
+                    onChange={(e) => setJoinForm({ ...joinForm, specialRequirements: e.target.value })}
                     className="border rounded-lg px-3 py-2 w-full h-20 resize-none"
                   />
                   <div className="flex gap-3">
@@ -619,11 +623,10 @@ END:VCALENDAR`;
               <button
                 onClick={() => setShowJoinForm(!showJoinForm)}
                 disabled={event.max_participants && event.max_participants > 0 && (event.participants || 0) >= event.max_participants}
-                className={`flex-1 py-3 px-6 rounded-lg transition-colors font-medium ${
-                  event.max_participants && event.max_participants > 0 && (event.participants || 0) >= event.max_participants
+                className={`flex-1 py-3 px-6 rounded-lg transition-colors font-medium ${event.max_participants && event.max_participants > 0 && (event.participants || 0) >= event.max_participants
                     ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
                     : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}
+                  }`}
               >
                 {event.max_participants && event.max_participants > 0 && (event.participants || 0) >= event.max_participants
                   ? 'Event Fully Booked'

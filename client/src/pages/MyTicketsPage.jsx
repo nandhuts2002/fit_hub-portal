@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Ticket, 
-  Calendar, 
-  MapPin, 
-  Clock, 
-  User, 
+import {
+  Ticket,
+  Calendar,
+  MapPin,
+  Clock,
+  User,
   QrCode,
   Download,
   Eye,
   Filter,
-  Search
+  Search,
+  RefreshCw
 } from 'lucide-react';
 import api from '../utils/api';
 import EventTicket from '../components/EventTicket';
@@ -28,10 +29,23 @@ const MyTicketsPage = () => {
     loadTickets();
   }, []);
 
+  // Auto-refresh tickets when page becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('Page visible - refreshing tickets');
+        loadTickets();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
   const loadTickets = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const response = await api.get('/location/api/user-tickets');
       if (response.data.success) {
@@ -49,7 +63,7 @@ const MyTicketsPage = () => {
 
   const filteredTickets = tickets.filter(ticket => {
     const matchesSearch = ticket.event_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         ticket.ticket_id.toLowerCase().includes(searchTerm.toLowerCase());
+      ticket.ticket_id.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || ticket.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -86,6 +100,15 @@ const MyTicketsPage = () => {
               <h1 className="text-3xl font-bold text-gray-900">My Event Tickets</h1>
               <p className="text-gray-600">Manage your event bookings and tickets</p>
             </div>
+            <button
+              onClick={loadTickets}
+              disabled={loading}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Refresh Tickets"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
           </div>
 
           {/* Stats */}
@@ -187,7 +210,7 @@ const MyTicketsPage = () => {
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No Tickets Found</h3>
             <p className="text-gray-600">
-              {searchTerm || statusFilter !== 'all' 
+              {searchTerm || statusFilter !== 'all'
                 ? 'No tickets match your search criteria'
                 : 'You haven\'t booked any events yet'
               }
@@ -222,7 +245,7 @@ const MyTicketsPage = () => {
                       <p className="font-medium text-sm">{formatDate(ticket.event_date)}</p>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-3">
                     <Clock className="w-4 h-4 text-gray-500" />
                     <div>
@@ -230,7 +253,7 @@ const MyTicketsPage = () => {
                       <p className="font-medium text-sm">{formatTime(ticket.event_time)}</p>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-3">
                     <MapPin className="w-4 h-4 text-gray-500" />
                     <div>

@@ -199,23 +199,6 @@ def get_products():
             product['stock_quantity'] = stock_val
             product['in_stock'] = bool(stock_val > 0)
             
-            # Fix image URLs for Vercel deployment
-            if product.get('images'):
-                fixed_images = []
-                for img in product['images']:
-                    if img.startswith('http'):
-                        # Already a full URL, keep as is
-                        fixed_images.append(img)
-                    elif img.startswith('/'):
-                        # Relative path, prepend the correct base URL
-                        base_url = os.getenv('FRONTEND_URL') or 'https://fit-hub-portal-1.onrender.com'
-                        fixed_images.append(f"{base_url}{img}")
-                    else:
-                        # Just a filename, prepend the correct base URL
-                        base_url = os.getenv('FRONTEND_URL') or 'https://fit-hub-portal-1.onrender.com'
-                        fixed_images.append(f"{base_url}/uploads/products/{str(product_id)}/{img}")
-                product['images'] = fixed_images
-            
         return jsonify({
             'success': True,
             'products': products,
@@ -393,23 +376,6 @@ def get_product(product_id):
         product['in_stock'] = bool(stock_val > 0)
         
         product['_id'] = str(product['_id'])
-        
-        # Fix image URLs for Vercel deployment
-        if product.get('images'):
-            fixed_images = []
-            for img in product['images']:
-                if img.startswith('http'):
-                    # Already a full URL, keep as is
-                    fixed_images.append(img)
-                elif img.startswith('/'):
-                    # Relative path, prepend the correct base URL
-                    base_url = os.getenv('FRONTEND_URL') or 'https://fit-hub-portal-1.onrender.com'
-                    fixed_images.append(f"{base_url}{img}")
-                else:
-                    # Just a filename, prepend the correct base URL
-                    base_url = os.getenv('FRONTEND_URL') or 'https://fit-hub-portal-1.onrender.com'
-                    fixed_images.append(f"{base_url}/uploads/products/{str(product['_id'])}/{img}")
-            product['images'] = fixed_images
         
         return jsonify({'success': True, 'product': product})
         
@@ -941,7 +907,125 @@ def verify_razorpay_signature():
         if matched == 0:
             return jsonify({'success': False, 'error': 'Order not found to update'}), 404
 
-        return jsonify({'success': True})
+        # ============================================
+        # SCRATCH CARD REWARD SYSTEM FOR PURCHASES
+        # ============================================
+        # Generate scratch card reward for successful purchase
+        coupon_data = None
+        try:
+            # Get the updated order to retrieve user email and order details
+            order_doc = None
+            if internal_order_id:
+                try:
+                    order_doc = orders_collection.find_one({'_id': ObjectId(internal_order_id)})
+                except Exception:
+                    pass
+            if not order_doc:
+                order_doc = orders_collection.find_one({'razorpayOrderId': order_id})
+            
+            if order_doc:
+                user_email = order_doc.get('user_email')
+                order_mongo_id = str(order_doc.get('_id'))
+                order_number = order_doc.get('order_id', order_mongo_id)
+                
+                # Check if user already has a reward attempt for this order
+                existing_coupon = user_coupons_collection.find_one({
+                    'user_email': user_email,
+                    'order_id': order_mongo_id
+                })
+                
+                if not existing_coupon and user_email:
+                    # 60% chance to win a coupon (luck-based, same as challenges)
+                    won_coupon = random.random() < 0.6
+                    
+                    if won_coupon:
+                        # Generate unique coupon code
+                        random_chars = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
+                        coupon_code = f'PURCHASE15-{random_chars}'
+                        
+                        # Create coupon in coupons collection
+                        now = datetime.utcnow()
+                        expiry_date = now + timedelta(days=30)
+                        
+                        coupon = {
+                            'code': coupon_code,
+                            'type': 'percentage',
+                            'value': 15,  # 15% discount
+                            'description': f'Purchase Reward: Order {order_number}',
+                            'min_amount': 500,  # Minimum ₹500 purchase
+                            'max_discount': 300,  # Maximum ₹300 discount
+                            'is_active': True,
+                            'expires_at': expiry_date,
+                            'user_email': user_email,  # User-specific coupon
+                            'source': 'purchase_reward',
+                            'source_id': order_mongo_id,
+                            'created_at': now
+                        }
+                        
+                        coupons_collection.insert_one(coupon)
+                        
+                        # Track in user_coupons collection
+                        user_coupon = {
+                            'user_email': user_email,
+                            'coupon_code': coupon_code,
+                            'earned_from': 'purchase',
+                            'order_id': order_mongo_id,
+                            'order_number': order_number,
+                            'earned_at': now,
+                            'used_at': None,
+                            'is_used': False,
+                            'won': True
+                        }
+                        
+                        user_coupons_collection.insert_one(user_coupon)
+                        
+                        coupon_data = {
+                            'won': True,
+                            'code': coupon_code,
+                            'discount': '15%',
+                            'max_discount': 300,
+                            'expires_at': expiry_date.isoformat(),
+                            'min_purchase': 500
+                        }
+                        
+                        print(f'[PURCHASE REWARD] User {user_email} won coupon {coupon_code} for order {order_number}')
+                    
+                    else:
+                        # Better luck next time!
+                        now = datetime.utcnow()
+                        
+                        # Still track the attempt so they don't get unlimited tries
+                        user_coupon = {
+                            'user_email': user_email,
+                            'coupon_code': None,
+                            'earned_from': 'purchase',
+                            'order_id': order_mongo_id,
+                            'order_number': order_number,
+                            'earned_at': now,
+                            'used_at': None,
+                            'is_used': False,
+                            'won': False
+                        }
+                        
+                        user_coupons_collection.insert_one(user_coupon)
+                        
+                        coupon_data = {
+                            'won': False,
+                            'message': 'Better luck next time!'
+                        }
+                        
+                        print(f'[PURCHASE REWARD] User {user_email} did not win for order {order_number}')
+        
+        except Exception as coupon_error:
+            print(f'[PURCHASE REWARD ERROR] {str(coupon_error)}')
+            # Don't fail the payment verification if coupon generation fails
+            pass
+
+        response_data = {'success': True}
+        if coupon_data:
+            response_data['coupon'] = coupon_data
+        
+        return jsonify(response_data)
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

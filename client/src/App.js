@@ -39,6 +39,7 @@ import CalorieDetectorPage from './pages/services/CalorieDetectorPage';
 import ShopProfilePage from './pages/ShopProfilePage';
 import ProductDetailsPage from './pages/ProductDetailsPage';
 import ProfilePage from './pages/ProfilePage';
+import MyCouponsPage from './pages/MyCouponsPage';
 import MyTicketsPage from './pages/MyTicketsPage';
 import WorkoutVideosPage from './pages/WorkoutVideosPage';
 import YogaProgressTracker from './components/YogaProgressTracker';
@@ -177,6 +178,11 @@ function App() {
           <Route path="/orders/:id" element={
             <ProtectedRoute>
               <OrderSummaryPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/coupons" element={
+            <ProtectedRoute>
+              <MyCouponsPage />
             </ProtectedRoute>
           } />
           <Route path="/my-tickets" element={

@@ -1,13 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Award, MessageCircle, Star, Users, Plus, Image as ImageIcon, MessageSquare, Sparkles } from 'lucide-react';
+import { Trophy, MessageCircle, Star, Users, Plus, Image as ImageIcon } from 'lucide-react';
 import ChallengesSection from './ChallengesSection';
-import BadgesSection from './BadgesSection';
 import QASection from './QASection';
 import SpotlightsSection from './SpotlightsSection';
 import EnhancedPostCard from './EnhancedPostCard';
-import MessengerPanel from './MessengerPanel';
-import GamificationPanel from './GamificationPanel';
 import SessionManager from '../../utils/sessionManager';
 import { uploadImage, validateImageFile } from '../../utils/imageUpload';
 
@@ -21,14 +18,11 @@ const ExtendedCommunityPage = () => {
   const [newPostText, setNewPostText] = useState('');
   const [newPostImage, setNewPostImage] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
-  const [targetChatUser, setTargetChatUser] = useState(null);
+  const [tabIndicatorStyle, setTabIndicatorStyle] = useState({});
 
   const tabs = [
     { id: 'feed', label: 'Feed', icon: Users },
-    { id: 'messenger', label: 'Messenger', icon: MessageSquare },
-    { id: 'gamification', label: 'Gamification', icon: Sparkles },
     { id: 'challenges', label: 'Challenges', icon: Trophy },
-    { id: 'badges', label: 'Badges', icon: Award },
     { id: 'qa', label: 'Expert Q&A', icon: MessageCircle },
     { id: 'spotlights', label: 'Spotlights', icon: Star }
   ];
@@ -160,13 +154,6 @@ const ExtendedCommunityPage = () => {
     console.log('Comment on post:', postId);
   };
 
-  const handleMessage = (email) => {
-    if (email) {
-      setTargetChatUser(email);
-      setActiveTab('messenger');
-    }
-  };
-
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -257,50 +244,99 @@ const ExtendedCommunityPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{
+      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+      minHeight: '100vh'
+    }}>
       {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
+      <div style={{
+        background: 'rgba(255, 255, 255, 0.15)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.2)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+      }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-6">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">Community Hub</h1>
-              <p className="text-gray-600 mt-1">Connect, compete, and grow together</p>
+          <div className="flex items-center justify-between py-8">
+            <div className="animate-float-slow">
+              <h1 style={{
+                fontSize: '3rem',
+                fontWeight: '800',
+                background: 'linear-gradient(135deg, #fff 0%, #f0f0f0 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                marginBottom: '0.5rem',
+                textShadow: '0 2px 10px rgba(0,0,0,0.1)'
+              }}>Community Hub</h1>
+              <p style={{ color: '#fff', fontSize: '1.125rem', fontWeight: '500' }}>Connect, compete, and grow together</p>
             </div>
 
-            {/* Activity Summary */}
             {activitySummary && (
-              <div className="hidden md:flex items-center gap-6 text-sm">
-                <div className="text-center">
-                  <div className="font-semibold text-gray-900">{activitySummary.activeChallenges}</div>
-                  <div className="text-gray-600">Active Challenges</div>
+              <div className="hidden md:flex items-center gap-4 text-sm">
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.25)',
+                  backdropFilter: 'blur(10px)',
+                  WebkitBackdropFilter: 'blur(10px)',
+                  borderRadius: '1rem',
+                  padding: '1.5rem 2rem',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  border: '1px solid rgba(255, 255, 255, 0.3)'
+                }} className="hover-lift">
+                  <div style={{ fontSize: '2rem', fontWeight: '700', color: '#fff' }}>{activitySummary.activeChallenges}</div>
+                  <div style={{ color: '#fff', fontWeight: '500', marginTop: '0.25rem', opacity: 0.9 }}>Active Challenges</div>
                 </div>
-                <div className="text-center">
-                  <div className="font-semibold text-gray-900">{activitySummary.badgesEarned}</div>
-                  <div className="text-gray-600">Badges Earned</div>
-                </div>
-                <div className="text-center">
-                  <div className="font-semibold text-gray-900">{activitySummary.totalPosts}</div>
-                  <div className="text-gray-600">Posts Created</div>
+
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.25)',
+                  backdropFilter: 'blur(10px)',
+                  WebkitBackdropFilter: 'blur(10px)',
+                  borderRadius: '1rem',
+                  padding: '1.5rem 2rem',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s ease',
+                  border: '1px solid rgba(255, 255, 255, 0.3)'
+                }} className="hover-lift">
+                  <div style={{ fontSize: '2rem', fontWeight: '700', color: '#fff' }}>{activitySummary.totalPosts}</div>
+                  <div style={{ color: '#fff', fontWeight: '500', marginTop: '0.25rem', opacity: 0.9 }}>Posts Created</div>
                 </div>
               </div>
             )}
           </div>
 
           {/* Navigation Tabs */}
-          <div className="flex space-x-8 border-b border-gray-200">
-            {tabs.map((tab) => {
+          <div className="relative flex space-x-2 mt-6">
+            {tabs.map((tab, index) => {
               const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
+                  style={{
+                    padding: '0.75rem 1.5rem',
+                    borderRadius: '0.75rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    fontWeight: '600',
+                    fontSize: '0.875rem',
+                    transition: 'all 0.3s ease',
+                    background: isActive ? 'rgba(255, 255, 255, 0.3)' : 'transparent',
+                    backdropFilter: isActive ? 'blur(10px)' : 'none',
+                    WebkitBackdropFilter: isActive ? 'blur(10px)' : 'none',
+                    border: isActive ? '1px solid rgba(255, 255, 255, 0.4)' : '1px solid transparent',
+                    color: '#fff',
+                    boxShadow: isActive ? '0 4px 15px rgba(0, 0, 0, 0.1)' : 'none',
+                    transform: isActive ? 'translateY(-2px)' : 'none'
+                  }}
+                  className={!isActive ? 'hover:bg-white/20' : ''}
                 >
-                  <Icon className="w-4 h-4" />
-                  {tab.label}
+                  <Icon className="w-4 h-4" style={{ color: isActive ? '#fff' : 'rgba(255,255,255,0.8)' }} />
+                  <span>{tab.label}</span>
                 </button>
               );
             })}
@@ -321,20 +357,60 @@ const ExtendedCommunityPage = () => {
             {activeTab === 'feed' && (
               <div className="space-y-6">
                 {/* Create Post Section */}
-                <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6">
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.9)',
+                  backdropFilter: 'blur(15px)',
+                  WebkitBackdropFilter: 'blur(15px)',
+                  borderRadius: '1.5rem',
+                  padding: '2rem',
+                  boxShadow: '0 10px 40px rgba(0, 0, 0, 0.1)',
+                  border: '1px solid rgba(255, 255, 255, 0.5)'
+                }}>
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
+                    <div style={{
+                      width: '3.5rem',
+                      height: '3.5rem',
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#fff',
+                      fontWeight: '700',
+                      fontSize: '1.25rem',
+                      boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)'
+                    }}>U</div>
                     <button
                       onClick={() => setShowCreatePost(!showCreatePost)}
-                      className="flex-1 text-left px-4 py-3 bg-gray-100 text-gray-500 rounded-full hover:bg-gray-200 transition-colors"
+                      style={{
+                        flex: 1,
+                        textAlign: 'left',
+                        padding: '1rem 1.5rem',
+                        background: 'rgba(255, 255, 255, 0.7)',
+                        borderRadius: '1.25rem',
+                        color: '#64748b',
+                        fontWeight: '500',
+                        border: '1px solid rgba(0, 0, 0, 0.05)',
+                        transition: 'all 0.3s ease'
+                      }}
+                      className="hover:shadow-lg"
                     >
                       What's on your mind? Share your fitness journey...
                     </button>
                     <button
                       onClick={() => setShowCreatePost(!showCreatePost)}
-                      className="p-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
+                      style={{
+                        padding: '1rem',
+                        borderRadius: '1rem',
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        color: '#fff',
+                        border: 'none',
+                        boxShadow: '0 4px 15px rgba(102, 126, 234, 0.3)',
+                        transition: 'all 0.3s ease'
+                      }}
+                      className="hover:shadow-xl"
                     >
-                      <Plus className="w-5 h-5" />
+                      <Plus className="w-6 h-6" />
                     </button>
                   </div>
 
@@ -401,7 +477,7 @@ const ExtendedCommunityPage = () => {
                             </button>
                             <button
                               type="submit"
-                              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                              className="btn-gradient px-6 py-2.5 rounded-xl font-semibold shadow-premium"
                             >
                               Post
                             </button>
@@ -422,7 +498,6 @@ const ExtendedCommunityPage = () => {
                       onComment={handleComment}
                       onReact={handleReact}
                       onVote={handleVote}
-                      onMessage={handleMessage}
                     />
                   ))}
                 </div>
@@ -430,13 +505,8 @@ const ExtendedCommunityPage = () => {
             )}
 
             {activeTab === 'challenges' && <ChallengesSection onSwitchToProgress={() => setActiveTab('progress')} />}
-            {activeTab === 'badges' && <BadgesSection userEmail={userEmail} />}
             {activeTab === 'qa' && <QASection />}
             {activeTab === 'spotlights' && <SpotlightsSection />}
-            {activeTab === 'messenger' && <MessengerPanel userEmail={userEmail} targetChatUser={targetChatUser} />}
-            {activeTab === 'gamification' && (
-              <GamificationPanel activitySummary={activitySummary} />
-            )}
           </motion.div>
         </AnimatePresence>
       </div>

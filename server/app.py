@@ -18,6 +18,7 @@ from upload import upload_bp
 from yoga_progress import yoga_progress_bp
 from exercise_progress import exercise_progress_bp
 from blog import blog_bp
+from food_scanner import food_scanner_bp
 # Import Cloudinary configuration to initialize it
 import cloudinary_config
 from dotenv import load_dotenv
@@ -33,6 +34,14 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 classifier = WorkoutPerformanceClassifier()
 
 load_dotenv(dotenv_path=_path.join(_path.dirname(__file__), '.env'), override=True)
+
+# Set Google Cloud credentials explicitly
+google_creds_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+if google_creds_path and os.path.exists(google_creds_path):
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = google_creds_path
+    print(f"✅ Google Cloud credentials set: {google_creds_path}")
+else:
+    print(f"⚠️  Google Cloud credentials file not found at: {google_creds_path}")
 
 app = Flask(__name__)
 # Configure CORS for production and development
@@ -109,6 +118,7 @@ app.register_blueprint(upload_bp)
 app.register_blueprint(yoga_progress_bp)
 app.register_blueprint(exercise_progress_bp)
 app.register_blueprint(blog_bp, url_prefix='/blog')
+app.register_blueprint(food_scanner_bp, url_prefix='/api/food-scanner')
 
 # Add explicit handling for OPTIONS requests (CORS preflight)
 @app.before_request

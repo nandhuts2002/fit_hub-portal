@@ -1,24 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { 
-  FaCalculator, 
-  FaWeight, 
-  FaRuler, 
-  FaUser, 
-  FaBirthdayCake, 
-  FaClock, 
+import {
+  FaCalculator,
+  FaWeight,
+  FaRuler,
+  FaUser,
+  FaBirthdayCake,
+  FaClock,
   FaRunning,
   FaUtensils,
   FaFire,
   FaArrowLeft,
-  FaSpinner
+  FaSpinner,
+  FaCamera
 } from 'react-icons/fa';
-import { 
-  getActivities, 
-  calculateCaloriesBurned, 
-  getFoodCalories, 
-  calculateBMR, 
+import FoodImageScanner from '../../components/FoodImageScanner';
+import {
+  getActivities,
+  calculateCaloriesBurned,
+  getFoodCalories,
+  calculateBMR,
   calculateDailyCalories,
   ACTIVITY_LEVELS,
   ACTIVITY_LEVEL_DESCRIPTIONS,
@@ -66,7 +68,7 @@ const CalorieDetectorPage = () => {
         'Running', 'Walking', 'Cycling', 'Swimming', 'Weightlifting',
         'Yoga', 'Dancing', 'Basketball', 'Soccer', 'Tennis'
       ];
-      
+
       try {
         const activitiesList = await getActivities();
         // Ensure we always have an array
@@ -556,33 +558,40 @@ const CalorieDetectorPage = () => {
         <div className="flex flex-wrap mb-8 border-b border-gray-200">
           <button
             onClick={() => setActiveTab('exercise')}
-            className={`px-6 py-3 font-semibold transition-colors ${
-              activeTab === 'exercise'
+            className={`px-6 py-3 font-semibold transition-colors ${activeTab === 'exercise'
                 ? 'text-blue-600 border-b-2 border-blue-600'
                 : 'text-gray-600 hover:text-gray-800'
-            }`}
+              }`}
           >
             <FaRunning className="inline mr-2" />
             Exercise Calories
           </button>
           <button
             onClick={() => setActiveTab('food')}
-            className={`px-6 py-3 font-semibold transition-colors ${
-              activeTab === 'food'
+            className={`px-6 py-3 font-semibold transition-colors ${activeTab === 'food'
                 ? 'text-green-600 border-b-2 border-green-600'
                 : 'text-gray-600 hover:text-gray-800'
-            }`}
+              }`}
           >
             <FaUtensils className="inline mr-2" />
             Food Calories
           </button>
           <button
+            onClick={() => setActiveTab('scanner')}
+            className={`px-6 py-3 font-semibold transition-colors ${activeTab === 'scanner'
+                ? 'text-orange-600 border-b-2 border-orange-600'
+                : 'text-gray-600 hover:text-gray-800'
+              }`}
+          >
+            <FaCamera className="inline mr-2" />
+            AI Food Scanner
+          </button>
+          <button
             onClick={() => setActiveTab('bmr')}
-            className={`px-6 py-3 font-semibold transition-colors ${
-              activeTab === 'bmr'
+            className={`px-6 py-3 font-semibold transition-colors ${activeTab === 'bmr'
                 ? 'text-purple-600 border-b-2 border-purple-600'
                 : 'text-gray-600 hover:text-gray-800'
-            }`}
+              }`}
           >
             <FaCalculator className="inline mr-2" />
             BMR & Daily Needs
@@ -590,33 +599,37 @@ const CalorieDetectorPage = () => {
         </div>
 
         {/* Main Content */}
-        <div className="max-w-2xl mx-auto">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3 }}
-            className="bg-white rounded-xl shadow-lg p-8"
-          >
-            {activeTab === 'exercise' && renderExerciseForm()}
-            {activeTab === 'food' && renderFoodForm()}
-            {activeTab === 'bmr' && renderBMRForm()}
-          </motion.div>
-
-          {/* Error Display */}
-          {error && (
+        {activeTab === 'scanner' ? (
+          <FoodImageScanner />
+        ) : (
+          <div className="max-w-2xl mx-auto">
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700"
+              key={activeTab}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3 }}
+              className="bg-white rounded-xl shadow-lg p-8"
             >
-              {error}
+              {activeTab === 'exercise' && renderExerciseForm()}
+              {activeTab === 'food' && renderFoodForm()}
+              {activeTab === 'bmr' && renderBMRForm()}
             </motion.div>
-          )}
 
-          {/* Result Display */}
-          {renderResult()}
-        </div>
+            {/* Error Display */}
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700"
+              >
+                {error}
+              </motion.div>
+            )}
+
+            {/* Result Display */}
+            {renderResult()}
+          </div>
+        )}
       </div>
     </div>
   );

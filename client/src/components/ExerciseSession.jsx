@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Play, 
-  Pause, 
-  RotateCcw, 
-  X, 
-  Clock, 
+import {
+  Play,
+  Pause,
+  RotateCcw,
+  X,
+  Clock,
   CheckCircle,
   Timer,
   Volume2,
@@ -23,8 +23,8 @@ import api from '../utils/api';
 const ExerciseSession = ({ exercise, onClose, onComplete }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [timeElapsed, setTimeElapsed] = useState(0);
-  const [sets, setSets] = useState(1);
-  const [reps, setReps] = useState(10);
+  const [sets, setSets] = useState(1); // Start from 1, validated on completion
+  const [reps, setReps] = useState(1); // Start from 1, validated on completion
   const [currentSet, setCurrentSet] = useState(1);
   const [restTime, setRestTime] = useState(30);
   const [isResting, setIsResting] = useState(false);
@@ -70,13 +70,13 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
   // Set up image URL and pose instructions when exercise changes
   useEffect(() => {
     console.log('FitHub Exercise: Processing exercise data', exercise);
-    
+
     // Check if this is a yoga pose (has imageUrl field)
     if (exercise?.imageUrl) {
       console.log('FitHub Exercise: Using yoga pose image', exercise.imageUrl);
       setImageUrl(exercise.imageUrl);
       setImageError(false);
-      
+
       // Load pose instructions
       const instructions = getPoseInstructions(exercise.name || exercise.english_name);
       setPoseInstructions(instructions);
@@ -135,7 +135,7 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
             if (soundEnabled) {
               // Play notification sound
               const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBS13yO/eizEIHWq+8+OWT');
-              audio.play().catch(() => {});
+              audio.play().catch(() => { });
             }
             return 0;
           }
@@ -157,12 +157,12 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
 
   const handleStartPause = () => {
     if (isResting) return;
-    
+
     // If starting and we have pose instructions, speak all instructions
     if (!isPlaying && poseInstructions && soundEnabled) {
       speakAllInstructions();
     }
-    
+
     setIsPlaying(!isPlaying);
   };
 
@@ -191,7 +191,7 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
         completedSets: workoutData.completedSets,
         timestamp: workoutData.timestamp
       };
-      
+
       await api.post('/yoga-progress', progressData);
       console.log('Yoga progress saved to MongoDB successfully');
     } catch (error) {
@@ -203,9 +203,17 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
   };
 
   const handleCompleteSet = async () => {
-    // Validation
-    if (sets < 1 || reps < 1) {
-      alert('Please enter valid sets and reps (minimum 1)');
+    // Validation - Minimum requirements
+    const MIN_REPS = 20;
+    const MIN_SETS = 5;
+
+    if (reps < MIN_REPS) {
+      alert(`💪 Each set must have at least ${MIN_REPS} reps! Current: ${reps} reps`);
+      return;
+    }
+
+    if (sets < MIN_SETS) {
+      alert(`🔥 You need at least ${MIN_SETS} sets to complete this workout! Current: ${sets} sets`);
       return;
     }
 
@@ -220,13 +228,13 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
       time: timeElapsed,
       timestamp: new Date()
     };
-    
+
     setCompletedSets(prev => [...prev, newCompletedSet]);
-    
+
     // Show set completion feedback
     setSetCompletedFeedback(true);
     setTimeout(() => setSetCompletedFeedback(false), 2000);
-    
+
     // Update workout stats
     setWorkoutStats(prev => ({
       totalTime: timeElapsed,
@@ -234,7 +242,7 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
       totalReps: prev.totalReps + reps,
       caloriesBurned: calculateCalories(timeElapsed)
     }));
-    
+
     // Praise the user
     if (soundEnabled) {
       const praiseMessages = [
@@ -250,19 +258,22 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
       const randomPraise = praiseMessages[Math.floor(Math.random() * praiseMessages.length)];
       speak(randomPraise);
     }
-    
+
     if (currentSet < sets) {
       setCurrentSet(prev => prev + 1);
       setIsResting(true);
       setRestTimeLeft(restTime);
       setIsPlaying(false);
     } else {
-      // All sets completed - show celebration
+      // All sets completed - calculate reward and show celebration
+      const rewardInfo = calculateReward(sets);
       setShowCompletionCelebration(true);
       if (soundEnabled) {
-        speak("Congratulations! You've completed all sets!");
+        speak(`Congratulations! You've completed all sets! You earned ${rewardInfo.points} points with a ${rewardInfo.multiplier}x multiplier!`);
       }
-      
+
+      console.log('🎉 Workout Reward:', rewardInfo);
+
       // Store workout data in localStorage
       const workoutData = {
         exerciseName: exercise.name || exercise.english_name,
@@ -273,17 +284,17 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
         timestamp: new Date().toISOString(),
         exerciseType: exercise.imageUrl ? 'yoga' : 'exercise'
       };
-      
+
       // Get existing workouts or create new array
       const existingWorkouts = JSON.parse(localStorage.getItem('workoutHistory') || '[]');
       existingWorkouts.push(workoutData);
       localStorage.setItem('workoutHistory', JSON.stringify(existingWorkouts));
-      
+
       // Save to MongoDB if this is a yoga pose
       if (exercise.imageUrl) {
         await saveYogaProgressToMongoDB(workoutData);
       }
-      
+
       // Call onComplete after a delay to show celebration
       setTimeout(() => {
         onComplete?.(completedSets);
@@ -295,6 +306,23 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
     // Yoga burns approximately 4 calories per minute
     const minutes = seconds / 60;
     return Math.round(minutes * 4);
+  };
+
+  // Calculate reward/damage based on sets completed (more sets = more damage/rewards)
+  const calculateReward = (totalSets) => {
+    const BASE_REWARD = 100;
+    const SET_MULTIPLIER = 20; // 20 points per set above minimum
+    const MIN_SETS = 5;
+
+    // Base reward + bonus for extra sets
+    const extraSets = Math.max(0, totalSets - MIN_SETS);
+    const reward = BASE_REWARD + (extraSets * SET_MULTIPLIER);
+
+    return {
+      points: reward,
+      damage: reward, // For game damage mechanics
+      multiplier: (totalSets / MIN_SETS).toFixed(1)
+    };
   };
 
   const handleSkipRest = () => {
@@ -335,7 +363,7 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
     if (!canSpeak()) return;
     try {
       synthRef.current?.cancel();
-    } catch {}
+    } catch { }
     utteranceRef.current = null;
   };
 
@@ -353,7 +381,7 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
     utteranceRef.current = u;
     try {
       synthRef.current?.speak(u);
-    } catch {}
+    } catch { }
   };
 
   // Load voices (some browsers load voices async)
@@ -392,13 +420,13 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
   // Speak all instructions when start is clicked
   const speakAllInstructions = () => {
     if (!poseInstructions || !soundEnabled) return;
-    
+
     stopSpeaking();
-    
+
     // Create a single text with all instructions
     const allInstructions = poseInstructions.instructions.join('. Next step: ');
     const fullText = `Let's practice ${poseInstructions.name}. ${allInstructions}. Take your time and breathe deeply.`;
-    
+
     speak(fullText);
   };
 
@@ -423,486 +451,511 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
       >
         {/* Background Glow Effect */}
         <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 via-pink-500/5 to-purple-500/5 rounded-3xl"></div>
-        
+
         {/* Scrollable Content */}
         <div className="relative flex-1 overflow-y-auto">
           <div className="p-8">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">
-                {exercise.name || exercise.english_name}
-              </h2>
-              <div className="flex items-center gap-2 mt-1">
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(exercise.difficulty || exercise.level)}`}>
-                  {exercise.difficulty || exercise.level || 'Beginner'}
-                </span>
-                <span className="text-gray-500">•</span>
-                <span className="text-sm text-gray-600">
-                  {exercise.imageUrl ? (exercise.category || 'Yoga') : (exercise.bodyPart || 'N/A')}
-                </span>
-                {exercise.imageUrl && exercise.sanskrit_name && (
-                  <>
-                    <span className="text-gray-500">•</span>
-                    <span className="text-sm text-gray-600 italic">{exercise.sanskrit_name}</span>
-                  </>
-                )}
-                {!exercise.imageUrl && (
-                  <>
-                <span className="text-gray-500">•</span>
-                <span className="text-sm text-gray-600">{exercise.target}</span>
-                  </>
-                )}
-                {!poseInstructions && (
-                  <>
-                    <span className="text-gray-500">•</span>
-                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">Instructions not available</span>
-                  </>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {poseInstructions && (
-                <button
-                  onClick={() => setShowInstructions(!showInstructions)}
-                  className={`p-2 transition-colors ${
-                    showInstructions 
-                      ? 'text-blue-600 hover:text-blue-800' 
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                  title="Toggle Pose Instructions"
-                >
-                  <BookOpen className="w-5 h-5" />
-                </button>
-              )}
-              <button
-                onClick={() => setSoundEnabled(!soundEnabled)}
-                className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
-              </button>
-              <button
-                onClick={onClose}
-                className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Exercise Image */}
-          <div className="mb-6">
-            <div className="w-full h-72 md:h-80 bg-white rounded-xl flex items-center justify-center overflow-hidden border border-gray-100">
-              <img
-                src={imageUrl}
-                alt={exercise?.name || 'Exercise demonstration'}
-                loading="lazy"
-                className="w-full h-full object-contain"
-                onError={() => {
-                  console.log('Image failed to load for exercise:', exercise?.name, 'URL:', imageUrl);
-                  setImageError(true);
-                  setImageUrl(getFallbackImage());
-                }}
-                onLoad={() => {
-                  console.log('Image loaded successfully for exercise:', exercise?.name);
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Pose Instructions Panel */}
-          {poseInstructions && showInstructions && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 shadow-lg"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                  <BookOpen className="w-6 h-6 text-blue-600" />
-                  {poseInstructions.name} Instructions
-                </h3>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">
-                    Step {currentInstructionStep + 1} of {poseInstructions.instructions.length}
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  {exercise.name || exercise.english_name}
+                </h2>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(exercise.difficulty || exercise.level)}`}>
+                    {exercise.difficulty || exercise.level || 'Beginner'}
                   </span>
-                  <button
-                    onClick={() => speak(poseInstructions.instructions[currentInstructionStep])}
-                    className="px-3 py-1 text-xs bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
-                    title="Speak this step"
-                  >
-                    Speak Step
-                  </button>
-                  <button
-                    onClick={speakAllInstructions}
-                    className="px-3 py-1 text-xs bg-purple-600 text-white rounded-full hover:bg-purple-700 transition-colors"
-                    title="Speak all instructions"
-                  >
-                    Speak All
-                  </button>
-                  <button
-                    onClick={stopSpeaking}
-                    className="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-colors"
-                    title="Stop voice"
-                  >
-                    Stop
-                  </button>
-                  <button
-                    onClick={resetInstructions}
-                    className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition-colors"
-                  >
-                    Reset
-                  </button>
+                  <span className="text-gray-500">•</span>
+                  <span className="text-sm text-gray-600">
+                    {exercise.imageUrl ? (exercise.category || 'Yoga') : (exercise.bodyPart || 'N/A')}
+                  </span>
+                  {exercise.imageUrl && exercise.sanskrit_name && (
+                    <>
+                      <span className="text-gray-500">•</span>
+                      <span className="text-sm text-gray-600 italic">{exercise.sanskrit_name}</span>
+                    </>
+                  )}
+                  {!exercise.imageUrl && (
+                    <>
+                      <span className="text-gray-500">•</span>
+                      <span className="text-sm text-gray-600">{exercise.target}</span>
+                    </>
+                  )}
+                  {!poseInstructions && (
+                    <>
+                      <span className="text-gray-500">•</span>
+                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">Instructions not available</span>
+                    </>
+                  )}
                 </div>
               </div>
-
-              {/* Current Instruction */}
-              <div className="bg-white rounded-lg p-4 mb-4 shadow-sm">
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
-                    {currentInstructionStep + 1}
-                  </div>
-                  <p className="text-gray-800 font-medium leading-relaxed">
-                    {poseInstructions.instructions[currentInstructionStep]}
-                  </p>
-                </div>
-              </div>
-
-              {/* Navigation Buttons */}
-              <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                {poseInstructions && (
+                  <button
+                    onClick={() => setShowInstructions(!showInstructions)}
+                    className={`p-2 transition-colors ${showInstructions
+                      ? 'text-blue-600 hover:text-blue-800'
+                      : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    title="Toggle Pose Instructions"
+                  >
+                    <BookOpen className="w-5 h-5" />
+                  </button>
+                )}
                 <button
-                  onClick={prevInstruction}
-                  disabled={currentInstructionStep === 0}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                    currentInstructionStep === 0
+                  onClick={() => setSoundEnabled(!soundEnabled)}
+                  className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
+                >
+                  {soundEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+                </button>
+                <button
+                  onClick={onClose}
+                  className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Exercise Image */}
+            <div className="mb-6">
+              <div className="w-full h-72 md:h-80 bg-white rounded-xl flex items-center justify-center overflow-hidden border border-gray-100">
+                <img
+                  src={imageUrl}
+                  alt={exercise?.name || 'Exercise demonstration'}
+                  loading="lazy"
+                  className="w-full h-full object-contain"
+                  onError={() => {
+                    console.log('Image failed to load for exercise:', exercise?.name, 'URL:', imageUrl);
+                    setImageError(true);
+                    setImageUrl(getFallbackImage());
+                  }}
+                  onLoad={() => {
+                    console.log('Image loaded successfully for exercise:', exercise?.name);
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Pose Instructions Panel */}
+            {poseInstructions && showInstructions && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 shadow-lg"
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                    <BookOpen className="w-6 h-6 text-blue-600" />
+                    {poseInstructions.name} Instructions
+                  </h3>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-600">
+                      Step {currentInstructionStep + 1} of {poseInstructions.instructions.length}
+                    </span>
+                    <button
+                      onClick={() => speak(poseInstructions.instructions[currentInstructionStep])}
+                      className="px-3 py-1 text-xs bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
+                      title="Speak this step"
+                    >
+                      Speak Step
+                    </button>
+                    <button
+                      onClick={speakAllInstructions}
+                      className="px-3 py-1 text-xs bg-purple-600 text-white rounded-full hover:bg-purple-700 transition-colors"
+                      title="Speak all instructions"
+                    >
+                      Speak All
+                    </button>
+                    <button
+                      onClick={stopSpeaking}
+                      className="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-colors"
+                      title="Stop voice"
+                    >
+                      Stop
+                    </button>
+                    <button
+                      onClick={resetInstructions}
+                      className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition-colors"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                </div>
+
+                {/* Current Instruction */}
+                <div className="bg-white rounded-lg p-4 mb-4 shadow-sm">
+                  <div className="flex items-start gap-3">
+                    <div className="flex-shrink-0 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                      {currentInstructionStep + 1}
+                    </div>
+                    <p className="text-gray-800 font-medium leading-relaxed">
+                      {poseInstructions.instructions[currentInstructionStep]}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Navigation Buttons */}
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={prevInstruction}
+                    disabled={currentInstructionStep === 0}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${currentInstructionStep === 0
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                       : 'bg-blue-600 text-white hover:bg-blue-700'
-                  }`}
-                >
-                  Previous
-                </button>
-                
-                <div className="flex items-center gap-2">
-                  {poseInstructions.instructions.map((_, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setCurrentInstructionStep(index)}
-                      className={`w-3 h-3 rounded-full transition-colors ${
-                        index === currentInstructionStep
+                      }`}
+                  >
+                    Previous
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    {poseInstructions.instructions.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentInstructionStep(index)}
+                        className={`w-3 h-3 rounded-full transition-colors ${index === currentInstructionStep
                           ? 'bg-blue-600'
                           : 'bg-blue-200 hover:bg-blue-400'
-                      }`}
-                    />
-                  ))}
-                </div>
+                          }`}
+                      />
+                    ))}
+                  </div>
 
-                <button
-                  onClick={nextInstruction}
-                  disabled={currentInstructionStep === poseInstructions.instructions.length - 1}
-                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                    currentInstructionStep === poseInstructions.instructions.length - 1
+                  <button
+                    onClick={nextInstruction}
+                    disabled={currentInstructionStep === poseInstructions.instructions.length - 1}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${currentInstructionStep === poseInstructions.instructions.length - 1
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                       : 'bg-blue-600 text-white hover:bg-blue-700'
-                  }`}
-                >
-                  Next
-                </button>
-              </div>
-
-              {/* Pose Details */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-                {/* Benefits */}
-                <div className="bg-white rounded-lg p-4 shadow-sm">
-                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                    <Target className="w-5 h-5 text-green-600" />
-                    Benefits
-                  </h4>
-                  <ul className="space-y-1">
-                    {poseInstructions.benefits.map((benefit, index) => (
-                      <li key={index} className="text-sm text-gray-700 flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
-                        {benefit}
-                      </li>
-                    ))}
-                  </ul>
+                      }`}
+                  >
+                    Next
+                  </button>
                 </div>
 
-                {/* Tips */}
-                <div className="bg-white rounded-lg p-4 shadow-sm">
-                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                    <Lightbulb className="w-5 h-5 text-yellow-600" />
-                    Tips
-                  </h4>
-                  <ul className="space-y-1">
-                    {poseInstructions.tips.map((tip, index) => (
-                      <li key={index} className="text-sm text-gray-700 flex items-center gap-2">
-                        <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full"></div>
-                        {tip}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-
-              {/* Duration and Modifications */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <div className="bg-white rounded-lg p-4 shadow-sm">
-                  <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                    <Clock className="w-5 h-5 text-purple-600" />
-                    Duration
-                  </h4>
-                  <p className="text-sm text-gray-700">{poseInstructions.duration}</p>
-                </div>
-
-                {poseInstructions.modifications && poseInstructions.modifications.length > 0 && (
+                {/* Pose Details */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                  {/* Benefits */}
                   <div className="bg-white rounded-lg p-4 shadow-sm">
-                    <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                      <Users className="w-5 h-5 text-indigo-600" />
-                      Modifications
+                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <Target className="w-5 h-5 text-green-600" />
+                      Benefits
                     </h4>
                     <ul className="space-y-1">
-                      {poseInstructions.modifications.map((modification, index) => (
+                      {poseInstructions.benefits.map((benefit, index) => (
                         <li key={index} className="text-sm text-gray-700 flex items-center gap-2">
-                          <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></div>
-                          {modification}
+                          <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                          {benefit}
                         </li>
                       ))}
                     </ul>
                   </div>
-                )}
-              </div>
-            </motion.div>
-          )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Workout Controls */}
-            <div className="space-y-6">
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Workout Session</h3>
-                
-                {/* Timer */}
-                <div className="text-center mb-6">
-                  <div className="text-4xl font-mono font-bold text-purple-600 mb-2">
-                    {formatTime(timeElapsed)}
+                  {/* Tips */}
+                  <div className="bg-white rounded-lg p-4 shadow-sm">
+                    <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                      <Lightbulb className="w-5 h-5 text-yellow-600" />
+                      Tips
+                    </h4>
+                    <ul className="space-y-1">
+                      {poseInstructions.tips.map((tip, index) => (
+                        <li key={index} className="text-sm text-gray-700 flex items-center gap-2">
+                          <div className="w-1.5 h-1.5 bg-yellow-500 rounded-full"></div>
+                          {tip}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                  <div className="flex items-center justify-center gap-4">
-                    <button
-                      onClick={handleStartPause}
-                      disabled={isResting}
-                      className={`px-6 py-3 rounded-lg font-semibold transition-colors ${
-                        isPlaying
+                </div>
+
+                {/* Duration and Modifications */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  <div className="bg-white rounded-lg p-4 shadow-sm">
+                    <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                      <Clock className="w-5 h-5 text-purple-600" />
+                      Duration
+                    </h4>
+                    <p className="text-sm text-gray-700">{poseInstructions.duration}</p>
+                  </div>
+
+                  {poseInstructions.modifications && poseInstructions.modifications.length > 0 && (
+                    <div className="bg-white rounded-lg p-4 shadow-sm">
+                      <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                        <Users className="w-5 h-5 text-indigo-600" />
+                        Modifications
+                      </h4>
+                      <ul className="space-y-1">
+                        {poseInstructions.modifications.map((modification, index) => (
+                          <li key={index} className="text-sm text-gray-700 flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></div>
+                            {modification}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Workout Controls */}
+              <div className="space-y-6">
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Workout Session</h3>
+
+                  {/* Timer */}
+                  <div className="text-center mb-6">
+                    <div className="text-4xl font-mono font-bold text-purple-600 mb-2">
+                      {formatTime(timeElapsed)}
+                    </div>
+                    <div className="flex items-center justify-center gap-4">
+                      <button
+                        onClick={handleStartPause}
+                        disabled={isResting}
+                        className={`px-6 py-3 rounded-lg font-semibold transition-colors ${isPlaying
                           ? 'bg-red-500 text-white hover:bg-red-600'
                           : 'bg-green-500 text-white hover:bg-green-600'
-                      } ${isResting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-                      {isPlaying ? 'Pause' : 'Start'}
-                    </button>
-                    <button
-                      onClick={handleReset}
-                      className="px-4 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
-                    >
-                      <RotateCcw className="w-5 h-5" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Sets and Reps */}
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Sets</label>
-                    <input
-                      type="number"
-                      value={sets}
-                      onChange={(e) => setSets(parseInt(e.target.value) || 1)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                      min="1"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Reps</label>
-                    <input
-                      type="number"
-                      value={reps}
-                      onChange={(e) => setReps(parseInt(e.target.value) || 1)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                      min="1"
-                    />
-                  </div>
-                </div>
-
-                {/* Rest Time */}
-                <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Rest Time (seconds)</label>
-                  <input
-                    type="number"
-                    value={restTime}
-                    onChange={(e) => setRestTime(parseInt(e.target.value) || 30)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                    min="0"
-                  />
-                </div>
-
-                {/* Current Set */}
-                <div className="text-center mb-4">
-                  <p className="text-sm text-gray-600">Set {currentSet} of {sets}</p>
-                  <p className="text-lg font-semibold text-gray-900">{reps} reps</p>
-                </div>
-
-                {/* Complete Set Button */}
-                <motion.button
-                  onClick={handleCompleteSet}
-                  disabled={isResting || savingProgress}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="w-full bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600 text-white py-4 px-4 rounded-xl hover:from-purple-700 hover:via-pink-600 hover:to-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 font-semibold shadow-lg hover:shadow-xl relative overflow-hidden"
-                >
-                  {savingProgress ? (
-                    <>
-                      <motion.div
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                        className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
-                      />
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="w-6 h-6" />
-                      <span>Complete Set ✨</span>
-                    </>
-                  )}
-                </motion.button>
-              </div>
-            </div>
-
-            {/* Progress and Stats */}
-            <div className="space-y-6">
-              {/* Rest Timer */}
-              <AnimatePresence>
-                {isResting && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    className="bg-yellow-50 border border-yellow-200 rounded-lg p-4"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-semibold text-yellow-800">Rest Time</h4>
-                        <p className="text-2xl font-bold text-yellow-600">{restTimeLeft}s</p>
-                      </div>
-                      <button
-                        onClick={handleSkipRest}
-                        className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
+                          } ${isResting ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
-                        Skip Rest
+                        {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+                        {isPlaying ? 'Pause' : 'Start'}
+                      </button>
+                      <button
+                        onClick={handleReset}
+                        className="px-4 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                      >
+                        <RotateCcw className="w-5 h-5" />
                       </button>
                     </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                  </div>
 
-              {/* Workout Stats */}
-              {workoutStats.totalSets > 0 && (
-                <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6 shadow-lg">
-                  <h4 className="font-bold text-green-800 mb-4 flex items-center gap-2">
-                    <Star className="w-5 h-5" />
-                    Your Progress
-                  </h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">{workoutStats.totalSets}</div>
-                      <div className="text-sm text-green-700">Sets Completed</div>
+                  {/* Sets and Reps */}
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Sets</label>
+                      <input
+                        type="number"
+                        value={sets}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value) || 1;
+                          setSets(Math.min(Math.max(value, 1), 100)); // Allow starting from 1
+                        }}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${sets < 5 ? 'border-yellow-400' : 'border-gray-300'}`}
+                        min="1"
+                        max="100"
+                      />
+                      {sets < 5 && <p className="text-xs text-yellow-600 mt-1">⚠️ Minimum 5 sets required to complete</p>}
                     </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">{workoutStats.totalReps}</div>
-                      <div className="text-sm text-green-700">Total Reps</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-green-600">{formatTime(workoutStats.totalTime)}</div>
-                      <div className="text-sm text-green-700">Total Time</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-2xl font-bold text-orange-600 flex items-center justify-center gap-1">
-                        <Flame className="w-6 h-6" />
-                        {workoutStats.caloriesBurned}
-                      </div>
-                      <div className="text-sm text-green-700">Calories</div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Reps</label>
+                      <input
+                        type="number"
+                        value={reps}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value) || 1;
+                          setReps(Math.min(Math.max(value, 1), 500)); // Allow starting from 1
+                        }}
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${reps < 20 ? 'border-yellow-400' : 'border-gray-300'}`}
+                        min="1"
+                        max="500"
+                      />
+                      {reps < 20 && <p className="text-xs text-yellow-600 mt-1">⚠️ Minimum 20 reps required to complete</p>}
                     </div>
                   </div>
-                </div>
-              )}
 
-              {/* Completed Sets */}
-              {completedSets.length > 0 && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <h4 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5" />
-                    Completed Sets
-                  </h4>
-                  <div className="space-y-2">
-                    {completedSets.map((set, index) => (
-                      <div key={index} className="flex items-center justify-between text-sm bg-white rounded-lg p-2">
-                        <span className="text-blue-700 font-medium">Set {set.set}</span>
-                        <span className="text-blue-600">{set.reps} reps</span>
-                        <span className="text-blue-600">{formatTime(set.time)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Exercise Info */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-semibold text-blue-800 mb-3">
-                  {exercise?.imageUrl ? 'Yoga Pose Details' : 'Exercise Details'}
-                </h4>
-                <div className="space-y-2 text-sm">
-                  {exercise?.imageUrl ? (
-                    // Yoga pose details
-                    <>
-                      <div className="flex justify-between">
-                        <span className="text-blue-700">Sanskrit Name:</span>
-                        <span className="text-blue-600">{exercise.sanskrit_name || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-blue-700">Category:</span>
-                        <span className="text-blue-600">{exercise.category || 'N/A'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-blue-700">Level:</span>
-                        <span className="text-blue-600 capitalize">{exercise.level || 'N/A'}</span>
-                      </div>
-                      {exercise.pose_benefits && (
-                        <div className="mt-3">
-                          <span className="text-blue-700 font-medium">Benefits:</span>
-                          <p className="text-blue-600 text-xs mt-1">{exercise.pose_benefits}</p>
+                  {/* Reward Preview */}
+                  {sets >= 5 && reps >= 20 && (
+                    <div className="mb-4 bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-300 rounded-lg p-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-700">💪 Workout Reward</p>
+                          <p className="text-xs text-gray-600">Complete all sets to earn</p>
                         </div>
-                      )}
-                    </>
-                  ) : (
-                    // Regular exercise details
-                    <>
-                  <div className="flex justify-between">
-                    <span className="text-blue-700">Equipment:</span>
-                    <span className="text-blue-600">{exercise.equipment}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-blue-700">Target:</span>
-                    <span className="text-blue-600">{exercise.target}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-blue-700">Body Part:</span>
-                    <span className="text-blue-600">{exercise.bodyPart}</span>
-                  </div>
-                    </>
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-orange-600">{calculateReward(sets).points}</p>
+                          <p className="text-xs text-gray-600">{calculateReward(sets).multiplier}x multiplier</p>
+                        </div>
+                      </div>
+                    </div>
                   )}
+
+                  {/* Rest Time */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Rest Time (seconds)</label>
+                    <input
+                      type="number"
+                      value={restTime}
+                      onChange={(e) => {
+                        const value = parseInt(e.target.value) || 30;
+                        setRestTime(Math.min(Math.max(value, 0), 300)); // Limit between 0-300 seconds (5 min)
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                      min="0"
+                      max="300"
+                    />
+                  </div>
+
+                  {/* Current Set */}
+                  <div className="text-center mb-4">
+                    <p className="text-sm text-gray-600">Set {currentSet} of {sets}</p>
+                    <p className="text-lg font-semibold text-gray-900">{reps} reps</p>
+                  </div>
+
+                  {/* Complete Set Button */}
+                  <motion.button
+                    onClick={handleCompleteSet}
+                    disabled={isResting || savingProgress}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600 text-white py-4 px-4 rounded-xl hover:from-purple-700 hover:via-pink-600 hover:to-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2 font-semibold shadow-lg hover:shadow-xl relative overflow-hidden"
+                  >
+                    {savingProgress ? (
+                      <>
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
+                        />
+                        <span>Saving...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-6 h-6" />
+                        <span>Complete Set ✨</span>
+                      </>
+                    )}
+                  </motion.button>
+                </div>
+              </div>
+
+              {/* Progress and Stats */}
+              <div className="space-y-6">
+                {/* Rest Timer */}
+                <AnimatePresence>
+                  {isResting && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.9 }}
+                      className="bg-yellow-50 border border-yellow-200 rounded-lg p-4"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="font-semibold text-yellow-800">Rest Time</h4>
+                          <p className="text-2xl font-bold text-yellow-600">{restTimeLeft}s</p>
+                        </div>
+                        <button
+                          onClick={handleSkipRest}
+                          className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
+                        >
+                          Skip Rest
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Workout Stats */}
+                {workoutStats.totalSets > 0 && (
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6 shadow-lg">
+                    <h4 className="font-bold text-green-800 mb-4 flex items-center gap-2">
+                      <Star className="w-5 h-5" />
+                      Your Progress
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">{workoutStats.totalSets}</div>
+                        <div className="text-sm text-green-700">Sets Completed</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">{workoutStats.totalReps}</div>
+                        <div className="text-sm text-green-700">Total Reps</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">{formatTime(workoutStats.totalTime)}</div>
+                        <div className="text-sm text-green-700">Total Time</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-orange-600 flex items-center justify-center gap-1">
+                          <Flame className="w-6 h-6" />
+                          {workoutStats.caloriesBurned}
+                        </div>
+                        <div className="text-sm text-green-700">Calories</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Completed Sets */}
+                {completedSets.length > 0 && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h4 className="font-semibold text-blue-800 mb-3 flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5" />
+                      Completed Sets
+                    </h4>
+                    <div className="space-y-2">
+                      {completedSets.map((set, index) => (
+                        <div key={index} className="flex items-center justify-between text-sm bg-white rounded-lg p-2">
+                          <span className="text-blue-700 font-medium">Set {set.set}</span>
+                          <span className="text-blue-600">{set.reps} reps</span>
+                          <span className="text-blue-600">{formatTime(set.time)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Exercise Info */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-blue-800 mb-3">
+                    {exercise?.imageUrl ? 'Yoga Pose Details' : 'Exercise Details'}
+                  </h4>
+                  <div className="space-y-2 text-sm">
+                    {exercise?.imageUrl ? (
+                      // Yoga pose details
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-blue-700">Sanskrit Name:</span>
+                          <span className="text-blue-600">{exercise.sanskrit_name || 'N/A'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-blue-700">Category:</span>
+                          <span className="text-blue-600">{exercise.category || 'N/A'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-blue-700">Level:</span>
+                          <span className="text-blue-600 capitalize">{exercise.level || 'N/A'}</span>
+                        </div>
+                        {exercise.pose_benefits && (
+                          <div className="mt-3">
+                            <span className="text-blue-700 font-medium">Benefits:</span>
+                            <p className="text-blue-600 text-xs mt-1">{exercise.pose_benefits}</p>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      // Regular exercise details
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-blue-700">Equipment:</span>
+                          <span className="text-blue-600">{exercise.equipment}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-blue-700">Target:</span>
+                          <span className="text-blue-600">{exercise.target}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-blue-700">Body Part:</span>
+                          <span className="text-blue-600">{exercise.bodyPart}</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
           </div>
         </div>
       </motion.div>
@@ -920,11 +973,11 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
               className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-8 py-6 rounded-2xl shadow-2xl flex items-center gap-4"
             >
               <motion.div
-                animate={{ 
+                animate={{
                   scale: [1, 1.2, 1],
                   rotate: [0, 360]
                 }}
-                transition={{ 
+                transition={{
                   duration: 1,
                   repeat: Infinity,
                   ease: "easeInOut"
@@ -961,11 +1014,11 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
               onClick={(e) => e.stopPropagation()}
             >
               <motion.div
-                animate={{ 
+                animate={{
                   scale: [1, 1.2, 1],
                   rotate: [0, 10, -10, 0]
                 }}
-                transition={{ 
+                transition={{
                   duration: 2,
                   repeat: Infinity,
                   ease: "easeInOut"
@@ -974,15 +1027,15 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
               >
                 🎉
               </motion.div>
-              
+
               <h2 className="text-3xl font-bold text-gray-900 mb-2">
                 Congratulations!
               </h2>
-              
+
               <p className="text-lg text-gray-600 mb-6">
                 You've completed all {sets} sets of {exercise?.name || exercise?.english_name}!
               </p>
-              
+
               <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-2xl p-6 mb-6">
                 <div className="grid grid-cols-2 gap-4 text-center">
                   <div>
@@ -1006,7 +1059,7 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="space-y-3">
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -1016,7 +1069,7 @@ const ExerciseSession = ({ exercise, onClose, onComplete }) => {
                 >
                   Awesome! Let's Continue
                 </motion.button>
-                
+
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
