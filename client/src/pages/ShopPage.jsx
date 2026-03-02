@@ -224,7 +224,8 @@ const ShopPage = () => {
         const { data } = await api.get(`/shop/api/wishlist/${encodeURIComponent(currentUser.email)}`, {
           headers: {
             Authorization: `Bearer ${currentUser.token}`
-          });
+          }
+        });
         const items = data?.wishlist?.items || [];
         // Normalize to product-like objects used by UI
         const normalized = items.map((it) => ({
@@ -291,7 +292,8 @@ const ShopPage = () => {
         await api.post('/shop/api/cart/init', {}, {
           headers: {
             Authorization: `Bearer ${currentUser.token}`
-          });
+          }
+        });
       } catch (e) {
         // non-fatal; keep local cart working even if server init fails
         console.warn('FitHub Shop: Cart initialization skipped - using local storage', e?.response?.data || e?.message || e);
