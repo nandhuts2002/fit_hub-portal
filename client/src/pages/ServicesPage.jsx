@@ -33,6 +33,13 @@ const SERVICES = [
     path: "/services/body-part-selection",
   },
   {
+    icon: "🧍",
+    img: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?q=80&w=400&auto=format&fit=crop",
+    title: "Correct Your Posture",
+    desc: "Real-time AI full body posture analysis with live skeleton tracking & voice feedback",
+    path: "/services/posture-correction",
+  },
+  {
     icon: "🧘‍♀️",
     img: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=400&auto=format&fit=crop",
     title: "Yoga Poses",

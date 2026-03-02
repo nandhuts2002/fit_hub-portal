@@ -9,7 +9,8 @@ import {
     getKeypoints,
     isAngleInRange,
     smoothAngle,
-    allKeypointsVisible
+    allKeypointsVisible,
+    validateExerciseMotion
 } from './poseUtils';
 import PostureValidator from './postureValidator';
 
@@ -44,6 +45,11 @@ export class RepCounterEngine {
         // Angle history for smoothing
         this.angleHistory = [];
 
+        // Motion tracking - store previous keypoints for displacement detection
+        this.previousKeypoints = null;
+        this.frameWidth = 640;
+        this.frameHeight = 480;
+
         // Exercise configuration
         this.config = this.getExerciseConfig();
 
@@ -52,7 +58,9 @@ export class RepCounterEngine {
             currentAngle: 0,
             targetAngle: '',
             postureScore: 1.0,
-            postureFeedback: ''
+            postureFeedback: '',
+            motionValid: true,
+            motionFeedback: ''
         };
     }
 
@@ -64,6 +72,10 @@ export class RepCounterEngine {
             squat: {
                 keypoints: ['left_hip', 'left_knee', 'left_ankle', 'left_shoulder'],
                 angleJoints: ['left_hip', 'left_knee', 'left_ankle'],
+                trackedKeypoints: ['left_knee', 'right_knee', 'left_hip', 'right_hip'],
+                stabilityKeypoints: ['nose', 'left_shoulder', 'right_shoulder'],
+                movementThreshold: 0.015,
+                stabilityThreshold: 0.05,
                 phases: {
                     start: { min: 160, max: 180 },  // Standing
                     mid: { min: 70, max: 110 },      // Bottom of squat
@@ -75,6 +87,10 @@ export class RepCounterEngine {
                 keypoints: ['left_shoulder', 'left_elbow', 'left_wrist', 'right_shoulder', 'right_elbow', 'right_wrist'],
                 angleJoints: ['left_shoulder', 'left_elbow', 'left_wrist'],
                 alternateJoints: ['right_shoulder', 'right_elbow', 'right_wrist'],
+                trackedKeypoints: ['left_wrist', 'right_wrist', 'left_elbow', 'right_elbow'],
+                stabilityKeypoints: ['nose', 'left_hip', 'right_hip'],
+                movementThreshold: 0.01,
+                stabilityThreshold: 0.06,
                 phases: {
                     start: { min: 150, max: 180 },  // Arm extended (relaxed threshold)
                     mid: { min: 30, max: 70 },       // Arm curled (relaxed threshold)
@@ -86,6 +102,10 @@ export class RepCounterEngine {
                 keypoints: ['left_shoulder', 'left_elbow', 'left_wrist', 'right_shoulder', 'right_elbow', 'right_wrist'],
                 angleJoints: ['left_shoulder', 'left_elbow', 'left_wrist'],
                 alternateJoints: ['right_shoulder', 'right_elbow', 'right_wrist'],
+                trackedKeypoints: ['left_wrist', 'right_wrist', 'left_elbow', 'right_elbow'],
+                stabilityKeypoints: ['nose', 'left_hip', 'right_hip'],
+                movementThreshold: 0.01,
+                stabilityThreshold: 0.06,
                 phases: {
                     start: { min: 150, max: 180 },
                     mid: { min: 30, max: 70 },
@@ -97,6 +117,10 @@ export class RepCounterEngine {
                 keypoints: ['left_shoulder', 'left_elbow', 'left_wrist', 'right_shoulder', 'right_elbow', 'right_wrist'],
                 angleJoints: ['left_shoulder', 'left_elbow', 'left_wrist'],
                 alternateJoints: ['right_shoulder', 'right_elbow', 'right_wrist'],
+                trackedKeypoints: ['left_wrist', 'right_wrist', 'left_elbow', 'right_elbow'],
+                stabilityKeypoints: ['nose', 'left_hip', 'right_hip'],
+                movementThreshold: 0.01,
+                stabilityThreshold: 0.06,
                 phases: {
                     start: { min: 150, max: 180 },
                     mid: { min: 30, max: 70 },
@@ -209,6 +233,33 @@ export class RepCounterEngine {
                 return this.getResult('Show your arms in frame');
             }
 
+            // Validate motion - only arms should move for curls
+            if (this.config.trackedKeypoints && this.config.stabilityKeypoints && this.previousKeypoints) {
+                const motionValidation = validateExerciseMotion(
+                    kp,
+                    this.previousKeypoints,
+                    this.config.trackedKeypoints,
+                    this.config.stabilityKeypoints,
+                    this.config.movementThreshold || 0.01,
+                    this.config.stabilityThreshold || 0.06,
+                    this.frameWidth,
+                    this.frameHeight
+                );
+
+                this.debugInfo.motionValid = motionValidation.isValid;
+                this.debugInfo.motionFeedback = motionValidation.feedback;
+
+                // If motion is not valid (too much head/body movement), provide feedback
+                if (!motionValidation.isValid) {
+                    // Update previous keypoints for next frame
+                    this.previousKeypoints = { ...kp };
+                    return this.getResult(motionValidation.feedback);
+                }
+            }
+
+            // Store current keypoints for next frame
+            this.previousKeypoints = { ...kp };
+
             // Use whichever arm is visible (prefer left)
             const jointsToUse = hasLeftArm ? this.config.angleJoints : this.config.alternateJoints;
             const [joint1, joint2, joint3] = jointsToUse;
@@ -239,6 +290,33 @@ export class RepCounterEngine {
         if (!allKeypointsVisible(kp)) {
             return this.getResult('Move into frame - can\'t see all body parts');
         }
+
+        // Validate motion - check exercise-specific movement
+        if (this.config.trackedKeypoints && this.config.stabilityKeypoints && this.previousKeypoints) {
+            const motionValidation = validateExerciseMotion(
+                kp,
+                this.previousKeypoints,
+                this.config.trackedKeypoints,
+                this.config.stabilityKeypoints,
+                this.config.movementThreshold || 0.015,
+                this.config.stabilityThreshold || 0.05,
+                this.frameWidth,
+                this.frameHeight
+            );
+
+            this.debugInfo.motionValid = motionValidation.isValid;
+            this.debugInfo.motionFeedback = motionValidation.feedback;
+
+            // If motion is not valid, provide feedback
+            if (!motionValidation.isValid) {
+                // Update previous keypoints for next frame
+                this.previousKeypoints = { ...kp };
+                return this.getResult(motionValidation.feedback);
+            }
+        }
+
+        // Store current keypoints for next frame
+        this.previousKeypoints = { ...kp };
 
         // Calculate primary angle
         const [joint1, joint2, joint3] = this.config.angleJoints;
@@ -401,6 +479,7 @@ export class RepCounterEngine {
         this.repCount = 0;
         this.state = STATES.IDLE;
         this.angleHistory = [];
+        this.previousKeypoints = null;
         this.stateEnteredAt = Date.now();
     }
 

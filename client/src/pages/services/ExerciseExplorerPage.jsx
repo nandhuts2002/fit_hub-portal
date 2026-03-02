@@ -39,13 +39,16 @@ export default function ExerciseExplorerPage() {
   const [predicting, setPredicting] = useState(false);
   const [predictionError, setPredictionError] = useState('');
 
+  // Detect posture mode from URL
+  const isPostureMode = searchParams.get('posture') === '1';
+
   useEffect(() => {
     // Check if body part is specified in URL
     const urlBodyPart = searchParams.get('bodyPart');
     if (urlBodyPart && bodyParts.includes(urlBodyPart)) {
       setBodyPart(urlBodyPart);
     }
-    
+
     // Check if equipment is specified in URL
     const urlEquipment = searchParams.get('equipment');
     if (urlEquipment) {
@@ -72,7 +75,7 @@ export default function ExerciseExplorerPage() {
     setLoading(true);
     try {
       let data;
-      
+
       // Use only custom exercises (Pinterest + trainer uploads)
       if (q.trim()) {
         data = await customExerciseService.searchCustomExercises(q.trim());
@@ -81,14 +84,14 @@ export default function ExerciseExplorerPage() {
       } else {
         data = await customExerciseService.getCustomExercises();
       }
-      
+
       // Filter by equipment if specified
       if (equipment && equipment !== 'all') {
-        data = data.filter(exercise => 
+        data = data.filter(exercise =>
           exercise.equipment && exercise.equipment.toLowerCase() === equipment.toLowerCase()
         );
       }
-      
+
       setItems(data || []);
     } catch (e) {
       setError(e?.message || 'Failed to fetch exercises');
@@ -155,7 +158,7 @@ export default function ExerciseExplorerPage() {
     try {
       // Convert minutes and seconds to total seconds
       const totalTimeInSeconds = (timeMinutes * 60) + timeSeconds;
-      
+
       const progressData = {
         exerciseName: selectedExercise.name,
         bodyPart: selectedExercise.bodyPart,
@@ -230,8 +233,8 @@ export default function ExerciseExplorerPage() {
                 {bodyPart === 'all' ? 'Exercise Explorer' : `${getBodyPartDisplayName(bodyPart)} Exercises`}
               </h1>
               <p className={(isDark ? 'text-gray-300' : 'text-gray-600') + ' mt-1'}>
-                {bodyPart === 'all' 
-                  ? 'Search by name or filter by body part. Custom exercise GIFs from trainers.' 
+                {bodyPart === 'all'
+                  ? 'Search by name or filter by body part. Custom exercise GIFs from trainers.'
                   : `Professional exercise GIFs for ${getBodyPartDisplayName(bodyPart).toLowerCase()} training.`
                 }
               </p>
@@ -241,6 +244,25 @@ export default function ExerciseExplorerPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8">
+        {/* Posture Mode Banner */}
+        {isPostureMode && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl text-white shadow-lg"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">🧍</span>
+              <div>
+                <h3 className="font-bold text-lg">Posture Correction Active</h3>
+                <p className="text-sm text-purple-100">
+                  Click the <span className="font-bold bg-purple-500/50 px-2 py-0.5 rounded">Rep Counter</span> button on any exercise to get real-time AI posture feedback!
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* Upload Button - Only show for trainers */}
         <div className="mb-6 flex justify-center">
           {localStorage.getItem('userRole') === 'trainer' && (
@@ -316,27 +338,26 @@ export default function ExerciseExplorerPage() {
                     />
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent"></div>
-                  
+
                   {/* Play Button Overlay */}
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="bg-white/90 dark:bg-gray-800/90 rounded-full p-4 shadow-lg transform transition-all group-hover:scale-110">
                       <svg className="w-8 h-8 text-gray-700 dark:text-gray-300 ml-1" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M8 5v14l11-7z"/>
+                        <path d="M8 5v14l11-7z" />
                       </svg>
                     </div>
                   </div>
-                  
+
                   {/* Source Badge */}
                   <div className="absolute top-2 right-2">
-                    <span className={`text-xs px-2 py-1 rounded-full ${
-                      c.source === 'pinterest' 
-                        ? (isDark ? 'bg-pink-800 text-pink-200' : 'bg-pink-100 text-pink-700')
-                        : (isDark ? 'bg-green-800 text-green-200' : 'bg-green-100 text-green-700')
-                    }`}>
+                    <span className={`text-xs px-2 py-1 rounded-full ${c.source === 'pinterest'
+                      ? (isDark ? 'bg-pink-800 text-pink-200' : 'bg-pink-100 text-pink-700')
+                      : (isDark ? 'bg-green-800 text-green-200' : 'bg-green-100 text-green-700')
+                      }`}>
                       {c.source === 'pinterest' ? 'Pinterest' : 'Trainer'}
                     </span>
                   </div>
-                  
+
                   {/* Media Type Badge */}
                   <div className="absolute bottom-2 left-2">
                     <span className="text-xs px-2 py-1 rounded-full bg-black/50 text-white">
@@ -353,13 +374,13 @@ export default function ExerciseExplorerPage() {
                     <p className="text-sm text-gray-500 dark:text-gray-400">No GIF Available</p>
                     <div className="mt-2 bg-white/90 dark:bg-gray-800/90 rounded-full p-3 shadow-lg">
                       <svg className="w-6 h-6 text-gray-700 dark:text-gray-300 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M8 5v14l11-7z"/>
+                        <path d="M8 5v14l11-7z" />
                       </svg>
                     </div>
                   </div>
                 </div>
               )}
-              
+
               <div className="p-4">
                 <div className="flex items-start justify-between mb-3">
                   <h3 className={`text-sm font-semibold ${isDark ? 'text-white' : 'text-gray-900'} line-clamp-2`}>
@@ -389,11 +410,11 @@ export default function ExerciseExplorerPage() {
                     )}
                   </div>
                 </div>
-                
+
                 <div className={`text-xs mt-1 ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
                   {c.bodyPart} • {c.target}
                 </div>
-                
+
                 <div className="mt-2 flex flex-wrap gap-2">
                   {c.equipment && (
                     <span className={`text-[10px] px-2 py-0.5 rounded-full ${isDark ? 'bg-gray-800 text-gray-200' : 'bg-gray-100 text-gray-700'}`}>
@@ -401,7 +422,7 @@ export default function ExerciseExplorerPage() {
                     </span>
                   )}
                 </div>
-                
+
                 {Array.isArray(c.instructions) && c.instructions.length > 0 && (
                   <details className={`mt-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
                     <summary className="cursor-pointer text-xs">Instructions</summary>
@@ -415,7 +436,7 @@ export default function ExerciseExplorerPage() {
                     </ul>
                   </details>
                 )}
-                
+
                 {/* Action Buttons */}
                 <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex gap-2">
                   <button
@@ -423,28 +444,37 @@ export default function ExerciseExplorerPage() {
                       setSelectedExercise(c);
                       setShowRepCounter(true);
                     }}
-                    className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1 ${
-                      isDark 
-                        ? 'bg-purple-600 hover:bg-purple-700 text-white' 
-                        : 'bg-purple-600 hover:bg-purple-700 text-white'
-                    }`}
-                    title="Start Rep Counter"
+                    className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1 ${isPostureMode
+                        ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg shadow-purple-500/30 animate-pulse'
+                        : isDark
+                          ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                          : 'bg-purple-600 hover:bg-purple-700 text-white'
+                      }`}
+                    title={isPostureMode ? "Start Rep Counter with Posture Correction" : "Start Rep Counter"}
                   >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                    </svg>
-                    Rep Counter
+                    {isPostureMode ? (
+                      <>
+                        <span>🧍</span>
+                        Posture + Reps
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                        </svg>
+                        Rep Counter
+                      </>
+                    )}
                   </button>
                   <button
                     onClick={() => {
                       setSelectedExercise(c);
                       handleTrackProgress();
                     }}
-                    className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${
-                      isDark 
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                        : 'bg-blue-600 hover:bg-blue-700 text-white'
-                    }`}
+                    className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg transition-colors ${isDark
+                      ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white'
+                      }`}
                     title="Track Progress"
                   >
                     📈 Track
@@ -464,7 +494,7 @@ export default function ExerciseExplorerPage() {
         />
       )}
 
-            {/* Professional Exercise Viewer Modal */}
+      {/* Professional Exercise Viewer Modal */}
       {showExerciseModal && selectedExercise && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
           <motion.div
@@ -506,7 +536,7 @@ export default function ExerciseExplorerPage() {
             {/* Modal Content */}
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* GIF/Video/Image Section */}
+                {/* GIF/Video/Image Section */}
                 <div className="space-y-4">
                   <div className={`rounded-xl overflow-hidden ${isDark ? 'bg-gray-800' : 'bg-gray-100'}`}>
                     {(selectedExercise.mediaUrl || selectedExercise.gifUrl) ? (
@@ -542,7 +572,7 @@ export default function ExerciseExplorerPage() {
                       </div>
                     )}
                   </div>
-                  
+
                   {/* Action Buttons */}
                   <div className="flex gap-3">
                     <button
@@ -579,7 +609,7 @@ export default function ExerciseExplorerPage() {
                   <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                     Exercise Instructions
                   </h3>
-                  
+
                   {Array.isArray(selectedExercise.instructions) && selectedExercise.instructions.length > 0 ? (
                     <div className={`rounded-xl p-4 ${isDark ? 'bg-gray-800' : 'bg-gray-50'} max-h-64 overflow-y-auto`}>
                       <ol className="space-y-3">
@@ -623,11 +653,10 @@ export default function ExerciseExplorerPage() {
                       </div>
                       <div className="flex justify-between">
                         <span className={`${isDark ? 'text-gray-400' : 'text-gray-600'}`}>Source:</span>
-                        <span className={`px-2 py-1 rounded-full text-xs ${
-                          selectedExercise.source === 'pinterest' 
-                            ? (isDark ? 'bg-pink-900 text-pink-300' : 'bg-pink-100 text-pink-700')
-                            : (isDark ? 'bg-green-900 text-green-300' : 'bg-green-100 text-green-700')
-                        }`}>
+                        <span className={`px-2 py-1 rounded-full text-xs ${selectedExercise.source === 'pinterest'
+                          ? (isDark ? 'bg-pink-900 text-pink-300' : 'bg-pink-100 text-pink-700')
+                          : (isDark ? 'bg-green-900 text-green-300' : 'bg-green-100 text-green-700')
+                          }`}>
                           {selectedExercise.source === 'pinterest' ? 'Pinterest' : 'Trainer'}
                         </span>
                       </div>
@@ -742,9 +771,9 @@ export default function ExerciseExplorerPage() {
                   ) : predictionError ? (
                     <div className='text-red-600 font-semibold'>{predictionError}</div>
                   ) : predictedPerformance ? (
-                    <div className={`text-lg font-bold rounded px-4 py-2 mt-3 mb-0 w-fit ${predictedPerformance==='high'?'bg-green-100 text-green-700':predictedPerformance==='medium'?'bg-orange-100 text-orange-700':'bg-red-100 text-red-700'}`}>{
-                        predictedPerformance.charAt(0).toUpperCase() + predictedPerformance.slice(1)
-                      } Performance
+                    <div className={`text-lg font-bold rounded px-4 py-2 mt-3 mb-0 w-fit ${predictedPerformance === 'high' ? 'bg-green-100 text-green-700' : predictedPerformance === 'medium' ? 'bg-orange-100 text-orange-700' : 'bg-red-100 text-red-700'}`}>{
+                      predictedPerformance.charAt(0).toUpperCase() + predictedPerformance.slice(1)
+                    } Performance
                       <span className='block text-xs font-normal mt-1'>This is a live prediction for your next workout using your past progress.</span>
                     </div>
                   ) : null}

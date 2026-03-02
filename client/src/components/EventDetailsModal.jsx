@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
@@ -9,15 +9,20 @@ import {
   DollarSign,
   User,
   Phone,
-  CheckCircle
+  CheckCircle,
+  Armchair
 } from 'lucide-react';
 import paymentService from '../utils/paymentService';
 import { useToast } from '../contexts/ToastContext';
+import SessionManager from '../utils/sessionManager';
+import SeatBookingModal from './SeatBookingModal';
 
 const EventDetailsModal = ({ event, isOpen, onClose, onEventJoined }) => {
   const { showSuccess, showError, showWarning } = useToast();
   const [showJoinForm, setShowJoinForm] = useState(false);
   const [showCalendarOptions, setShowCalendarOptions] = useState(false);
+  const [showSeatPicker, setShowSeatPicker] = useState(false);
+  const [selectedSeat, setSelectedSeat] = useState(null);
   const [joinForm, setJoinForm] = useState({
     name: '',
     phone: '',
@@ -28,6 +33,21 @@ const EventDetailsModal = ({ event, isOpen, onClose, onEventJoined }) => {
   const [isJoining, setIsJoining] = useState(false);
   const [formErrors, setFormErrors] = useState({});
   const [isValidating, setIsValidating] = useState(false);
+
+  // Auto-fill form with logged-in user's data when join form is shown
+  useEffect(() => {
+    if (showJoinForm) {
+      const currentUser = SessionManager.getCurrentUser();
+      if (currentUser && currentUser.name && currentUser.email) {
+        setJoinForm(prevForm => ({
+          ...prevForm,
+          name: currentUser.name || prevForm.name,
+          email: currentUser.email || prevForm.email,
+          phone: currentUser.phone || prevForm.phone
+        }));
+      }
+    }
+  }, [showJoinForm]);
 
   if (!isOpen || !event) return null;
 
@@ -156,6 +176,7 @@ END:VCALENDAR`;
           body: JSON.stringify({
             event_id: event._id,
             user_data: joinForm,
+            seat: selectedSeat ? { label: selectedSeat.label, zone: selectedSeat.zoneLabel } : null,
             status: 'confirmed'
           })
         });
@@ -163,6 +184,7 @@ END:VCALENDAR`;
         if (response.ok) {
           showSuccess('Successfully joined the free event! You will receive confirmation details via email.', 5000);
           setShowJoinForm(false);
+          setSelectedSeat(null);
           setJoinForm({ name: '', phone: '', email: '', emergencyContact: '', specialRequirements: '' });
           if (onEventJoined) onEventJoined(); // Refresh tickets
           setTimeout(() => onClose(), 1500); // Close modal after successful join
@@ -209,7 +231,8 @@ END:VCALENDAR`;
             razorpay_payment_id: paymentResponse.razorpay_payment_id,
             razorpay_signature: paymentResponse.razorpay_signature,
             event_id: event._id,
-            user_data: joinForm
+            user_data: joinForm,
+            seat: selectedSeat ? { label: selectedSeat.label, zone: selectedSeat.zoneLabel } : null
           });
 
           // Show ticket if available
@@ -222,6 +245,7 @@ END:VCALENDAR`;
           }
 
           setShowJoinForm(false);
+          setSelectedSeat(null);
           setJoinForm({ name: '', phone: '', email: '', emergencyContact: '', specialRequirements: '' });
           if (onEventJoined) onEventJoined(); // Refresh tickets
           setTimeout(() => onClose(), 1500); // Close modal after successful payment
@@ -273,6 +297,17 @@ END:VCALENDAR`;
 
   return (
     <AnimatePresence>
+      {/* 3D Seat Booking Modal */}
+      <SeatBookingModal
+        isOpen={showSeatPicker}
+        event={event}
+        onClose={() => setShowSeatPicker(false)}
+        onSeatConfirmed={(seat) => {
+          setSelectedSeat(seat);
+          setShowSeatPicker(false);
+          setShowJoinForm(true);
+        }}
+      />
       {/* Calendar Options Modal */}
       <AnimatePresence>
         {showCalendarOptions && (
@@ -515,6 +550,39 @@ END:VCALENDAR`;
                 className="border-t pt-6"
               >
                 <h3 className="text-lg font-semibold mb-4">Join This Event</h3>
+                {/* ── Selected seat badge ── */}
+                {selectedSeat && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="flex items-center gap-3 mb-4 px-4 py-3 rounded-xl border"
+                    style={{
+                      background: `${selectedSeat.bg}55`,
+                      borderColor: `${selectedSeat.color}66`,
+                    }}
+                  >
+                    <Armchair className="w-5 h-5" style={{ color: selectedSeat.color }} />
+                    <div className="flex-1">
+                      <p className="font-semibold text-gray-900 text-sm">
+                        Seat {selectedSeat.label}
+                        <span
+                          className="ml-2 text-xs px-2 py-0.5 rounded-full font-bold"
+                          style={{ background: selectedSeat.bg, color: selectedSeat.color }}
+                        >
+                          {selectedSeat.zoneLabel}
+                        </span>
+                      </p>
+                      <p className="text-gray-500 text-xs">Your selected seat</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setShowJoinForm(false); setShowSeatPicker(true); }}
+                      className="text-xs text-indigo-600 hover:text-indigo-800 font-medium hover:underline"
+                    >
+                      Change
+                    </button>
+                  </motion.div>
+                )}
                 <form onSubmit={handleJoinEvent} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -621,16 +689,29 @@ END:VCALENDAR`;
           <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 p-6 rounded-b-xl">
             <div className="flex gap-3">
               <button
-                onClick={() => setShowJoinForm(!showJoinForm)}
+                onClick={() => {
+                  if (showJoinForm) {
+                    // Cancel – reset seat too
+                    setShowJoinForm(false);
+                    setSelectedSeat(null);
+                  } else {
+                    // Open seat picker first
+                    setShowSeatPicker(true);
+                  }
+                }}
                 disabled={event.max_participants && event.max_participants > 0 && (event.participants || 0) >= event.max_participants}
                 className={`flex-1 py-3 px-6 rounded-lg transition-colors font-medium ${event.max_participants && event.max_participants > 0 && (event.participants || 0) >= event.max_participants
                     ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                    : showJoinForm
+                      ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 shadow-lg'
                   }`}
               >
                 {event.max_participants && event.max_participants > 0 && (event.participants || 0) >= event.max_participants
                   ? 'Event Fully Booked'
-                  : showJoinForm ? 'Cancel' : 'Join This Event'
+                  : showJoinForm
+                    ? 'Cancel'
+                    : '🎟️ Select Seat & Join'
                 }
               </button>
               <button

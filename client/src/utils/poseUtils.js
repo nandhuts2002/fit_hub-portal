@@ -230,3 +230,142 @@ export function normalizeKeypoint(keypoint, width, height) {
 export function allKeypointsVisible(keypointMap) {
     return Object.values(keypointMap).every(kp => kp !== null);
 }
+
+/**
+ * Calculate displacement between two keypoint positions
+ * Normalized by frame dimensions for consistency across different video sizes
+ * @param {Object} currentKp - Current keypoint {x, y}
+ * @param {Object} previousKp - Previous keypoint {x, y}
+ * @param {number} frameWidth - Video frame width (default 640)
+ * @param {number} frameHeight - Video frame height (default 480)
+ * @returns {number} Normalized displacement (0-1 range, where 1 = full frame diagonal)
+ */
+export function calculateKeypointDisplacement(currentKp, previousKp, frameWidth = 640, frameHeight = 480) {
+    if (!currentKp || !previousKp) return 0;
+
+    const dx = currentKp.x - previousKp.x;
+    const dy = currentKp.y - previousKp.y;
+    const distance = Math.sqrt(dx ** 2 + dy ** 2);
+
+    // Normalize by frame diagonal for scale independence
+    const frameDiagonal = Math.sqrt(frameWidth ** 2 + frameHeight ** 2);
+    return distance / frameDiagonal;
+}
+
+/**
+ * Detect if a keypoint has moved significantly
+ * @param {Object} currentKp - Current keypoint {x, y}
+ * @param {Object} previousKp - Previous keypoint {x, y}
+ * @param {number} threshold - Movement threshold (0-1, default 0.02 = 2% of frame)
+ * @param {number} frameWidth - Video frame width
+ * @param {number} frameHeight - Video frame height
+ * @returns {boolean} True if movement exceeds threshold
+ */
+export function detectMovement(currentKp, previousKp, threshold = 0.02, frameWidth = 640, frameHeight = 480) {
+    const displacement = calculateKeypointDisplacement(currentKp, previousKp, frameWidth, frameHeight);
+    return displacement > threshold;
+}
+
+/**
+ * Calculate average displacement across multiple keypoints
+ * @param {Object} currentKeypoints - Object with current keypoint positions {name: {x, y}}
+ * @param {Object} previousKeypoints - Object with previous keypoint positions
+ * @param {Array} keypointNames - Array of keypoint names to check
+ * @param {number} frameWidth - Video frame width
+ * @param {number} frameHeight - Video frame height
+ * @returns {number} Average normalized displacement
+ */
+export function calculateAverageDisplacement(currentKeypoints, previousKeypoints, keypointNames, frameWidth = 640, frameHeight = 480) {
+    if (!currentKeypoints || !previousKeypoints || !keypointNames || keypointNames.length === 0) {
+        return 0;
+    }
+
+    let totalDisplacement = 0;
+    let validCount = 0;
+
+    keypointNames.forEach(name => {
+        const current = currentKeypoints[name];
+        const previous = previousKeypoints[name];
+
+        if (current && previous) {
+            totalDisplacement += calculateKeypointDisplacement(current, previous, frameWidth, frameHeight);
+            validCount++;
+        }
+    });
+
+    return validCount > 0 ? totalDisplacement / validCount : 0;
+}
+
+/**
+ * Validate that tracked keypoints are moving and stability keypoints are stable
+ * @param {Object} currentKeypoints - Current keypoint positions
+ * @param {Object} previousKeypoints - Previous keypoint positions
+ * @param {Array} trackedKeypoints - Keypoints that should be moving
+ * @param {Array} stabilityKeypoints - Keypoints that should remain stable
+ * @param {number} movementThreshold - Threshold for tracked keypoints (default 0.015)
+ * @param {number} stabilityThreshold - Threshold for stability keypoints (default 0.05)
+ * @param {number} frameWidth - Video frame width
+ * @param {number} frameHeight - Video frame height
+ * @returns {Object} {isValid, hasMovement, isStable, trackedMovement, stabilityMovement, feedback}
+ */
+export function validateExerciseMotion(
+    currentKeypoints,
+    previousKeypoints,
+    trackedKeypoints = [],
+    stabilityKeypoints = [],
+    movementThreshold = 0.015,
+    stabilityThreshold = 0.05,
+    frameWidth = 640,
+    frameHeight = 480
+) {
+    // If no previous data, can't validate motion
+    if (!previousKeypoints || Object.keys(previousKeypoints).length === 0) {
+        return {
+            isValid: true,
+            hasMovement: false,
+            isStable: true,
+            trackedMovement: 0,
+            stabilityMovement: 0,
+            feedback: ''
+        };
+    }
+
+    // Calculate movement in tracked keypoints (should be moving)
+    const trackedMovement = calculateAverageDisplacement(
+        currentKeypoints,
+        previousKeypoints,
+        trackedKeypoints,
+        frameWidth,
+        frameHeight
+    );
+
+    // Calculate movement in stability keypoints (should be stable)
+    const stabilityMovement = calculateAverageDisplacement(
+        currentKeypoints,
+        previousKeypoints,
+        stabilityKeypoints,
+        frameWidth,
+        frameHeight
+    );
+
+    const hasMovement = trackedMovement > movementThreshold;
+    const isStable = stabilityMovement < stabilityThreshold;
+
+    let feedback = '';
+
+    // Provide specific feedback
+    if (!isStable) {
+        feedback = 'Keep your body stable - minimize head and torso movement';
+    } else if (hasMovement) {
+        feedback = 'Good form!';
+    }
+
+    return {
+        isValid: isStable, // Valid if stability keypoints are stable
+        hasMovement,
+        isStable,
+        trackedMovement,
+        stabilityMovement,
+        feedback
+    };
+}

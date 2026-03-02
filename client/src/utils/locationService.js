@@ -8,6 +8,74 @@ class LocationService {
   constructor() {
     this.currentLocation = null;
     this.watchId = null;
+
+    // Kerala city coordinates mapping
+    this.cityCoordinates = {
+      // Kottayam District
+      'Kanjirappally': { lat: 9.5602, lon: 76.7853 },
+      'Kottayam': { lat: 9.5916, lon: 76.5222 },
+      'Pala': { lat: 9.7224, lon: 76.6836 },
+      'Changanassery': { lat: 9.4454, lon: 76.5428 },
+      'Vaikom': { lat: 9.7488, lon: 76.3958 },
+      'Erattupetta': { lat: 9.6875, lon: 76.7764 },
+
+      // Ernakulam District
+      'Kochi': { lat: 9.9312, lon: 76.2673 },
+      'Aluva': { lat: 10.1080, lon: 76.3525 },
+      'Kalamassery': { lat: 10.0534, lon: 76.3270 },
+      'Perumbavoor': { lat: 10.1090, lon: 76.4733 },
+      'Muvattupuzha': { lat: 9.9802, lon: 76.5773 },
+
+      // Thiruvananthapuram District
+      'Thiruvananthapuram': { lat: 8.5241, lon: 76.9366 },
+      'Neyyattinkara': { lat: 8.4006, lon: 77.0869 },
+      'Attingal': { lat: 8.6969, lon: 76.8161 },
+
+      // Kozhikode District
+      'Kozhikode': { lat: 11.2588, lon: 75.7804 },
+      'Vadakara': { lat: 11.6098, lon: 75.5955 },
+
+      // Kollam District
+      'Kollam': { lat: 8.8932, lon: 76.6141 },
+      'Punalur': { lat: 9.0217, lon: 76.9239 },
+
+      // Thrissur District
+      'Thrissur': { lat: 10.5276, lon: 76.2144 },
+      'Guruvayur': { lat: 10.5943, lon: 76.0394 },
+
+      // Palakkad District
+      'Palakkad': { lat: 10.7867, lon: 76.6548 },
+      'Ottapalam': { lat: 10.7717, lon: 76.3777 },
+
+      // Kannur District
+      'Kannur': { lat: 11.8745, lon: 75.3704 },
+      'Thalassery': { lat: 11.7480, lon: 75.4899 },
+
+      // Kasaragod District
+      'Kasaragod': { lat: 12.4996, lon: 74.9869 },
+      'Kanhangad': { lat: 12.3081, lon: 75.1095 },
+
+      // Malappuram District
+      'Malappuram': { lat: 11.0510, lon: 76.0711 },
+      'Manjeri': { lat: 11.1196, lon: 76.1205 },
+
+      // Wayanad District
+      'Kalpetta': { lat: 11.6096, lon: 76.0817 },
+      'Sultan Bathery': { lat: 11.6822, lon: 76.2739 },
+
+      // Alappuzha District
+      'Alappuzha': { lat: 9.4981, lon: 76.3388 },
+      'Cherthala': { lat: 9.6845, lon: 76.3358 },
+
+      // Pathanamthitta District
+      'Pathanamthitta': { lat: 9.2648, lon: 76.7870 },
+      'Adoor': { lat: 9.1568, lon: 76.7337 },
+
+      // Idukki District
+      'Painavu': { lat: 9.6615, lon: 76.9743 },
+      'Thodupuzha': { lat: 9.8939, lon: 76.7168 },
+      'Munnar': { lat: 10.0889, lon: 77.0595 }
+    };
   }
 
   // Prefer real-time OpenStreetMap gyms for a city/district
@@ -114,9 +182,9 @@ class LocationService {
     const R = 6371; // Earth's radius in kilometers
     const dLat = this.toRadians(lat2 - lat1);
     const dLon = this.toRadians(lon2 - lon1);
-    const a = 
+    const a =
       Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos(this.toRadians(lat1)) * Math.cos(this.toRadians(lat2)) * 
+      Math.cos(this.toRadians(lat1)) * Math.cos(this.toRadians(lat2)) *
       Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distance = R * c;
@@ -142,26 +210,26 @@ class LocationService {
       const location = await this.getCurrentLocation();
       const currentUser = SessionManager.getCurrentUser();
       const token = currentUser?.token;
-      
+
       if (!token) {
         throw new Error('Authentication required');
       }
-      
+
       const response = await fetch(`http://localhost:5000/location/nearby-gyms?lat=${location.latitude}&lon=${location.longitude}&radius=${radius}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('API Error:', response.status, errorData);
         throw new Error(`API Error: ${response.status} - ${errorData.message || 'Failed to fetch gyms'}`);
       }
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         console.log('Successfully fetched gyms:', data.gyms.length);
         return data.gyms;
@@ -258,26 +326,26 @@ class LocationService {
       const location = await this.getCurrentLocation();
       const currentUser = SessionManager.getCurrentUser();
       const token = currentUser?.token;
-      
+
       if (!token) {
         throw new Error('Authentication required');
       }
-      
+
       const response = await fetch(`http://localhost:5000/location/nearby-trainers?lat=${location.latitude}&lon=${location.longitude}&radius=${radius}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('API Error:', response.status, errorData);
         throw new Error(`API Error: ${response.status} - ${errorData.message || 'Failed to fetch trainers'}`);
       }
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         console.log('Successfully fetched trainers:', data.trainers.length);
         return data.trainers;
@@ -361,26 +429,26 @@ class LocationService {
       const location = await this.getCurrentLocation();
       const currentUser = SessionManager.getCurrentUser();
       const token = currentUser?.token;
-      
+
       if (!token) {
         throw new Error('Authentication required');
       }
-      
+
       const response = await fetch(`${API_BASE_URL}/location/local-events?lat=${location.latitude}&lon=${location.longitude}&radius=${radius}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('API Error:', response.status, errorData);
         throw new Error(`API Error: ${response.status} - ${errorData.message || 'Failed to fetch events'}`);
       }
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         console.log('Successfully fetched events:', data.events.length);
         // Convert date strings back to Date objects and filter out past events
@@ -478,26 +546,26 @@ class LocationService {
     try {
       const currentUser = SessionManager.getCurrentUser();
       const token = currentUser?.token;
-      
+
       if (!token) {
         throw new Error('Authentication required');
       }
-      
+
       const response = await fetch(`${API_BASE_URL}/location/gyms-by-city?city=${encodeURIComponent(city)}&state=${encodeURIComponent(state)}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('API Error:', response.status, errorData);
         throw new Error(`API Error: ${response.status} - ${errorData.message || 'Failed to fetch gyms'}`);
       }
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         console.log(`Successfully fetched ${data.gyms.length} gyms for ${city}, ${state}`);
         return data.gyms;
@@ -527,26 +595,26 @@ class LocationService {
     try {
       const currentUser = SessionManager.getCurrentUser();
       const token = currentUser?.token;
-      
+
       if (!token) {
         throw new Error('Authentication required');
       }
-      
+
       const response = await fetch(`${API_BASE_URL}/location/trainers-by-city?city=${encodeURIComponent(city)}&state=${encodeURIComponent(state)}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('API Error:', response.status, errorData);
         throw new Error(`API Error: ${response.status} - ${errorData.message || 'Failed to fetch trainers'}`);
       }
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         console.log(`Successfully fetched ${data.trainers.length} trainers for ${city}, ${state}`);
         return data.trainers;
@@ -568,26 +636,26 @@ class LocationService {
     try {
       const currentUser = SessionManager.getCurrentUser();
       const token = currentUser?.token;
-      
+
       if (!token) {
         throw new Error('Authentication required');
       }
-      
+
       const response = await fetch(`${API_BASE_URL}/location/events-by-city?city=${encodeURIComponent(city)}&state=${encodeURIComponent(state)}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('API Error:', response.status, errorData);
         throw new Error(`API Error: ${response.status} - ${errorData.message || 'Failed to fetch events'}`);
       }
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         console.log(`Successfully fetched ${data.events.length} events for ${city}, ${state}`);
         // Convert date strings back to Date objects and filter out past events
@@ -615,9 +683,9 @@ class LocationService {
   getMockGymsByCity(city, state) {
     const cityLower = city.toLowerCase();
     const mockGyms = this.getMockGyms(50); // Get all gyms
-    
+
     // Filter by city name in address
-    return mockGyms.filter(gym => 
+    return mockGyms.filter(gym =>
       gym.address.toLowerCase().includes(cityLower) ||
       (cityLower.includes('kochi') && gym.address.toLowerCase().includes('kochi')) ||
       (cityLower.includes('thiruvananthapuram') && gym.address.toLowerCase().includes('thiruvananthapuram')) ||
@@ -630,7 +698,7 @@ class LocationService {
   getMockTrainersByCity(city, state) {
     const cityLower = city.toLowerCase();
     const mockTrainers = this.getMockTrainers(50); // Get all trainers
-    
+
     // Filter by city (using coordinates as proxy for city)
     return mockTrainers.filter(trainer => {
       if (cityLower.includes('kochi')) {
@@ -651,9 +719,9 @@ class LocationService {
   getMockEventsByCity(city, state) {
     const cityLower = city.toLowerCase();
     const mockEvents = this.getMockEvents(50); // Get all events
-    
+
     // Filter by city name in location
-    return mockEvents.filter(event => 
+    return mockEvents.filter(event =>
       event.location.toLowerCase().includes(cityLower) ||
       cityLower.includes('kochi') && event.location.toLowerCase().includes('kochi') ||
       cityLower.includes('thiruvananthapuram') && event.location.toLowerCase().includes('thiruvananthapuram') ||
@@ -664,17 +732,74 @@ class LocationService {
   }
 
   // Get weather-based workout suggestions
-  async getWeatherBasedSuggestions() {
+  async getWeatherBasedSuggestions(city = null) {
     try {
-      const location = await this.getCurrentLocation();
-      
-      // Mock weather API call - replace with real weather API
-      const weatherData = {
-        temperature: 28,
-        condition: "sunny",
-        humidity: 65,
-        windSpeed: 12
-      };
+      // Use city coordinates if provided, otherwise use current GPS location
+      let location;
+      if (city && this.cityCoordinates[city]) {
+        location = {
+          latitude: this.cityCoordinates[city].lat,
+          longitude: this.cityCoordinates[city].lon
+        };
+        console.log(`Using weather for city: ${city}`, location);
+      } else {
+        location = await this.getCurrentLocation();
+        console.log('Using weather for current GPS location', location);
+      }
+
+      // Try to fetch real weather data from OpenWeatherMap API
+      let weatherData = null;
+
+      try {
+        const apiKey = process.env.REACT_APP_OPENWEATHER_API_KEY;
+
+        if (apiKey) {
+          // Fetch real weather data
+          const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?lat=${location.latitude}&lon=${location.longitude}&appid=${apiKey}&units=metric`;
+
+          const weatherResponse = await fetch(weatherUrl);
+
+          if (weatherResponse.ok) {
+            const weatherJson = await weatherResponse.json();
+
+            // Map OpenWeatherMap condition to simple condition
+            const weatherCondition = weatherJson.weather?.[0]?.main?.toLowerCase() || 'clear';
+            let simpleCondition = 'clear';
+
+            if (weatherCondition.includes('rain') || weatherCondition.includes('drizzle') || weatherCondition.includes('thunderstorm')) {
+              simpleCondition = 'rainy';
+            } else if (weatherCondition.includes('cloud')) {
+              simpleCondition = 'cloudy';
+            } else if (weatherCondition.includes('clear') || weatherCondition.includes('sun')) {
+              simpleCondition = 'sunny';
+            }
+
+            weatherData = {
+              temperature: Math.round(weatherJson.main?.temp || 28),
+              condition: simpleCondition,
+              humidity: Math.round(weatherJson.main?.humidity || 65),
+              windSpeed: Math.round((weatherJson.wind?.speed || 3.33) * 3.6) // Convert m/s to km/h
+            };
+
+            console.log('Real weather data fetched:', weatherData);
+          } else {
+            console.warn('Weather API returned non-OK status:', weatherResponse.status);
+            throw new Error('Weather API request failed');
+          }
+        } else {
+          console.warn('OpenWeatherMap API key not found in environment variables');
+          throw new Error('API key not configured');
+        }
+      } catch (weatherError) {
+        console.warn('Failed to fetch real weather data, using fallback:', weatherError.message);
+        // Fallback to mock weather data
+        weatherData = {
+          temperature: 28,
+          condition: "sunny",
+          humidity: 65,
+          windSpeed: 12
+        };
+      }
 
       const suggestions = [];
 
@@ -740,7 +865,7 @@ class LocationService {
       return { granted: false, error: error.message };
     }
   }
-  
+
   // ---------- OpenStreetMap integration (Nominatim + Overpass) ----------
   async getGymsFromOSMByCity(city, state = 'Kerala, India') {
     // 1) Resolve the city/district bounding box using Nominatim

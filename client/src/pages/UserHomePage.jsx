@@ -80,7 +80,7 @@ const UserHomePage = () => {
   // Auto-rotate hero background
   // Preload hero images once to avoid layout jank
   useEffect(() => {
-    try { HERO_IMAGES.forEach((src) => { const img = new Image(); img.src = src; }); } catch {}
+    try { HERO_IMAGES.forEach((src) => { const img = new Image(); img.src = src; }); } catch { }
   }, []);
 
   useEffect(() => {
@@ -122,7 +122,7 @@ const UserHomePage = () => {
 
   // Persist theme
   useEffect(() => {
-    try { localStorage.setItem('user_theme', theme); } catch {}
+    try { localStorage.setItem('user_theme', theme); } catch { }
   }, [theme]);
 
   // Fetch real user stats and recent activity
@@ -219,14 +219,14 @@ const UserHomePage = () => {
         if (statusUpdates.length > 0) {
           // Show notification for most recent status update
           const latestUpdate = statusUpdates[0];
-          setToast({ 
-            title: `Order ${latestUpdate.order_id} - ${latestUpdate.orderStatus}`, 
-            preview: `Your order status has been updated to ${latestUpdate.orderStatus}` 
+          setToast({
+            title: `Order ${latestUpdate.order_id} - ${latestUpdate.orderStatus}`,
+            preview: `Your order status has been updated to ${latestUpdate.orderStatus}`
           });
-          
+
           // Update last seen
           localStorage.setItem(ORDER_STORAGE_KEY, String(Date.now()));
-          
+
           // Auto hide toast
           setTimeout(() => setToast(null), 5000);
         }
@@ -237,7 +237,7 @@ const UserHomePage = () => {
 
     // Check immediately
     checkOrderUpdates();
-    
+
     // Then check every 30 seconds
     const interval = setInterval(checkOrderUpdates, 30000);
     return () => { isCancelled = true; clearInterval(interval); };
@@ -270,7 +270,7 @@ const UserHomePage = () => {
             respondedAt: new Date(q.responded_at).getTime(),
             preview: (q.response || "").slice(0, 80)
           }))
-          .sort((a,b) => b.respondedAt - a.respondedAt);
+          .sort((a, b) => b.respondedAt - a.respondedAt);
 
         setNotifications(withResponses.slice(0, 7));
 
@@ -353,7 +353,7 @@ const UserHomePage = () => {
           onClick={() => { setToast(null); navigate('/queries'); }}
         />
       </AnimatePresence>
-      
+
       {/* Moving Background Images */}
       <div className="fixed inset-0 -z-20">
         <AnimatePresence initial={false}>
@@ -402,61 +402,61 @@ const UserHomePage = () => {
               </div>
             </motion.div>
 
-            {/* Navigation - Blue Theme with Services Page Link */}
-            <nav className="flex items-center gap-3 flex-nowrap overflow-x-auto py-2 flex-1">
+            {/* Navigation - Uniform Button Styling */}
+            <nav className="flex items-center gap-2 flex-nowrap overflow-x-auto py-2 flex-1 ml-4">
               <motion.button
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => navigate("/user-home")}
-                className="px-4 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-md flex items-center gap-2"
+                className="px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-md flex items-center gap-2 text-sm font-medium whitespace-nowrap"
               >
                 <Home className="w-4 h-4" />
-                <span className="text-sm font-semibold">Home</span>
+                Home
               </motion.button>
               <motion.button
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => navigate("/location-features")}
-                className="px-4 py-2.5 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 flex items-center gap-2"
+                className="px-4 py-2 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 flex items-center gap-2 text-sm font-medium whitespace-nowrap"
               >
                 <MapPin className="w-4 h-4" />
-                <span className="text-sm font-semibold">Find My Gym</span>
+                Find My Gym
               </motion.button>
               <motion.button
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => navigate("/workouts")}
-                className="px-4 py-2.5 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 flex items-center gap-2"
+                className="px-4 py-2 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 flex items-center gap-2 text-sm font-medium whitespace-nowrap"
               >
                 <Dumbbell className="w-4 h-4" />
-                <span className="text-sm font-semibold">Workouts</span>
+                Workouts
               </motion.button>
               <motion.button
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => navigate("/shop")}
-                className="px-4 py-2.5 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 flex items-center gap-2"
+                className="px-4 py-2 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 flex items-center gap-2 text-sm font-medium whitespace-nowrap"
               >
                 <ShoppingBag className="w-4 h-4" />
-                <span className="text-sm font-semibold">Shop</span>
+                Shop
               </motion.button>
               <motion.button
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => navigate("/community")}
-                className="px-4 py-2.5 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 flex items-center gap-2"
+                className="px-4 py-2 rounded-full bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 flex items-center gap-2 text-sm font-medium whitespace-nowrap"
               >
                 <UsersIcon className="w-4 h-4" />
-                <span className="text-sm font-semibold">Community</span>
+                Community
               </motion.button>
               <motion.button
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={() => navigate("/services")}
-                className="px-4 py-2.5 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-md flex items-center gap-2"
+                className="px-4 py-2 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-md flex items-center gap-2 text-sm font-medium whitespace-nowrap"
               >
                 <Boxes className="w-4 h-4" />
-                <span className="text-sm font-semibold">More Services</span>
+                More Services
               </motion.button>
             </nav>
 
@@ -475,9 +475,9 @@ const UserHomePage = () => {
               >
                 {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
               </button>
-              
+
               {/* Cart */}
-              <button 
+              <button
                 onClick={() => navigate("/shop")}
                 className={`relative p-2.5 rounded-lg transition-all duration-200 ${theme === 'dark' ? 'text-gray-300 hover:text-orange-300 hover:bg-white/10' : 'text-gray-600 hover:text-orange-600 hover:bg-orange-50'}`}
               >
@@ -486,7 +486,7 @@ const UserHomePage = () => {
                   {getCartCount()}
                 </span>
               </button>
-              
+
               {/* User Profile - Click avatar to go to profile */}
               <button
                 onClick={() => navigate("/profile")}
@@ -498,7 +498,7 @@ const UserHomePage = () => {
                     src={user.avatar}
                     alt={user?.firstName || user?.name || user?.email || 'User'}
                     className="w-full h-full object-cover rounded-full"
-                    onError={(e)=>{
+                    onError={(e) => {
                       const display = (user?.firstName || user?.name || user?.email || 'Member');
                       e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(display)}&background=FF7A00&color=fff&bold=true&size=128`;
                     }}
@@ -507,15 +507,14 @@ const UserHomePage = () => {
                   (user?.firstName?.[0] || user?.name?.[0] || user?.email?.[0] || 'U').toUpperCase()
                 )}
               </button>
-              
+
               {/* Profile Menu Toggle */}
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
-                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                  theme === 'dark' 
-                    ? 'text-gray-300 hover:bg-gray-800 hover:text-orange-300' 
+                className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${theme === 'dark'
+                    ? 'text-gray-300 hover:bg-gray-800 hover:text-orange-300'
                     : 'text-gray-600 hover:bg-gray-100 hover:text-orange-600'
-                }`}
+                  }`}
                 title="Profile menu"
               >
                 <Menu className="w-5 h-5" />
@@ -585,225 +584,225 @@ const UserHomePage = () => {
 
       {/* Notifications and Profile Menu */}
       <div className="relative">
-            <AnimatePresence>
-              {notificationsOpen && (
-                <motion.div
-                  ref={notificationsMenuRef}
-                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                  transition={{ duration: 0.2, ease: "easeOut" }}
-                  className="notifications-menu absolute right-0 mt-3 w-80 bg-white shadow-2xl rounded-2xl overflow-hidden border border-gray-200 z-50"
-                >
-                {/* Header */}
-                <div className="px-4 py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-lg">Notifications</h3>
-                    <div className="flex items-center gap-2">
+        <AnimatePresence>
+          {notificationsOpen && (
+            <motion.div
+              ref={notificationsMenuRef}
+              initial={{ opacity: 0, y: -10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -10, scale: 0.95 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="notifications-menu absolute right-0 mt-3 w-80 bg-white shadow-2xl rounded-2xl overflow-hidden border border-gray-200 z-50"
+            >
+              {/* Header */}
+              <div className="px-4 py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-lg">Notifications</h3>
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={() => { setUnreadCount(0); localStorage.setItem("user_query_last_seen", String(Date.now())); }}
-                        className="text-xs px-2 py-1 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors"
-                      >
-                        Mark all read
-                      </button>
-                      <button
-                        onClick={() => setNotificationsOpen(false)}
-                        className="text-white/80 hover:text-white"
-                      >
-                        ✕
-                      </button>
-                    </div>
+                      className="text-xs px-2 py-1 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors"
+                    >
+                      Mark all read
+                    </button>
+                    <button
+                      onClick={() => setNotificationsOpen(false)}
+                      className="text-white/80 hover:text-white"
+                    >
+                      ✕
+                    </button>
                   </div>
                 </div>
+              </div>
 
-                {/* Notifications List */}
-                <div className="max-h-80 overflow-y-auto">
-                    {notifications.length === 0 ? (
-                    <div className="px-4 py-8 text-center">
-                      <Bell className="w-10 h-10 mx-auto text-gray-300 mb-2" />
-                      <div className="text-sm text-gray-500">No new notifications</div>
-                    </div>
-                  ) : (
-                    notifications.map((n, index) => (
-                      <motion.div
-                        key={n.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
-                        onClick={() => { setNotificationsOpen(false); navigate(`/queries?open=${n.id}`); }}
-                      >
-                          <div className="flex items-start gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center text-white text-sm font-bold">
-                            T
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <div className="text-sm font-semibold text-gray-900 truncate">
-                                Trainer Response
-                              </div>
-                              <div className="text-xs text-gray-500 ml-2">
-                                {formatTimeAgo(n.respondedAt)}
-                              </div>
-                            </div>
-                            <div className="text-sm text-gray-700 mt-1 line-clamp-2">
-                              {n.title}
-                            </div>
-                            <div className="text-xs text-gray-500 mt-1 line-clamp-1">
-                              {n.preview}
-                            </div>
-                          </div>
-                          {index === 0 && (
-                            <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                          )}
+              {/* Notifications List */}
+              <div className="max-h-80 overflow-y-auto">
+                {notifications.length === 0 ? (
+                  <div className="px-4 py-8 text-center">
+                    <Bell className="w-10 h-10 mx-auto text-gray-300 mb-2" />
+                    <div className="text-sm text-gray-500">No new notifications</div>
+                  </div>
+                ) : (
+                  notifications.map((n, index) => (
+                    <motion.div
+                      key={n.id}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                      onClick={() => { setNotificationsOpen(false); navigate(`/queries?open=${n.id}`); }}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center text-white text-sm font-bold">
+                          T
                         </div>
-                      </motion.div>
-                      ))
-                    )}
-                  </div>
-
-                {/* Footer */}
-                <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
-                  <button 
-                    className="w-full text-sm text-blue-600 font-medium hover:text-blue-700 transition-colors"
-                    onClick={() => { setNotificationsOpen(false); navigate('/queries'); }}
-                  >
-                    View all notifications
-                  </button>
-                  </div>
-                </motion.div>
-              )}
-              {menuOpen && (
-                <motion.div
-                  ref={profileMenuRef}
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ duration: 0.3 }}
-                  className="profile-menu absolute right-0 mt-3 w-80 bg-white text-gray-900 shadow-2xl rounded-2xl overflow-hidden border border-gray-300 backdrop-blur-xl z-50"
-                >
-                  {/* Profile Card */}
-                <div className="flex items-center gap-3 px-4 py-4 bg-gradient-to-r from-orange-600 to-amber-500">
-                  <div className="relative w-12 h-12 rounded-full bg-white/20 overflow-hidden">
-                    <button onClick={() => fileInputRef.current?.click()} className="absolute inset-0">
-                      {user?.avatar ? (
-                        <img
-                          src={user.avatar}
-                          alt={user?.firstName || user?.name || user?.email || 'User'}
-                          className="w-full h-full object-cover rounded-full"
-                          onError={(e)=>{
-                            const display = (user?.firstName || user?.name || user?.email || 'Member');
-                            e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(display)}&background=FF7A00&color=fff&bold=true&size=128`;
-                          }}
-                        />
-                      ) : (
-                        <div className="w-full h-full grid place-items-center text-white font-bold text-lg">{(user?.firstName?.[0] || user?.name?.[0] || user?.email?.[0] || 'U').toUpperCase()}</div>
-                      )}
-                      <div className="absolute inset-0 bg-black/0 hover:bg-black/30 transition-colors grid place-items-center text-[10px] text-white font-semibold">
-                        {avatarBusy ? 'Saving…' : 'Edit'}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <div className="text-sm font-semibold text-gray-900 truncate">
+                              Trainer Response
+                            </div>
+                            <div className="text-xs text-gray-500 ml-2">
+                              {formatTimeAgo(n.respondedAt)}
+                            </div>
+                          </div>
+                          <div className="text-sm text-gray-700 mt-1 line-clamp-2">
+                            {n.title}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1 line-clamp-1">
+                            {n.preview}
+                          </div>
+                        </div>
+                        {index === 0 && (
+                          <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                        )}
                       </div>
-                    </button>
-                    <input ref={fileInputRef} className="hidden" type="file" accept="image/*" onChange={async (e)=>{
-                      const f = e.target.files?.[0];
-                      if (!f) return;
-                      try {
-                        setAvatarBusy(true);
-                        const token = SessionManager.getCurrentUser()?.token;
-                        const absUrl = await uploadAvatar(f, token);
-                        SessionManager.setAvatar(absUrl);
-                        setUser(SessionManager.getCurrentUser());
-                      } catch (err) {
-                        alert(err?.message || 'Failed to update avatar');
-                      } finally {
-                        setAvatarBusy(false);
-                        try { e.target.value = ''; } catch {}
-                      }
-                    }} />
-                  </div>
-                  <div>
-                      <p className="text-sm font-semibold text-white">
-                      {user?.firstName || user?.name || user?.email?.split('@')[0] || "Fitness Member"}
-                      </p>
-                      <p className="text-xs text-white/90">{user?.email}</p>
+                    </motion.div>
+                  ))
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-4 py-3 bg-gray-50 border-t border-gray-200">
+                <button
+                  className="w-full text-sm text-blue-600 font-medium hover:text-blue-700 transition-colors"
+                  onClick={() => { setNotificationsOpen(false); navigate('/queries'); }}
+                >
+                  View all notifications
+                </button>
+              </div>
+            </motion.div>
+          )}
+          {menuOpen && (
+            <motion.div
+              ref={profileMenuRef}
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
+              className="profile-menu absolute right-0 mt-3 w-80 bg-white text-gray-900 shadow-2xl rounded-2xl overflow-hidden border border-gray-300 backdrop-blur-xl z-50"
+            >
+              {/* Profile Card */}
+              <div className="flex items-center gap-3 px-4 py-4 bg-gradient-to-r from-orange-600 to-amber-500">
+                <div className="relative w-12 h-12 rounded-full bg-white/20 overflow-hidden">
+                  <button onClick={() => fileInputRef.current?.click()} className="absolute inset-0">
+                    {user?.avatar ? (
+                      <img
+                        src={user.avatar}
+                        alt={user?.firstName || user?.name || user?.email || 'User'}
+                        className="w-full h-full object-cover rounded-full"
+                        onError={(e) => {
+                          const display = (user?.firstName || user?.name || user?.email || 'Member');
+                          e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(display)}&background=FF7A00&color=fff&bold=true&size=128`;
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full grid place-items-center text-white font-bold text-lg">{(user?.firstName?.[0] || user?.name?.[0] || user?.email?.[0] || 'U').toUpperCase()}</div>
+                    )}
+                    <div className="absolute inset-0 bg-black/0 hover:bg-black/30 transition-colors grid place-items-center text-[10px] text-white font-semibold">
+                      {avatarBusy ? 'Saving…' : 'Edit'}
                     </div>
-                  </div>
+                  </button>
+                  <input ref={fileInputRef} className="hidden" type="file" accept="image/*" onChange={async (e) => {
+                    const f = e.target.files?.[0];
+                    if (!f) return;
+                    try {
+                      setAvatarBusy(true);
+                      const token = SessionManager.getCurrentUser()?.token;
+                      const absUrl = await uploadAvatar(f, token);
+                      SessionManager.setAvatar(absUrl);
+                      setUser(SessionManager.getCurrentUser());
+                    } catch (err) {
+                      alert(err?.message || 'Failed to update avatar');
+                    } finally {
+                      setAvatarBusy(false);
+                      try { e.target.value = ''; } catch { }
+                    }
+                  }} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white">
+                    {user?.firstName || user?.name || user?.email?.split('@')[0] || "Fitness Member"}
+                  </p>
+                  <p className="text-xs text-white/90">{user?.email}</p>
+                </div>
+              </div>
 
-                  {/* Menu Options */}
-                  <div className="py-3 px-2 bg-gray-50">
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex items-center gap-3 px-4 py-3 w-full text-left bg-white border border-gray-200 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2 mb-2"
-                    >
-                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1">
-                        <ImageIcon className="w-4 h-4" />
-                      </span>
-                      Change Profile Photo
-                    </button>
-                    <button
-                      onClick={() => { setMenuOpen(false); navigate("/profile"); }}
-                      className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
-                    >
-                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1"><UserIcon className="w-4 h-4" /></span>
-                      My Profile
-                    </button>
-                    <button
-                      onClick={() => { setMenuOpen(false); navigate("/workouts"); }}
-                      className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
-                    >
-                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1"><BookOpen className="w-4 h-4" /></span>
-                      Workouts
-                    </button>
-                    <button
-                      onClick={() => { setMenuOpen(false); navigate("/community"); }}
-                      className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
-                    >
-                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1"><UsersIcon className="w-4 h-4" /></span>
-                      Community Posts
-                    </button>
-                    <button
-                      onClick={() => { setMenuOpen(false); navigate("/shop"); }}
-                      className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
-                    >
-                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1"><ShoppingBag className="w-4 h-4" /></span>
-                      My Orders
-                    </button>
-                    <button
-                      onClick={() => { setMenuOpen(false); navigate("/queries"); }}
-                      className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
-                    >
-                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1"><MessageSquare className="w-4 h-4" /></span>
-                      My Queries
-                    </button>
-                    <button
-                      onClick={() => { setMenuOpen(false); navigate("/wishlist"); }}
-                      className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
-                    >
-                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1"><Heart className="w-4 h-4" /></span>
-                      My Wishlist
-                    </button>
-                    <button
-                      onClick={() => { setMenuOpen(false); navigate("/settings"); }}
-                      className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
-                    >
-                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1"><Settings className="w-4 h-4" /></span>
-                      Settings
-                    </button>
-                  </div>
+              {/* Menu Options */}
+              <div className="py-3 px-2 bg-gray-50">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-3 px-4 py-3 w-full text-left bg-white border border-gray-200 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2 mb-2"
+                >
+                  <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1">
+                    <ImageIcon className="w-4 h-4" />
+                  </span>
+                  Change Profile Photo
+                </button>
+                <button
+                  onClick={() => { setMenuOpen(false); navigate("/profile"); }}
+                  className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
+                >
+                  <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1"><UserIcon className="w-4 h-4" /></span>
+                  My Profile
+                </button>
+                <button
+                  onClick={() => { setMenuOpen(false); navigate("/workouts"); }}
+                  className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
+                >
+                  <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1"><BookOpen className="w-4 h-4" /></span>
+                  Workouts
+                </button>
+                <button
+                  onClick={() => { setMenuOpen(false); navigate("/community"); }}
+                  className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
+                >
+                  <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1"><UsersIcon className="w-4 h-4" /></span>
+                  Community Posts
+                </button>
+                <button
+                  onClick={() => { setMenuOpen(false); navigate("/shop"); }}
+                  className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
+                >
+                  <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1"><ShoppingBag className="w-4 h-4" /></span>
+                  My Orders
+                </button>
+                <button
+                  onClick={() => { setMenuOpen(false); navigate("/queries"); }}
+                  className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
+                >
+                  <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1"><MessageSquare className="w-4 h-4" /></span>
+                  My Queries
+                </button>
+                <button
+                  onClick={() => { setMenuOpen(false); navigate("/wishlist"); }}
+                  className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
+                >
+                  <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1"><Heart className="w-4 h-4" /></span>
+                  My Wishlist
+                </button>
+                <button
+                  onClick={() => { setMenuOpen(false); navigate("/settings"); }}
+                  className="flex items-center gap-3 px-4 py-3 w-full text-left hover:bg-orange-50 hover:text-orange-600 text-gray-800 transition-all duration-200 rounded-lg mx-2"
+                >
+                  <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-gray-100 mr-1"><Settings className="w-4 h-4" /></span>
+                  Settings
+                </button>
+              </div>
 
-                  {/* Logout */}
-                  <div className="border-t border-gray-200">
-                    <button
-                      onClick={() => { setMenuOpen(false); handleLogout(); }}
-                      className="flex items-center gap-3 px-4 py-3 w-full text-left text-red-600 hover:bg-red-50 font-semibold transition-all duration-200 rounded-lg mx-2"
-                    >
-                      <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-red-100 text-red-600 mr-1"><LogOut className="w-4 h-4" /></span>
-                      Logout
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-        </div>
+              {/* Logout */}
+              <div className="border-t border-gray-200">
+                <button
+                  onClick={() => { setMenuOpen(false); handleLogout(); }}
+                  className="flex items-center gap-3 px-4 py-3 w-full text-left text-red-600 hover:bg-red-50 font-semibold transition-all duration-200 rounded-lg mx-2"
+                >
+                  <span className="w-6 h-6 inline-flex items-center justify-center rounded-lg bg-red-100 text-red-600 mr-1"><LogOut className="w-4 h-4" /></span>
+                  Logout
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       <section
         className={
@@ -830,7 +829,7 @@ const UserHomePage = () => {
               >
                 Elevate Your <span className="text-orange-600">Fitness & Yoga</span> Journey
               </motion.h1>
-              
+
               <motion.p
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -928,27 +927,27 @@ const UserHomePage = () => {
         <div className="max-w-7xl mx-auto px-6 py-10">
           <div className="flex items-center justify-between mb-5">
             <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Upcoming Live Sessions</h2>
-            <button onClick={()=>navigate('/services/live')} className={`${theme==='dark'?'text-orange-300 hover:text-white':'text-orange-600 hover:text-orange-700'} text-sm font-semibold`}>View all →</button>
+            <button onClick={() => navigate('/services/live')} className={`${theme === 'dark' ? 'text-orange-300 hover:text-white' : 'text-orange-600 hover:text-orange-700'} text-sm font-semibold`}>View all →</button>
           </div>
           {liveItems.length === 0 ? (
-            <div className={`${theme==='dark'?'bg-gray-900 border-gray-800 text-gray-300':'bg-white border-gray-200 text-gray-700'} rounded-2xl border p-6`}>No upcoming sessions yet. Check back soon or explore tutorials.</div>
+            <div className={`${theme === 'dark' ? 'bg-gray-900 border-gray-800 text-gray-300' : 'bg-white border-gray-200 text-gray-700'} rounded-2xl border p-6`}>No upcoming sessions yet. Check back soon or explore tutorials.</div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {liveItems.map((s, i) => (
-                <motion.div key={s.id||i} whileHover={{ y: -4 }} className={`${theme==='dark'?'bg-gray-900 border-gray-800':'bg-white border-gray-200'} rounded-2xl border shadow-sm overflow-hidden`}> 
+                <motion.div key={s.id || i} whileHover={{ y: -4 }} className={`${theme === 'dark' ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} rounded-2xl border shadow-sm overflow-hidden`}>
                   <div className="p-5">
                     <div className="flex items-center justify-between">
-                      <div className={`text-xs px-2 py-0.5 rounded-full ${theme==='dark'?'bg-gray-800 text-gray-200':'bg-gray-100 text-gray-700'}`}>{(s.platform||'MEET').toUpperCase()}</div>
-                      <div className={`text-xs ${theme==='dark'?'text-gray-300':'text-gray-600'}`}>{new Date(s.startTime).toLocaleString()}</div>
+                      <div className={`text-xs px-2 py-0.5 rounded-full ${theme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-gray-100 text-gray-700'}`}>{(s.platform || 'MEET').toUpperCase()}</div>
+                      <div className={`text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{new Date(s.startTime).toLocaleString()}</div>
                     </div>
-                    <div className={`mt-3 text-lg font-bold ${theme==='dark'?'text-white':'text-gray-900'}`}>{s.title || 'Live Workout'}</div>
-                    <div className={`text-sm mt-1 line-clamp-2 ${theme==='dark'?'text-gray-300':'text-gray-600'}`}>{s.description || 'Guided session with trainer.'}</div>
+                    <div className={`mt-3 text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{s.title || 'Live Workout'}</div>
+                    <div className={`text-sm mt-1 line-clamp-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{s.description || 'Guided session with trainer.'}</div>
                     <div className="mt-4 flex items-center justify-between text-sm">
-                      <div className={`${theme==='dark'?'text-gray-300':'text-gray-700'}`}>Cap: {s.capacity || '∞'}</div>
-                      <div className={`${theme==='dark'?'text-gray-300':'text-gray-700'}`}>{s.price? `₹${s.price}`:'Free'}</div>
+                      <div className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Cap: {s.capacity || '∞'}</div>
+                      <div className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{s.price ? `₹${s.price}` : 'Free'}</div>
                     </div>
                     <div className="mt-5">
-                      <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={()=>navigate(`/services/live/${s.id}`)} className={`w-full px-4 py-2 rounded-lg font-semibold ${theme==='dark'?'bg-orange-600 hover:bg-orange-700 text-white':'bg-orange-600 hover:bg-orange-700 text-white'}`}>View details</motion.button>
+                      <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => navigate(`/services/live/${s.id}`)} className={`w-full px-4 py-2 rounded-lg font-semibold ${theme === 'dark' ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'bg-orange-600 hover:bg-orange-700 text-white'}`}>View details</motion.button>
                     </div>
                   </div>
                 </motion.div>
@@ -962,15 +961,15 @@ const UserHomePage = () => {
       <section className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-white'} py-16`}>
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className={`text-2xl font-bold ${theme==='dark'?'text-white':'text-gray-900'}`}>Recommended Workouts & Yoga</h2>
-            <button onClick={()=>navigate('/workouts')} className={`${theme==='dark'?'text-orange-300 hover:text-white':'text-orange-600 hover:text-orange-700'} text-sm font-semibold`}>Explore all →</button>
+            <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Recommended Workouts & Yoga</h2>
+            <button onClick={() => navigate('/workouts')} className={`${theme === 'dark' ? 'text-orange-300 hover:text-white' : 'text-orange-600 hover:text-orange-700'} text-sm font-semibold`}>Explore all →</button>
           </div>
           {tutorialsList.length === 0 ? (
-            <div className={`${theme==='dark'?'bg-gray-950 border-gray-800 text-gray-300':'bg-gray-50 border-gray-200 text-gray-700'} border rounded-2xl p-6`}>No workouts to show yet. Check back soon.</div>
+            <div className={`${theme === 'dark' ? 'bg-gray-950 border-gray-800 text-gray-300' : 'bg-gray-50 border-gray-200 text-gray-700'} border rounded-2xl p-6`}>No workouts to show yet. Check back soon.</div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {tutorialsList.slice(0,6).map((t, i) => (
-                <motion.div key={t.id || i} whileHover={{ y: -4 }} className={`${theme==='dark'?'bg-gray-950 border-gray-800':'bg-white border-gray-200'} border rounded-2xl overflow-hidden shadow-sm`}>
+              {tutorialsList.slice(0, 6).map((t, i) => (
+                <motion.div key={t.id || i} whileHover={{ y: -4 }} className={`${theme === 'dark' ? 'bg-gray-950 border-gray-800' : 'bg-white border-gray-200'} border rounded-2xl overflow-hidden shadow-sm`}>
                   {t.imageUrl && (
                     <div className="h-40 bg-gray-100 overflow-hidden">
                       <img src={t.imageUrl} alt={t.title} className="w-full h-full object-cover" />
@@ -978,13 +977,13 @@ const UserHomePage = () => {
                   )}
                   <div className="p-5">
                     <div className="flex items-center justify-between">
-                      <div className={`text-xs px-2 py-0.5 rounded-full ${theme==='dark'?'bg-gray-800 text-gray-200':'bg-gray-100 text-gray-700'}`}>{(t.category || 'fitness').toUpperCase()}</div>
-                      <div className={`text-xs ${theme==='dark'?'text-gray-300':'text-gray-600'}`}>{(t.difficulty || 'beginner')}</div>
+                      <div className={`text-xs px-2 py-0.5 rounded-full ${theme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-gray-100 text-gray-700'}`}>{(t.category || 'fitness').toUpperCase()}</div>
+                      <div className={`text-xs ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>{(t.difficulty || 'beginner')}</div>
                     </div>
-                    <div className={`mt-2 font-bold ${theme==='dark'?'text-white':'text-gray-900'}`}>{t.title}</div>
-                    <div className={`${theme==='dark'?'text-gray-300':'text-gray-600'} text-sm line-clamp-2 mt-1`}>{t.description}</div>
+                    <div className={`mt-2 font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{t.title}</div>
+                    <div className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} text-sm line-clamp-2 mt-1`}>{t.description}</div>
                     <div className="mt-4">
-                      <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={()=>navigate('/workouts')} className={`px-4 py-2 rounded-lg font-semibold ${theme==='dark'?'bg-orange-600 hover:bg-orange-700 text-white':'bg-orange-600 hover:bg-orange-700 text-white'}`}>Start</motion.button>
+                      <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} onClick={() => navigate('/workouts')} className={`px-4 py-2 rounded-lg font-semibold ${theme === 'dark' ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'bg-orange-600 hover:bg-orange-700 text-white'}`}>Start</motion.button>
                     </div>
                   </div>
                 </motion.div>
@@ -1005,30 +1004,30 @@ const UserHomePage = () => {
               Everything you need to achieve your fitness goals in one place
             </p>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {[
-              { 
-                icon: "📈", 
-                title: "Progress Tracking", 
+              {
+                icon: "📈",
+                title: "Progress Tracking",
                 desc: "Monitor your daily practice and see improvements over time.",
                 color: "from-blue-500 to-blue-600"
               },
-              { 
-                icon: "🎯", 
-                title: "Personal Goals", 
+              {
+                icon: "🎯",
+                title: "Personal Goals",
                 desc: "Set and achieve your own wellness milestones.",
                 color: "from-green-500 to-green-600"
               },
-              { 
-                icon: "📚", 
-                title: "Learning Path", 
+              {
+                icon: "📚",
+                title: "Learning Path",
                 desc: "Access tutorials and courses tailored to your level.",
                 color: "from-purple-500 to-purple-600"
               },
-              { 
-                icon: "👥", 
-                title: "Community Support", 
+              {
+                icon: "👥",
+                title: "Community Support",
                 desc: "Connect with fellow practitioners and share experiences.",
                 color: "from-orange-500 to-orange-600"
               },
@@ -1114,22 +1113,19 @@ const UserHomePage = () => {
                 whileHover={{ scale: 1.05, y: -5 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={action.action}
-                className={`group rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border p-8 text-left ${
-                  action.highlight 
-                    ? 'bg-gradient-to-br from-orange-500 to-orange-600 text-white border-orange-300' 
+                className={`group rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 border p-8 text-left ${action.highlight
+                    ? 'bg-gradient-to-br from-orange-500 to-orange-600 text-white border-orange-300'
                     : theme === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-100'
-                }`}
+                  }`}
               >
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition-transform ${
-                  action.highlight 
-                    ? 'bg-white/20 text-white' 
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition-transform ${action.highlight
+                    ? 'bg-white/20 text-white'
                     : theme === 'dark' ? 'bg-gray-700 text-white' : `bg-gradient-to-r ${action.color} text-white`
-                }`}>
+                  }`}>
                   {action.icon}
                 </div>
-                <h3 className={`text-xl font-bold mb-2 group-hover:text-orange-400 transition-colors ${
-                  action.highlight ? 'text-white' : theme === 'dark' ? 'text-white' : 'text-gray-900'
-                }`}>
+                <h3 className={`text-xl font-bold mb-2 group-hover:text-orange-400 transition-colors ${action.highlight ? 'text-white' : theme === 'dark' ? 'text-white' : 'text-gray-900'
+                  }`}>
                   {action.title}
                 </h3>
                 <p className={action.highlight ? 'text-orange-100' : theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}>

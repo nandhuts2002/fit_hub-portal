@@ -23,6 +23,7 @@ const RepCounter = ({ exercise, onClose, onRepsCounted }) => {
   const [useMotionMode, setUseMotionMode] = useState(false); // AI mode by default for better accuracy
   const [postureScore, setPostureScore] = useState(1.0);
   const [movementState, setMovementState] = useState('idle');
+  const [postureFeedback, setPostureFeedback] = useState('');
 
   // Session Stats
   const [startTime, setStartTime] = useState(null);
@@ -150,6 +151,7 @@ const RepCounter = ({ exercise, onClose, onRepsCounted }) => {
     setFeedback(result.feedback);
     setPostureScore(result.debugInfo.postureScore);
     setMovementState(result.state);
+    setPostureFeedback(result.debugInfo.postureFeedback || '');
 
     // Update debug info for display
     exerciseState.current.mode = 'AI Engine';
@@ -535,16 +537,20 @@ const RepCounter = ({ exercise, onClose, onRepsCounted }) => {
                   )}
                 </div>
 
-                {/* Posture Score Display (AI Mode Only) */}
+                {/* Posture Correction System (AI Mode Only) */}
                 {!useMotionMode && isCounting && (
-                  <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Form Quality</span>
+                  <div className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-purple-900/30 dark:to-indigo-900/30 p-4 rounded-xl shadow border border-purple-200 dark:border-purple-700">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-sm font-bold text-purple-700 dark:text-purple-300 flex items-center gap-2">
+                        🧍 Posture Correction
+                      </span>
                       <Target size={16} className={`${postureScore >= 0.8 ? 'text-green-500' :
                         postureScore >= 0.6 ? 'text-yellow-500' : 'text-red-500'
                         }`} />
                     </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+
+                    {/* Posture Score Bar */}
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden mb-2">
                       <div
                         className={`h-full transition-all duration-300 ${postureScore >= 0.8 ? 'bg-green-500' :
                           postureScore >= 0.6 ? 'bg-yellow-500' : 'bg-red-500'
@@ -552,9 +558,31 @@ const RepCounter = ({ exercise, onClose, onRepsCounted }) => {
                         style={{ width: `${postureScore * 100}%` }}
                       ></div>
                     </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400 mt-1 text-center">
-                      {Math.round(postureScore * 100)}% - {movementState}
+
+                    {/* Score Percentage */}
+                    <div className="text-xs text-gray-600 dark:text-gray-400 mb-2 flex justify-between">
+                      <span>Form Score: {Math.round(postureScore * 100)}%</span>
+                      <span className="capitalize">{movementState.replace('_', ' ')}</span>
                     </div>
+
+                    {/* Posture Feedback - Main Correction Display */}
+                    {postureFeedback && postureFeedback !== 'Rep counted!' && (
+                      <div className={`p-3 rounded-lg text-center font-medium ${postureScore >= 0.8
+                          ? 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200'
+                          : postureScore >= 0.6
+                            ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200'
+                            : 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200'
+                        }`}>
+                        <p className="text-sm">{postureFeedback}</p>
+                      </div>
+                    )}
+
+                    {/* Perfect Form Indicator */}
+                    {postureScore >= 0.8 && (
+                      <div className="mt-2 text-center text-green-600 dark:text-green-400 text-xs font-medium">
+                        ✨ Great form! Keep it up!
+                      </div>
+                    )}
                   </div>
                 )}
 

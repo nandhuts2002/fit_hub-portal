@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  MapPin, 
-  Navigation, 
-  Clock, 
-  Star, 
-  Phone, 
+import {
+  MapPin,
+  Navigation,
+  Clock,
+  Star,
+  Phone,
   Calendar,
   Users,
-  DollarSign,
   Filter,
   Search,
   RefreshCw,
@@ -28,7 +27,7 @@ import SessionManager from '../utils/sessionManager';
 // District and city data structure
 const DISTRICTS_AND_CITIES = {
   'Kottayam': [
-    'Kanjirappally', 'Kottayam', 'Pala', 'Changanassery', 'Vaikom', 'Erattupetta', 
+    'Kanjirappally', 'Kottayam', 'Pala', 'Changanassery', 'Vaikom', 'Erattupetta',
     'Mundakayam', 'Kattappana', 'Kumily', 'Peermade', 'Thodupuzha', 'Idukki'
   ],
   'Ernakulam': [
@@ -110,7 +109,7 @@ const LocationFeaturesPage = () => {
   const getFilteredCities = () => {
     const cities = DISTRICTS_AND_CITIES[selectedDistrict] || [];
     if (!citySearchTerm) return cities;
-    return cities.filter(city => 
+    return cities.filter(city =>
       city.toLowerCase().includes(citySearchTerm.toLowerCase())
     );
   };
@@ -166,7 +165,7 @@ const LocationFeaturesPage = () => {
   const loadLocationData = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       // Check authentication first
       const currentUser = SessionManager.getCurrentUser();
@@ -181,7 +180,7 @@ const LocationFeaturesPage = () => {
       const location = await locationService.getCurrentLocation();
       console.log('Current location:', location);
       setCurrentLocation(location);
-      
+
       // Load nearby data
       await Promise.all([
         loadNearbyGyms(selectedCity),
@@ -230,13 +229,14 @@ const LocationFeaturesPage = () => {
     }
   };
 
-  const loadWeatherData = async () => {
+  const loadWeatherData = async (city = selectedCity) => {
     try {
-      const weather = await locationService.getWeatherBasedSuggestions();
-      
+      // Pass the selected city to get city-specific weather
+      const weather = await locationService.getWeatherBasedSuggestions(city);
+
       // Generate dynamic suggestions based on available data
       const dynamicSuggestions = generateDynamicSuggestions(weather, nearbyGyms, nearbyTrainers, localEvents);
-      
+
       setWeatherData({
         ...weather,
         suggestions: dynamicSuggestions
@@ -249,16 +249,16 @@ const LocationFeaturesPage = () => {
   // Generate dynamic suggestions based on available gyms, trainers, and events
   const generateDynamicSuggestions = (weather, gyms, trainers, events) => {
     const suggestions = [];
-    
+
     // Get current time and day
     const now = new Date();
     const currentHour = now.getHours();
     const isWeekend = now.getDay() === 0 || now.getDay() === 6;
-    
+
     // Temperature-based suggestions
     const temp = weather?.weather?.temperature || 25;
     const condition = weather?.weather?.condition?.toLowerCase() || 'clear';
-    
+
     if (temp > 30) {
       suggestions.push({
         reason: `It's hot (${temp}°C) - perfect for indoor workouts!`,
@@ -290,7 +290,7 @@ const LocationFeaturesPage = () => {
         ].filter(Boolean)
       });
     }
-    
+
     // Time-based suggestions
     if (currentHour >= 6 && currentHour <= 10) {
       suggestions.push({
@@ -313,7 +313,7 @@ const LocationFeaturesPage = () => {
         ]
       });
     }
-    
+
     // Weather condition-based suggestions
     if (condition.includes('rain') || condition.includes('storm')) {
       suggestions.push({
@@ -336,7 +336,7 @@ const LocationFeaturesPage = () => {
         ].filter(Boolean)
       });
     }
-    
+
     // Weekend-specific suggestions
     if (isWeekend) {
       suggestions.push({
@@ -349,7 +349,7 @@ const LocationFeaturesPage = () => {
         ].filter(Boolean)
       });
     }
-    
+
     // Add location-specific suggestions if we have local data
     if (gyms.length > 0 || trainers.length > 0 || events.length > 0) {
       suggestions.push({
@@ -361,7 +361,7 @@ const LocationFeaturesPage = () => {
         ].filter(Boolean)
       });
     }
-    
+
     return suggestions.slice(0, 3); // Limit to 3 suggestions
   };
 
@@ -370,18 +370,21 @@ const LocationFeaturesPage = () => {
     setCitySearchTerm(newCity);
     setLoading(true);
     setError(null);
-    
+
     try {
-      // Load data for the new city directly
+      // Load data for the new city directly, including weather
       const [gyms, trainers, events] = await Promise.all([
         locationService.getRealGymsByCity(newCity),
         locationService.getTrainersByCity(newCity),
         locationService.getEventsByCity(newCity)
       ]);
-      
+
       setNearbyGyms(gyms);
       setNearbyTrainers(trainers);
       setLocalEvents(events);
+
+      // Load weather for the new city
+      await loadWeatherData(newCity);
     } catch (err) {
       console.error('Error loading city data:', err);
       setError('Failed to load data for the selected city.');
@@ -392,7 +395,7 @@ const LocationFeaturesPage = () => {
 
   const getWeatherIcon = (condition) => {
     if (!condition) return <Cloud className="w-6 h-6 text-gray-500" />;
-    
+
     switch (condition.toLowerCase()) {
       case 'sunny': return <Sun className="w-6 h-6 text-yellow-500" />;
       case 'cloudy': return <Cloud className="w-6 h-6 text-gray-500" />;
@@ -401,17 +404,17 @@ const LocationFeaturesPage = () => {
     }
   };
 
-  const filteredGyms = nearbyGyms.filter(gym => 
+  const filteredGyms = nearbyGyms.filter(gym =>
     (gym.name && gym.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (gym.address && gym.address.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const filteredTrainers = nearbyTrainers.filter(trainer => 
+  const filteredTrainers = nearbyTrainers.filter(trainer =>
     (trainer.name && trainer.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (trainer.specialization && trainer.specialization.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const filteredEvents = localEvents.filter(event => 
+  const filteredEvents = localEvents.filter(event =>
     (event.title && event.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (event.type && event.type.toLowerCase().includes(searchTerm.toLowerCase()))
   );
@@ -503,7 +506,7 @@ const LocationFeaturesPage = () => {
                 <div>
                   <h3 className="text-2xl font-bold text-gray-900">Weather & Workout Suggestions</h3>
                   <p className="text-gray-600">
-                    {nearbyGyms.length > 0 || nearbyTrainers.length > 0 || localEvents.length > 0 
+                    {nearbyGyms.length > 0 || nearbyTrainers.length > 0 || localEvents.length > 0
                       ? `Perfect conditions for your fitness journey in ${selectedCity}`
                       : 'Perfect conditions for your fitness journey'
                     }
@@ -518,10 +521,10 @@ const LocationFeaturesPage = () => {
                 </div>
               </div>
               <div className="w-20 h-20 bg-gradient-to-br from-yellow-100 to-orange-100 rounded-full flex items-center justify-center shadow-lg">
-              {getWeatherIcon(weatherData.weather?.condition)}
+                {getWeatherIcon(weatherData.weather?.condition)}
               </div>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="flex items-center gap-4 p-4 bg-white/60 rounded-xl">
                 <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
@@ -551,7 +554,7 @@ const LocationFeaturesPage = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="bg-white/40 rounded-xl p-6">
               <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
@@ -559,8 +562,8 @@ const LocationFeaturesPage = () => {
               </h4>
               <div className="space-y-4">
                 {(weatherData?.suggestions || []).map((suggestion, index) => (
-                  <motion.div 
-                    key={index} 
+                  <motion.div
+                    key={index}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.1 }}
@@ -569,8 +572,8 @@ const LocationFeaturesPage = () => {
                     <p className="text-gray-700 mb-3 font-medium">{suggestion.reason || 'No reason provided'}</p>
                     <div className="flex flex-wrap gap-2">
                       {(suggestion.activities || []).map((activity, idx) => (
-                        <motion.span 
-                          key={idx} 
+                        <motion.span
+                          key={idx}
                           initial={{ opacity: 0, scale: 0.8 }}
                           animate={{ opacity: 1, scale: 1 }}
                           transition={{ delay: idx * 0.05 }}
@@ -602,22 +605,19 @@ const LocationFeaturesPage = () => {
               onClick={() => setActiveTab(tab.id)}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
-              className={`flex-1 flex items-center justify-center gap-2 sm:gap-3 py-3 sm:py-4 px-3 sm:px-6 rounded-xl font-semibold transition-all duration-200 ${
-                activeTab === tab.id
-                  ? `bg-white text-${tab.color}-600 shadow-lg border-2 border-${tab.color}-200`
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
-              }`}
+              className={`flex-1 flex items-center justify-center gap-2 sm:gap-3 py-3 sm:py-4 px-3 sm:px-6 rounded-xl font-semibold transition-all duration-200 ${activeTab === tab.id
+                ? `bg-white text-${tab.color}-600 shadow-lg border-2 border-${tab.color}-200`
+                : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
+                }`}
             >
-              <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center ${
-                activeTab === tab.id 
-                  ? `bg-${tab.color}-100` 
-                  : 'bg-gray-200'
-              }`}>
-                <tab.icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${
-                  activeTab === tab.id 
-                    ? `text-${tab.color}-600` 
-                    : 'text-gray-500'
-                }`} />
+              <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center ${activeTab === tab.id
+                ? `bg-${tab.color}-100`
+                : 'bg-gray-200'
+                }`}>
+                <tab.icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${activeTab === tab.id
+                  ? `text-${tab.color}-600`
+                  : 'text-gray-500'
+                  }`} />
               </div>
               <span className="text-xs sm:text-sm font-medium">{tab.label}</span>
             </motion.button>
@@ -644,7 +644,7 @@ const LocationFeaturesPage = () => {
             <div className="flex gap-4 items-center">
               {/* District Selection */}
               <div className="relative">
-              <select
+                <select
                   value={selectedDistrict}
                   onChange={(e) => handleDistrictChange(e.target.value)}
                   className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 font-medium min-w-[140px]"
@@ -652,7 +652,7 @@ const LocationFeaturesPage = () => {
                   {Object.keys(DISTRICTS_AND_CITIES).map(district => (
                     <option key={district} value={district}>{district}</option>
                   ))}
-              </select>
+                </select>
               </div>
 
               {/* City Search Dropdown */}
@@ -671,7 +671,7 @@ const LocationFeaturesPage = () => {
                   />
                   <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                 </div>
-                
+
                 {/* City Dropdown */}
                 {showCityDropdown && (
                   <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto">
@@ -680,9 +680,8 @@ const LocationFeaturesPage = () => {
                         <button
                           key={city}
                           onClick={() => handleCitySelect(city)}
-                          className={`w-full px-4 py-2 text-left hover:bg-blue-50 transition-colors ${
-                            city === selectedCity ? 'bg-blue-100 text-blue-900 font-medium' : 'text-gray-900'
-                          }`}
+                          className={`w-full px-4 py-2 text-left hover:bg-blue-50 transition-colors ${city === selectedCity ? 'bg-blue-100 text-blue-900 font-medium' : 'text-gray-900'
+                            }`}
                         >
                           {city}
                         </button>
@@ -697,11 +696,10 @@ const LocationFeaturesPage = () => {
               <button
                 type="button"
                 onClick={() => setMapView(v => !v)}
-                className={`px-4 py-2 rounded-lg border font-medium transition-all ${
-                  mapView 
-                    ? 'bg-blue-600 text-white border-blue-600 shadow-md' 
-                    : 'bg-white text-gray-700 border-gray-300 hover:shadow-sm'
-                }`}
+                className={`px-4 py-2 rounded-lg border font-medium transition-all ${mapView
+                  ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+                  : 'bg-white text-gray-700 border-gray-300 hover:shadow-sm'
+                  }`}
                 title="Toggle Map View"
               >
                 <div className="flex items-center gap-2">
@@ -745,7 +743,7 @@ const LocationFeaturesPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredGyms.map((gym) => (
                     <motion.div
-                      key={gym.id}
+                      key={gym._id || gym.id}
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
@@ -760,7 +758,7 @@ const LocationFeaturesPage = () => {
                           <span className="text-sm font-medium">{gym.rating || 'N/A'}</span>
                         </div>
                       </div>
-                      
+
                       <div className="space-y-2 mb-4">
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <Navigation className="w-4 h-4" />
@@ -771,7 +769,7 @@ const LocationFeaturesPage = () => {
                           <span>{gym.open_hours || gym.openHours || 'Hours not specified'}</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <DollarSign className="w-4 h-4" />
+                          <span className="text-base font-bold text-green-600">₹</span>
                           <span>{gym.price || 'Price not specified'}</span>
                         </div>
                       </div>
@@ -788,7 +786,7 @@ const LocationFeaturesPage = () => {
                       </div>
 
                       <div className="flex gap-2">
-                        <button 
+                        <button
                           onClick={() => {
                             setSelectedGym(gym);
                             setShowGymModal(true);
@@ -828,7 +826,7 @@ const LocationFeaturesPage = () => {
                             height="220"
                             loading="lazy"
                             referrerPolicy="no-referrer-when-downgrade"
-                            src={`https://www.openstreetmap.org/export/embed.html?bbox=${gym.longitude-0.01}%2C${gym.latitude-0.01}%2C${gym.longitude+0.01}%2C${gym.latitude+0.01}&layer=mapnik&marker=${gym.latitude}%2C${gym.longitude}`}
+                            src={`https://www.openstreetmap.org/export/embed.html?bbox=${gym.longitude - 0.01}%2C${gym.latitude - 0.01}%2C${gym.longitude + 0.01}%2C${gym.latitude + 0.01}&layer=mapnik&marker=${gym.latitude}%2C${gym.longitude}`}
                           />
                         </div>
                       )}
@@ -858,7 +856,7 @@ const LocationFeaturesPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredTrainers.map((trainer) => (
                     <motion.div
-                      key={trainer.id}
+                      key={trainer._id || trainer.id}
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
@@ -873,7 +871,7 @@ const LocationFeaturesPage = () => {
                           <span className="text-sm font-medium">{trainer.rating || 'N/A'}</span>
                         </div>
                       </div>
-                      
+
                       <div className="space-y-2 mb-4">
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <Navigation className="w-4 h-4" />
@@ -884,7 +882,7 @@ const LocationFeaturesPage = () => {
                           <span>{trainer.experience || 'Experience not specified'}</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <DollarSign className="w-4 h-4" />
+                          <span className="text-base font-bold text-green-600">₹</span>
                           <span>{trainer.price || 'Price not specified'}</span>
                         </div>
                       </div>
@@ -934,7 +932,7 @@ const LocationFeaturesPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredEvents.map((event) => (
                     <motion.div
-                      key={event.id}
+                      key={event._id || event.id}
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}
                       className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow"
@@ -948,7 +946,7 @@ const LocationFeaturesPage = () => {
                           {event.type || 'Type not specified'}
                         </span>
                       </div>
-                      
+
                       <div className="space-y-2 mb-4">
                         <div className="flex items-center gap-2 text-sm text-gray-600">
                           <Calendar className="w-4 h-4" />
@@ -971,13 +969,13 @@ const LocationFeaturesPage = () => {
                       <div className="mb-4">
                         <p className="text-sm text-gray-600 mb-2">Organized by: {event.organizer || 'Organizer not specified'}</p>
                         <div className="flex items-center gap-2">
-                          <DollarSign className="w-4 h-4 text-green-600" />
+                          <span className="text-base font-bold text-green-600">₹</span>
                           <span className="text-sm font-medium text-green-600">{event.price || 'Price not specified'}</span>
                         </div>
                       </div>
 
                       <div className="flex gap-2">
-                        <button 
+                        <button
                           onClick={() => {
                             setSelectedEvent(event);
                             setShowEventModal(true);
@@ -1034,7 +1032,7 @@ const LocationFeaturesPage = () => {
           setSelectedGym(null);
         }}
       />
-      
+
       <EventDetailsModal
         event={selectedEvent}
         isOpen={showEventModal}

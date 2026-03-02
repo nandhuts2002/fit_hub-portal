@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 export default function BodyPartSelectionPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isPostureMode = searchParams.get('mode') === 'posture';
   const theme = (typeof window !== 'undefined' && localStorage.getItem('user_theme')) || 'light';
   const isDark = theme === 'dark';
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -119,6 +121,9 @@ export default function BodyPartSelectionPage() {
     if (selectedCategory !== 'all') {
       params.set('equipment', selectedCategory);
     }
+    if (isPostureMode) {
+      params.set('posture', '1');
+    }
     navigate(`/services/exercise-explorer?${params.toString()}`);
   };
 
@@ -128,16 +133,38 @@ export default function BodyPartSelectionPage() {
     if (selectedCategory !== 'all') {
       params.set('equipment', selectedCategory);
     }
+    if (isPostureMode) {
+      params.set('posture', '1');
+    }
     navigate(`/services/exercise-explorer?${params.toString()}`);
   };
 
-  const filteredBodyParts = selectedCategory === 'all' 
-    ? bodyParts 
+  const filteredBodyParts = selectedCategory === 'all'
+    ? bodyParts
     : bodyParts.filter(bodyPart => bodyPart.equipment.includes(selectedCategory));
 
   return (
     <div className={isDark ? 'bg-gray-950 min-h-screen' : 'bg-gray-50 min-h-screen'}>
       <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Posture Mode Banner */}
+        {isPostureMode && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-xl text-white shadow-lg"
+          >
+            <div className="flex items-center justify-center gap-3">
+              <span className="text-2xl">🧍</span>
+              <div className="text-center">
+                <h3 className="font-bold text-lg">Posture Correction Mode Active</h3>
+                <p className="text-sm text-purple-100">
+                  Select an exercise → Click "Rep Counter" → Get real-time AI posture feedback!
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* Header */}
         <div className="text-center mb-8">
           <motion.h1
@@ -146,7 +173,7 @@ export default function BodyPartSelectionPage() {
             transition={{ duration: 0.6 }}
             className={`text-4xl md:text-5xl font-bold mb-4 ${isDark ? 'text-white' : 'text-gray-900'}`}
           >
-            Choose Your Focus Area
+            {isPostureMode ? '🧍 Posture Correction' : 'Choose Your Focus Area'}
           </motion.h1>
           <motion.p
             initial={{ opacity: 0, y: -10 }}
@@ -154,7 +181,10 @@ export default function BodyPartSelectionPage() {
             transition={{ duration: 0.6, delay: 0.2 }}
             className={`text-lg md:text-xl ${isDark ? 'text-gray-300' : 'text-gray-600'} max-w-2xl mx-auto mb-8`}
           >
-            Select the body part you want to train and discover targeted exercises with professional GIFs
+            {isPostureMode
+              ? 'Select an exercise to start AI-powered posture correction with real-time feedback'
+              : 'Select the body part you want to train and discover targeted exercises with professional GIFs'
+            }
           </motion.p>
         </div>
 
@@ -178,13 +208,12 @@ export default function BodyPartSelectionPage() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setSelectedCategory(category.id)}
-                className={`px-4 py-2 rounded-full font-medium transition-all duration-300 flex items-center gap-2 ${
-                  selectedCategory === category.id
-                    ? `bg-gradient-to-r ${category.color} text-white shadow-lg`
-                    : isDark
+                className={`px-4 py-2 rounded-full font-medium transition-all duration-300 flex items-center gap-2 ${selectedCategory === category.id
+                  ? `bg-gradient-to-r ${category.color} text-white shadow-lg`
+                  : isDark
                     ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
                     : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-                }`}
+                  }`}
               >
                 <span>{category.name}</span>
               </motion.button>
@@ -206,7 +235,7 @@ export default function BodyPartSelectionPage() {
               className={`${isDark ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} rounded-2xl border shadow-lg hover:shadow-2xl transition-all duration-300 cursor-pointer overflow-hidden group`}
             >
               {/* Visual Header with Background Image */}
-              <div className={`h-36 relative overflow-hidden`}> 
+              <div className={`h-36 relative overflow-hidden`}>
                 {bodyPart.img ? (
                   <div
                     className="absolute inset-0 bg-center bg-cover"
@@ -226,7 +255,7 @@ export default function BodyPartSelectionPage() {
                 <p className={`text-sm mb-4 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
                   {bodyPart.description}
                 </p>
-                
+
                 {/* Sample Exercises */}
                 <div className="space-y-1">
                   {bodyPart.exercises.slice(0, 3).map((exercise, idx) => (
