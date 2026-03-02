@@ -1,11 +1,22 @@
 from pymongo import MongoClient
 from dotenv import load_dotenv
 import os
+import sys
 
 load_dotenv()
 
-client = MongoClient(os.getenv('MONGO_URI'))
-db = client['fithub']
+MONGO_URI = os.getenv('MONGO_URI')
+
+if not MONGO_URI:
+    print("ERROR: MONGO_URI environment variable is not set.", file=sys.stderr)
+    raise RuntimeError("MONGO_URI environment variable is not set. Please configure it in your Vercel project settings.")
+
+try:
+    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
+    db = client['fithub']
+except Exception as e:
+    print(f"ERROR: Failed to connect to MongoDB: {e}", file=sys.stderr)
+    raise
 
 # Core collections
 users_collection = db['users']  # ✅ This is what gets imported in auth.py
