@@ -48,13 +48,19 @@ app = Flask(__name__)
 # Get frontend URL from environment variable
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
 VERCEL_FRONTEND_URL = os.getenv('VERCEL_FRONTEND_URL', 'https://fit-hub-portal-2.vercel.app')
+RENDER_FRONTEND_URL = os.getenv('RENDER_FRONTEND_URL', 'https://fit-hub-portal-2.onrender.com')
 VERCEL_BACKEND_URL = os.getenv('VERCEL_URL', 'https://fit-hub-portal-1.vercel.app')
 
-# CORS configuration - allow all origins for development and production
-# CORS configuration - allow all origins for development and production
-CORS(app, 
+# CORS configuration - allow all configured frontend origins
+CORS(app,
     resources={r"/*": {
-        "origins": [FRONTEND_URL, VERCEL_FRONTEND_URL, "http://localhost:3000"],
+        "origins": [
+            FRONTEND_URL,
+            VERCEL_FRONTEND_URL,
+            RENDER_FRONTEND_URL,
+            "http://localhost:3000",
+            "http://localhost:5173",
+        ],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"],
         "expose_headers": ["Content-Range", "X-Content-Range"],

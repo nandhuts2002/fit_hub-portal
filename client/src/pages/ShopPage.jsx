@@ -160,7 +160,7 @@ const ShopPage = () => {
   const [flyAnim, setFlyAnim] = useState(null); // {start, end, key}
   const [cart, setCart] = useState(() => {
     const user = SessionManager.getCurrentUser();
-    const key = user?.email ? `fithub - cart:${user.email} ` : 'fithub-cart';
+    const key = user?.email ? `fithub-cart:${user.email}` : 'fithub-cart';
     const savedPerUser = user?.email ? localStorage.getItem(key) : null;
     const savedLegacy = localStorage.getItem('fithub-cart');
     const initial = savedPerUser || savedLegacy;
@@ -168,7 +168,7 @@ const ShopPage = () => {
   });
   const [wishlist, setWishlist] = useState(() => {
     const user = SessionManager.getCurrentUser();
-    const key = user?.email ? `fithub - wishlist:${user.email} ` : 'fithub-wishlist';
+    const key = user?.email ? `fithub-wishlist:${user.email}` : 'fithub-wishlist';
     const savedPerUser = user?.email ? localStorage.getItem(key) : null;
     const savedLegacy = localStorage.getItem('fithub-wishlist');
     const initial = savedPerUser || savedLegacy;
@@ -209,7 +209,7 @@ const ShopPage = () => {
   // Sync cart with localStorage whenever it changes
   useEffect(() => {
     const user = SessionManager.getCurrentUser();
-    const key = user?.email ? `fithub - cart:${user.email} ` : 'fithub-cart';
+    const key = user?.email ? `fithub-cart:${user.email}` : 'fithub-cart';
     localStorage.setItem(key, JSON.stringify(cart));
     if (user?.email) localStorage.removeItem('fithub-cart');
   }, [cart]);
@@ -221,9 +221,10 @@ const ShopPage = () => {
         const currentUser = SessionManager.getCurrentUser();
         if (!currentUser?.token || !currentUser?.email) return;
         // Don't encode the email here, let the browser handle it automatically
-        const { data } = await api.get(`/ shop / api / wishlist / ${encodeURIComponent(currentUser.email)} `, {
-          headers: { Authorization: `Bearer ${currentUser.token} ` }
-        });
+        const { data } = await api.get(`/shop/api/wishlist/${encodeURIComponent(currentUser.email)}`, {
+          headers: {
+            Authorization: `Bearer ${currentUser.token}`
+          });
         const items = data?.wishlist?.items || [];
         // Normalize to product-like objects used by UI
         const normalized = items.map((it) => ({
@@ -248,7 +249,7 @@ const ShopPage = () => {
   useEffect(() => {
     try {
       const currentUser = SessionManager.getCurrentUser();
-      const addrKey = currentUser?.email ? `fithub - address:${currentUser.email} ` : 'fithub-address:guest';
+      const addrKey = currentUser?.email ? `fithub-address:${currentUser.email}` : 'fithub-address:guest';
       const saved = localStorage.getItem(addrKey);
       if (saved) {
         const obj = JSON.parse(saved);
@@ -266,7 +267,7 @@ const ShopPage = () => {
     if (!hasAll) return;
     try {
       const currentUser = SessionManager.getCurrentUser();
-      const addrKey = currentUser?.email ? `fithub - address:${currentUser.email} ` : 'fithub-address:guest';
+      const addrKey = currentUser?.email ? `fithub-address:${currentUser.email}` : 'fithub-address:guest';
       localStorage.setItem(addrKey, JSON.stringify({
         name: shippingAddress.name,
         email: shippingAddress.email,
@@ -288,8 +289,9 @@ const ShopPage = () => {
         const currentUser = SessionManager.getCurrentUser();
         if (!currentUser?.token) return;
         await api.post('/shop/api/cart/init', {}, {
-          headers: { Authorization: `Bearer ${currentUser.token} ` }
-        });
+          headers: {
+            Authorization: `Bearer ${currentUser.token}`
+          });
       } catch (e) {
         // non-fatal; keep local cart working even if server init fails
         console.warn('FitHub Shop: Cart initialization skipped - using local storage', e?.response?.data || e?.message || e);
@@ -367,7 +369,7 @@ const ShopPage = () => {
   // Save wishlist to localStorage whenever it changes
   useEffect(() => {
     const user = SessionManager.getCurrentUser();
-    const key = user?.email ? `fithub - wishlist:${user.email} ` : 'fithub-wishlist';
+    const key = user?.email ? `fithub-wishlist:${user.email}` : 'fithub-wishlist';
     localStorage.setItem(key, JSON.stringify(wishlist));
     if (user?.email) localStorage.removeItem('fithub-wishlist');
   }, [wishlist]);
@@ -548,7 +550,7 @@ const ShopPage = () => {
       if (!currentUser?.token || !currentUser?.email) return; // if not logged, keep local only
       // Don't encode the email here, let the browser handle it automatically
       await api.post(
-        `/ shop / api / wishlist / ${encodeURIComponent(currentUser.email)}/toggle`,
+        `/shop/api/wishlist/${encodeURIComponent(currentUser.email)}/toggle`,
         { product_id: (product.id || product._id) },
         { headers: { Authorization: `Bearer ${currentUser.token}` } }
       );
