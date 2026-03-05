@@ -1145,6 +1145,45 @@ def cleanup_ended_events():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 # Event Booking Endpoints (keeping only the original ones)
+
+@location_bp.route('/event-bookings/booked-seats', methods=['GET'])
+@jwt_required()
+def get_booked_seats():
+    """Return seat labels already booked for a given event"""
+    try:
+        event_id_str = request.args.get('event_id')
+        if not event_id_str:
+            return jsonify({'success': False, 'message': 'event_id is required'}), 400
+        try:
+            event_id = ObjectId(event_id_str)
+        except Exception:
+            return jsonify({'success': False, 'message': 'Invalid event ID'}), 400
+
+        # Find ALL bookings for this event (any status) that have a seat
+        all_bookings = list(event_bookings_collection.find(
+            {'event_id': event_id},
+            {'seat': 1, 'status': 1, 'user_email': 1}
+        ))
+        
+        print(f'🪑 get_booked_seats: event_id={event_id_str}, total bookings found={len(all_bookings)}')
+        for b in all_bookings:
+            print(f'   → status={b.get("status")}, user={b.get("user_email")}, seat={b.get("seat")}')
+
+        # Extract seat labels from non-cancelled bookings that have a valid seat
+        booked_seats = []
+        for b in all_bookings:
+            status = b.get('status', '')
+            if status in ('confirmed', 'pending_admin'):
+                seat = b.get('seat')
+                if seat and isinstance(seat, dict) and seat.get('label'):
+                    booked_seats.append(seat['label'])
+
+        print(f'✅ Returning booked_seats: {booked_seats}')
+        return jsonify({'success': True, 'booked_seats': booked_seats})
+    except Exception as e:
+        print(f'Error getting booked seats: {str(e)}')
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 @location_bp.route('/event-bookings', methods=['POST'])
 
 @jwt_required()
@@ -1202,16 +1241,37 @@ def create_event_booking():
         
         # Create booking data
         user_data = data.get('user_data', {})
-        
+        seat = data.get('seat')  # e.g. {'label': 'A3', 'zone': 'Front'}
+
+        # Check if the selected seat is already taken
+        if seat and seat.get('label'):
+            seat_conflict = event_bookings_collection.find_one({
+                'event_id': event_id,
+                'status': {'$in': ['confirmed', 'pending_admin']},
+                'seat.label': seat['label']
+            })
+            if seat_conflict:
+                return jsonify({'success': False, 'message': f"Seat {seat['label']} is already booked. Please choose another seat."}), 400
+
+        # Determine if the event is free
+        event_price = event.get('price', 'Free')
+        is_free = not event_price or str(event_price).strip() in ('Free', '0', '', 'free')
+
+        # Free events are auto-confirmed immediately with a ticket.
+        # Paid events that bypass Razorpay use 'pending_admin' for manual approval.
+        booking_status = 'confirmed' if is_free else 'pending_admin'
+
         booking_data = {
             'event_id': event_id,
             'event_title': event.get('title', ''),
             'event_date': event.get('date', ''),
+            'event_time': event.get('time', ''),
             'event_location': event.get('location', ''),
             'user_email': user_email,
             'user_data': user_data,
-            'status': 'pending_admin',  # Pending admin approval
-            'amount': event.get('price', 'Free'),
+            'seat': seat,
+            'status': booking_status,
+            'amount': event_price,
             'capacity_info': {
                 'current_participants': current_participants + 1,
                 'max_participants': max_participants,
@@ -1220,16 +1280,40 @@ def create_event_booking():
             'created_at': datetime.utcnow(),
             'updated_at': datetime.utcnow()
         }
-        
+
         # Store in event bookings collection
         result = event_bookings_collection.insert_one(booking_data)
-        booking_data['_id'] = str(result.inserted_id)
-        
-        return jsonify({
+        booking_id = str(result.inserted_id)
+        booking_data['_id'] = booking_id
+
+        ticket_data = None
+        if is_free:
+            # Immediately generate a ticket for free events
+            try:
+                ticket_data = generate_event_ticket(booking_data, booking_id, event)
+                event_bookings_collection.update_one(
+                    {'_id': result.inserted_id},
+                    {'$set': {'ticket': ticket_data}}
+                )
+                # Increment participants count since it is immediately confirmed
+                events_collection.update_one(
+                    {'_id': event_id},
+                    {'$inc': {'participants': 1}}
+                )
+                print(f'✅ Free event booking confirmed with ticket: {booking_id}')
+            except Exception as ticket_err:
+                print(f'⚠️ Could not generate ticket for free booking: {str(ticket_err)}')
+
+        response_body = {
             'success': True,
-            'message': 'Event booking request submitted successfully. Awaiting admin approval.',
-            'booking': booking_data
-        }), 201
+            'message': 'Successfully joined the event! Your ticket has been generated.' if is_free
+                       else 'Event booking request submitted successfully. Awaiting admin approval.',
+            'booking': booking_data,
+        }
+        if ticket_data:
+            response_body['ticket'] = ticket_data
+
+        return jsonify(response_body), 201
         
     except Exception as e:
         print(f"Error creating event booking: {str(e)}")
@@ -1417,6 +1501,19 @@ def verify_event_payment():
                 print(f'❌ Event not found: {event_id}')
                 return jsonify({'success': False, 'error': 'Event not found'}), 404
 
+            # Get seat from payload
+            seat = payload.get('seat')  # e.g. {'label': 'A3', 'zone': 'Front'}
+
+            # Check if the selected seat is already taken
+            if seat and seat.get('label'):
+                seat_conflict = event_bookings_collection.find_one({
+                    'event_id': event_object_id,
+                    'status': {'$in': ['confirmed', 'pending_admin']},
+                    'seat.label': seat['label']
+                })
+                if seat_conflict:
+                    return jsonify({'success': False, 'error': f"Seat {seat['label']} is already booked. Please choose another seat."}), 400
+
             # Create booking record with all event details for ticket generation
             booking_data = {
                 'event_id': event_object_id,
@@ -1426,6 +1523,7 @@ def verify_event_payment():
                 'event_location': event.get('location', ''),
                 'user_email': user_data.get('email', ''),
                 'user_data': user_data,
+                'seat': seat,
                 'amount': event.get('price', 0),
                 'payment_id': payment_id,
                 'order_id': order_id,

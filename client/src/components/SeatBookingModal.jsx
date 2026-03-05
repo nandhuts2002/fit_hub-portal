@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
+import api from '../utils/api';
 
 // ── Zone definitions ─────────────────────────────────────────────
 const ZONES = [
@@ -13,19 +14,10 @@ const MAT_W = 50;
 const MAT_H = 22;
 
 // ── Build mat grid ────────────────────────────────────────────────
-function buildMats(maxParticipants, bookedCount) {
+// bookedLabels: Set<string> of seat labels that are already taken
+function buildMats(maxParticipants, bookedLabels) {
     const total = Math.min(maxParticipants || 56, 56);
-    const booked = Math.min(bookedCount, total - 1);
 
-    // Deterministic "booked" spread
-    const bookedSet = new Set();
-    let seed = 17;
-    while (bookedSet.size < booked) {
-        seed = (seed * 1664525 + 1013904223) & 0x7fffffff;
-        bookedSet.add(seed % total);
-    }
-
-    let globalIdx = 0;
     const rows = [];
 
     ZONES.forEach((zone) => {
@@ -33,17 +25,17 @@ function buildMats(maxParticipants, bookedCount) {
             const letter = String.fromCharCode(65 + ZONES.indexOf(zone) * 3 + r);
             const seats = [];
             for (let c = 0; c < COLS; c++) {
+                const label = `${letter}${c + 1}`;
                 seats.push({
                     id: `${zone.id}-${r}-${c}`,
-                    label: `${letter}${c + 1}`,
+                    label,
                     rowLetter: letter,
                     zone: zone.id,
                     zoneLabel: zone.label,
                     colors: zone.colors,
                     border: zone.border,
-                    booked: bookedSet.has(globalIdx),
+                    booked: bookedLabels.has(label),
                 });
-                globalIdx++;
             }
             rows.push({ key: `${zone.id}-${r}`, zone: zone.id, zoneLabel: zone.label, colors: zone.colors, letter, seats });
         }
@@ -66,22 +58,38 @@ function YogaMat({ colors, border, isSelected, isBooked, isHovered }) {
         return (
             <div style={{
                 width: MAT_W, height: MAT_H, borderRadius: 5,
-                background: 'linear-gradient(90deg,#1a1a2e,#16213e,#1a1a2e)',
-                border: '1.5px solid #2d3748', opacity: 0.45,
+                background: 'linear-gradient(90deg,#7f1d1d,#dc2626 30%,#ef4444 50%,#dc2626 70%,#7f1d1d)',
+                border: '1.5px solid #f87171',
+                boxShadow: '0 0 6px rgba(239,68,68,0.45), inset 0 1px 0 rgba(255,255,255,0.1)',
                 position: 'relative', overflow: 'hidden',
+                opacity: 0.85,
             }}>
-                {/* "Rolled" end caps */}
+                {/* End caps */}
                 <div style={{
                     position: 'absolute', left: 0, top: 0, bottom: 0, width: 5,
-                    background: 'rgba(255,255,255,0.06)', borderRight: '1px solid rgba(255,255,255,0.04)'
+                    background: 'linear-gradient(90deg,rgba(0,0,0,0.25),transparent)',
+                    borderRadius: '5px 0 0 5px',
                 }} />
                 <div style={{
                     position: 'absolute', right: 0, top: 0, bottom: 0, width: 5,
-                    background: 'rgba(255,255,255,0.06)', borderLeft: '1px solid rgba(255,255,255,0.04)'
+                    background: 'linear-gradient(270deg,rgba(0,0,0,0.25),transparent)',
+                    borderRadius: '0 5px 5px 0',
                 }} />
+                {/* ✕ icon */}
+                <div style={{
+                    position: 'absolute', inset: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                    <span style={{
+                        fontSize: 11, fontWeight: 900, lineHeight: 1,
+                        color: 'rgba(255,255,255,0.9)',
+                        textShadow: '0 1px 3px rgba(0,0,0,0.6)',
+                    }}>✕</span>
+                </div>
             </div>
         );
     }
+
 
     const glow = isSelected
         ? `0 0 14px #7c3aed, 0 0 28px #7c3aed66, 0 3px 8px rgba(0,0,0,0.6)`
@@ -140,14 +148,54 @@ function YogaMat({ colors, border, isSelected, isBooked, isHovered }) {
 }
 
 // ── Main Modal ────────────────────────────────────────────────────
-const SeatBookingModal = ({ isOpen, onClose, onSeatConfirmed, event }) => {
+const SeatBookingModal = ({ isOpen, onClose, onSeatConfirmed, event, bookedSeatLabels: externalBooked = [] }) => {
     const [selectedId, setSelectedId] = useState(null);
     const [hoveredId, setHoveredId] = useState(null);
+    // Internal state for booked seats – fetched fresh every time modal opens
+    const [fetchedBooked, setFetchedBooked] = useState([]);
+    const [fetchLoading, setFetchLoading] = useState(false);
+
+    // Fetch booked seats from backend whenever the modal opens
+    useEffect(() => {
+        if (!isOpen || !event?._id) return;
+
+        let cancelled = false;
+        setFetchedBooked([]);
+        setFetchLoading(true);
+
+        // Use the project's api utility (handles auth token automatically)
+        api.get(`/location/event-bookings/booked-seats?event_id=${event._id}`)
+            .then(res => {
+                if (cancelled) return;
+                const seats = res.data?.booked_seats || [];
+                console.log('🪑 Booked seats from API:', seats);
+                setFetchedBooked(seats);
+            })
+            .catch(err => {
+                if (cancelled) return;
+                console.warn('Could not fetch booked seats:', err?.response?.data || err.message);
+                setFetchedBooked(externalBooked);
+            })
+            .finally(() => {
+                if (!cancelled) setFetchLoading(false);
+            });
+
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, event?._id]);
+
+    // Merge internal fetch with any parent-passed labels (belt-and-suspenders)
+    const allBooked = useMemo(
+        () => [...new Set([...fetchedBooked, ...externalBooked])],
+        [fetchedBooked, externalBooked]
+    );
+
+    // Build a Set from the merged booked labels array
+    const bookedLabelsSet = useMemo(() => new Set(allBooked), [allBooked]);
 
     const rows = useMemo(
-        () => buildMats(event?.max_participants, event?.participants || 0),
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [event?._id]
+        () => buildMats(event?.max_participants, bookedLabelsSet),
+        [bookedLabelsSet, event?.max_participants]
     );
 
     const price = formatPrice(event?.price);
@@ -219,6 +267,11 @@ const SeatBookingModal = ({ isOpen, onClose, onSeatConfirmed, event }) => {
                             </div>
                             <p style={{ color: '#64748b', fontSize: 11, margin: '2px 0 0 30px' }}>
                                 {event?.title || 'Yoga Session'} &nbsp;·&nbsp; {price} per mat
+                                {fetchLoading && (
+                                    <span style={{ marginLeft: 8, color: '#f59e0b', fontSize: 10 }}>
+                                        ⏳ Loading availability...
+                                    </span>
+                                )}
                             </p>
                         </div>
                         <button onClick={handleClose} style={{
@@ -239,7 +292,7 @@ const SeatBookingModal = ({ isOpen, onClose, onSeatConfirmed, event }) => {
                         {[
                             { color: '#14b8a6', label: 'Available' },
                             { color: '#7c3aed', label: 'Your Mat' },
-                            { color: '#1e293b', label: 'Taken', border: '#334155' },
+                            { color: '#dc2626', label: 'Taken', border: '#f87171' },
                         ].map(item => (
                             <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                                 <div style={{
@@ -380,19 +433,23 @@ const SeatBookingModal = ({ isOpen, onClose, onSeatConfirmed, event }) => {
                                                             </span>
 
                                                             {row.seats.map(seat => {
-                                                                const isSel = seat.id === selectedId;
-                                                                const isHov = hoveredId === seat.id;
+                                                                // Check LIVE from bookedLabelsSet so red color updates
+                                                                // immediately when the fetch resolves, without waiting
+                                                                // for the rows useMemo to rebuild.
+                                                                const isBooked = bookedLabelsSet.has(seat.label);
+                                                                const isSel = !isBooked && seat.id === selectedId;
+                                                                const isHov = !isBooked && hoveredId === seat.id;
                                                                 return (
                                                                     <button
                                                                         key={seat.id}
-                                                                        disabled={seat.booked}
-                                                                        title={seat.booked ? 'Mat taken' : `Mat ${seat.label} · ${price}`}
-                                                                        onClick={() => !seat.booked && setSelectedId(p => p === seat.id ? null : seat.id)}
-                                                                        onMouseEnter={() => !seat.booked && setHoveredId(seat.id)}
+                                                                        disabled={isBooked}
+                                                                        title={isBooked ? 'Mat taken' : `Mat ${seat.label} · ${price}`}
+                                                                        onClick={() => !isBooked && setSelectedId(p => p === seat.id ? null : seat.id)}
+                                                                        onMouseEnter={() => !isBooked && setHoveredId(seat.id)}
                                                                         onMouseLeave={() => setHoveredId(null)}
                                                                         style={{
                                                                             background: 'none', border: 'none', padding: 0,
-                                                                            cursor: seat.booked ? 'not-allowed' : 'pointer',
+                                                                            cursor: isBooked ? 'not-allowed' : 'pointer',
                                                                             flexShrink: 0,
                                                                             transform: isSel
                                                                                 ? 'scale(1.18) translateY(-3px)'
@@ -405,7 +462,7 @@ const SeatBookingModal = ({ isOpen, onClose, onSeatConfirmed, event }) => {
                                                                             colors={seat.colors}
                                                                             border={seat.border}
                                                                             isSelected={isSel}
-                                                                            isBooked={seat.booked}
+                                                                            isBooked={isBooked}
                                                                             isHovered={isHov}
                                                                         />
                                                                     </button>

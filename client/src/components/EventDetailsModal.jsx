@@ -23,6 +23,7 @@ const EventDetailsModal = ({ event, isOpen, onClose, onEventJoined }) => {
   const [showCalendarOptions, setShowCalendarOptions] = useState(false);
   const [showSeatPicker, setShowSeatPicker] = useState(false);
   const [selectedSeat, setSelectedSeat] = useState(null);
+  const [bookedSeatLabels, setBookedSeatLabels] = useState([]);
   const [joinForm, setJoinForm] = useState({
     name: '',
     phone: '',
@@ -50,6 +51,23 @@ const EventDetailsModal = ({ event, isOpen, onClose, onEventJoined }) => {
   }, [showJoinForm]);
 
   if (!isOpen || !event) return null;
+
+  // Fetch the real booked seat labels from the backend
+  const fetchBookedSeats = async (eventId) => {
+    try {
+      const token = JSON.parse(localStorage.getItem('user') || '{}').token;
+      const resp = await fetch(
+        `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000'}/location/event-bookings/booked-seats?event_id=${eventId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (resp.ok) {
+        const data = await resp.json();
+        setBookedSeatLabels(data.booked_seats || []);
+      }
+    } catch (_) {
+      // silently ignore - worst case seats won't be greyed out
+    }
+  };
 
   // Form validation
   const validateForm = () => {
@@ -182,14 +200,22 @@ END:VCALENDAR`;
         });
 
         if (response.ok) {
-          showSuccess('Successfully joined the free event! You will receive confirmation details via email.', 5000);
+          const responseData = await response.json();
+          // Store ticket if the server generated one (free events are auto-confirmed now)
+          if (responseData.ticket) {
+            localStorage.setItem('latest_ticket', JSON.stringify(responseData.ticket));
+            showSuccess('🎉 Successfully joined the event! Your ticket has been generated and saved.', 6000);
+          } else {
+            showSuccess('Successfully joined the event! Confirmation details will be sent to your email.', 5000);
+          }
           setShowJoinForm(false);
           setSelectedSeat(null);
           setJoinForm({ name: '', phone: '', email: '', emergencyContact: '', specialRequirements: '' });
           if (onEventJoined) onEventJoined(); // Refresh tickets
           setTimeout(() => onClose(), 1500); // Close modal after successful join
         } else {
-          throw new Error('Failed to join event');
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.message || errData.error || 'Failed to join event');
         }
       } else {
         // Paid event - process payment
@@ -253,11 +279,22 @@ END:VCALENDAR`;
       }
     } catch (error) {
       console.error('Error joining event:', error);
-      // Provide a more user-friendly error message for event not found
-      if (error.message.includes('Event not found')) {
+      // Extract the actual server error message if available
+      const serverMsg =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        error.message ||
+        'Unknown error';
+      if (serverMsg.includes('Event not found') || serverMsg.includes('no longer available')) {
         showError('This event is no longer available. It may have been removed or has already ended. Please refresh the page and try another event.', 6000);
+      } else if (serverMsg.includes('already registered')) {
+        showError('You are already registered for this event.', 5000);
+      } else if (serverMsg.includes('fully booked')) {
+        showError('Sorry, this event is fully booked.', 5000);
+      } else if (serverMsg.includes('already booked')) {
+        showError(`Seat conflict: ${serverMsg}`, 5000);
       } else {
-        showError(`Error joining event: ${error.message}`, 5000);
+        showError(`Error joining event: ${serverMsg}`, 5000);
       }
     } finally {
       setIsJoining(false);
@@ -299,8 +336,10 @@ END:VCALENDAR`;
     <AnimatePresence>
       {/* 3D Seat Booking Modal */}
       <SeatBookingModal
+        key="seat-booking-modal"
         isOpen={showSeatPicker}
         event={event}
+        bookedSeatLabels={bookedSeatLabels}
         onClose={() => setShowSeatPicker(false)}
         onSeatConfirmed={(seat) => {
           setSelectedSeat(seat);
@@ -309,7 +348,7 @@ END:VCALENDAR`;
         }}
       />
       {/* Calendar Options Modal */}
-      <AnimatePresence>
+      <AnimatePresence key="calendar-options">
         {showCalendarOptions && (
           <motion.div
             initial={{ opacity: 0 }}
@@ -557,17 +596,17 @@ END:VCALENDAR`;
                     animate={{ opacity: 1, scale: 1 }}
                     className="flex items-center gap-3 mb-4 px-4 py-3 rounded-xl border"
                     style={{
-                      background: `${selectedSeat.bg}55`,
-                      borderColor: `${selectedSeat.color}66`,
+                      background: `${selectedSeat.colors[0]}33`,
+                      borderColor: `${selectedSeat.colors[1]}66`,
                     }}
                   >
-                    <Armchair className="w-5 h-5" style={{ color: selectedSeat.color }} />
+                    <Armchair className="w-5 h-5" style={{ color: selectedSeat.colors[1] }} />
                     <div className="flex-1">
                       <p className="font-semibold text-gray-900 text-sm">
                         Seat {selectedSeat.label}
                         <span
                           className="ml-2 text-xs px-2 py-0.5 rounded-full font-bold"
-                          style={{ background: selectedSeat.bg, color: selectedSeat.color }}
+                          style={{ background: `${selectedSeat.colors[1]}22`, color: selectedSeat.colors[1] }}
                         >
                           {selectedSeat.zoneLabel}
                         </span>
@@ -695,16 +734,17 @@ END:VCALENDAR`;
                     setShowJoinForm(false);
                     setSelectedSeat(null);
                   } else {
-                    // Open seat picker first
+                    // Fetch real booked seats then open seat picker
+                    fetchBookedSeats(event._id);
                     setShowSeatPicker(true);
                   }
                 }}
                 disabled={event.max_participants && event.max_participants > 0 && (event.participants || 0) >= event.max_participants}
                 className={`flex-1 py-3 px-6 rounded-lg transition-colors font-medium ${event.max_participants && event.max_participants > 0 && (event.participants || 0) >= event.max_participants
-                    ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
-                    : showJoinForm
-                      ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                      : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 shadow-lg'
+                  ? 'bg-gray-400 text-gray-600 cursor-not-allowed'
+                  : showJoinForm
+                    ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    : 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 shadow-lg'
                   }`}
               >
                 {event.max_participants && event.max_participants > 0 && (event.participants || 0) >= event.max_participants

@@ -14,12 +14,27 @@ const WishlistPage = () => {
   useEffect(() => {
     // Load wishlist (prefer server if logged in)
     const loadWishlist = async () => {
+      const user = SessionManager.getCurrentUser();
+
+      // Helper: try new key, then old spaced key as migration fallback
+      const readStorage = (email) => {
+        const attempts = email
+          ? [
+            `fithub-wishlist:${email}`,          // new (correct)
+            `fithub - wishlist:${email} `,         // old (had spaces bug)
+          ]
+          : ['fithub-wishlist'];
+        for (const k of attempts) {
+          const val = localStorage.getItem(k);
+          if (val) return JSON.parse(val);
+        }
+        return null;
+      };
+
       try {
-        const currentUser = SessionManager.getCurrentUser();
-        if (currentUser?.token && currentUser?.email) {
-          // Don't encode the email here, let the browser handle it automatically
-          const { data } = await api.get(`/shop/api/wishlist/${currentUser.email}`, {
-            headers: { Authorization: `Bearer ${currentUser.token}` }
+        if (user?.token && user?.email) {
+          const { data } = await api.get(`/shop/api/wishlist/${encodeURIComponent(user.email)}`, {
+            headers: { Authorization: `Bearer ${user.token}` }
           });
           const items = data?.wishlist?.items || [];
           const normalized = items.map((it) => ({
@@ -31,27 +46,29 @@ const WishlistPage = () => {
             in_stock: true
           }));
           setWishlist(normalized);
-          localStorage.setItem('fithub-wishlist', JSON.stringify(normalized));
+          localStorage.setItem(`fithub-wishlist:${user.email}`, JSON.stringify(normalized));
         } else {
-          const anon = localStorage.getItem('fithub-wishlist');
-          if (anon) setWishlist(JSON.parse(anon));
+          const saved = readStorage(user?.email);
+          if (saved) setWishlist(saved);
         }
       } catch (e) {
-        const user = SessionManager.getCurrentUser();
-        const key = user?.email ? `fithub-wishlist:${user.email}` : 'fithub-wishlist';
-        const saved = localStorage.getItem(key);
-        if (saved) setWishlist(JSON.parse(saved));
-        console.error('Error loading wishlist:', e);
+        // Server failed (e.g. 422 JWT error) — fall back to localStorage
+        const saved = readStorage(user?.email);
+        if (saved) setWishlist(saved);
+        if (!(e?.response?.status === 422 || e?.response?.status === 401)) {
+          console.error('Error loading wishlist:', e);
+        }
       }
     };
     loadWishlist();
+
 
     // Load cart from localStorage
     const user = SessionManager.getCurrentUser();
     const cartKey = user?.email ? `fithub-cart:${user.email}` : 'fithub-cart';
     const savedCart = localStorage.getItem(cartKey);
     if (savedCart) setCart(JSON.parse(savedCart));
-    
+
     setLoading(false);
   }, []);
 
@@ -84,15 +101,15 @@ const WishlistPage = () => {
       quantity: 1,
       cartId: Date.now()
     };
-    
-    const existingItem = cart.find(item => 
-      item.id === product.id && 
+
+    const existingItem = cart.find(item =>
+      item.id === product.id &&
       JSON.stringify(item.variant) === JSON.stringify(product.variant)
     );
-    
+
     if (existingItem) {
-      const updatedCart = cart.map(item => 
-        item.cartId === existingItem.cartId 
+      const updatedCart = cart.map(item =>
+        item.cartId === existingItem.cartId
           ? { ...item, quantity: item.quantity + 1 }
           : item
       );
@@ -119,7 +136,7 @@ const WishlistPage = () => {
       quantity: 1,
       cartId: Date.now() + Math.random()
     }));
-    
+
     const updatedCart = [...cart, ...newCartItems];
     setCart(updatedCart);
     {
@@ -127,7 +144,7 @@ const WishlistPage = () => {
       const cartKey = current?.email ? `fithub-cart:${current.email}` : 'fithub-cart';
       localStorage.setItem(cartKey, JSON.stringify(updatedCart));
     }
-    
+
     // Clear wishlist
     setWishlist([]);
     {
@@ -135,7 +152,7 @@ const WishlistPage = () => {
       if (current?.email) localStorage.removeItem(`fithub-wishlist:${current.email}`);
       else localStorage.removeItem('fithub-wishlist');
     }
-    
+
     alert('All items moved to cart!');
   };
 
@@ -181,7 +198,7 @@ const WishlistPage = () => {
                 </p>
               </div>
             </div>
-            
+
             {wishlist.length > 0 && (
               <div className="flex items-center space-x-3">
                 <button
@@ -269,7 +286,7 @@ const WishlistPage = () => {
                         }}
                       />
                     ) : null}
-                    <div 
+                    <div
                       className="w-full h-48 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center"
                       style={{ display: product.images?.[0] || product.image ? 'none' : 'flex' }}
                     >
@@ -278,7 +295,7 @@ const WishlistPage = () => {
                         <p className="text-sm">No Image</p>
                       </div>
                     </div>
-                    
+
                     {/* Wishlist Button */}
                     <div className="absolute top-3 right-3">
                       <button
