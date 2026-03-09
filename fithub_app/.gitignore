@@ -1,0 +1,25 @@
+# Flutter-specific
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+pubspec.lock
+
+# Android
+android/.gradle/
+android/captures/
+android/gradlew
+android/gradlew.bat
+android/local.properties
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+
+# macOS
+macos/Pods/
+
+# Misc
+.DS_Store
+*.iml

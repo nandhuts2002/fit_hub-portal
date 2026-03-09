@@ -40,6 +40,14 @@ const SERVICES = [
     path: "/services/posture-correction",
   },
   {
+    icon: "🧘",
+    img: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?q=80&w=400&auto=format&fit=crop",
+    title: "AI Yoga Pose Corrector",
+    desc: "Real-time camera AI that detects your pose and corrects your form instantly",
+    path: "/services/yoga-pose-corrector",
+    badge: "NEW 🤖",
+  },
+  {
     icon: "🧘‍♀️",
     img: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=400&auto=format&fit=crop",
     title: "Yoga Poses",

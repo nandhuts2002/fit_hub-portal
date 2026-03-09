@@ -89,17 +89,17 @@ const AdminProductManagement = () => {
       alert('You must be an administrator to perform this action.');
       return;
     }
-    
+
     try {
       setLoading(true);
-      
+
       // Check if user is admin before proceeding
       const currentUser = SessionManager.getCurrentUser();
       if (!currentUser || !currentUser.token) {
         alert('You must be logged in to perform this action.');
         return;
       }
-      
+
       const demoImages = [
         // Public sample images (same image repeated for demo; replace with different shots for realism)
         'https://m.media-amazon.com/images/I/81w0A8gJwsL._SX522_.jpg',
@@ -133,7 +133,7 @@ const AdminProductManagement = () => {
         url: '/shop/api/products',
         method: 'POST',
         data: productData,
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${currentUser.token}`,
           'Content-Type': 'application/json'
         }
@@ -179,11 +179,11 @@ const AdminProductManagement = () => {
   // Load products and categories
   useEffect(() => {
     if (!checkedAdmin) return;
-    
+
     if (!isAdmin) {
       return;
     }
-    
+
     loadProducts();
     loadCategories();
   }, [isAdmin, checkedAdmin]);
@@ -278,7 +278,7 @@ const AdminProductManagement = () => {
     setLoading(true);
 
     try {
-      const url = editingProduct 
+      const url = editingProduct
         ? `/shop/api/products/${editingProduct._id}`
         : '/shop/api/products';
       const method = editingProduct ? 'PUT' : 'POST';
@@ -329,7 +329,7 @@ const AdminProductManagement = () => {
           url,
           method,
           data: productData,
-          headers: { 
+          headers: {
             'Authorization': `Bearer ${currentUser.token}`,
             'Content-Type': 'application/json'
           }
@@ -359,7 +359,7 @@ const AdminProductManagement = () => {
       alert('You must be an administrator to perform this action.');
       return;
     }
-    
+
     setEditingProduct(product);
     setFormData({
       name: product.name || '',
@@ -383,7 +383,7 @@ const AdminProductManagement = () => {
       alert('You must be an administrator to perform this action.');
       return;
     }
-    
+
     if (!window.confirm('Are you sure you want to delete this product?')) return;
 
     // Check if user is admin before proceeding
@@ -394,7 +394,7 @@ const AdminProductManagement = () => {
 
     try {
       const response = await api.delete(`/shop/api/products/${productId}`, {
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${currentUser.token}`,
           'Content-Type': 'application/json'
         }
@@ -497,7 +497,7 @@ const AdminProductManagement = () => {
           </motion.div>
         </div>
       )}
-      
+
       <div className="max-w-7xl mx-auto">
         {/* Header Section */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-6 mb-6">
@@ -817,7 +817,7 @@ const AdminProductManagement = () => {
             <h2 className="text-xl font-semibold text-gray-900">Products Inventory</h2>
             <p className="text-sm text-gray-600 mt-1">Total products: {products.length}</p>
           </div>
-          
+
           {products.length === 0 ? (
             <div className="text-center py-12">
               <div className="w-24 h-24 bg-gradient-to-r from-blue-100 to-indigo-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -882,9 +882,8 @@ const AdminProductManagement = () => {
                         <div className="text-xs text-gray-500">units</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
-                          product.in_stock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
+                        <span className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${product.in_stock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
                           {product.in_stock ? 'In Stock' : 'Out of Stock'}
                         </span>
                       </td>

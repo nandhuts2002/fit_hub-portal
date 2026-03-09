@@ -37,6 +37,7 @@ import AICoachPage from './pages/services/AICoachPage';
 import BMICalculatorPage from './pages/services/BMICalculatorPage';
 import CalorieDetectorPage from './pages/services/CalorieDetectorPage';
 import PostureCorrectionPage from './pages/services/PostureCorrectionPage';
+import YogaPoseCorrectorPage from './pages/services/YogaPoseCorrectorPage';
 import ShopProfilePage from './pages/ShopProfilePage';
 import ProductDetailsPage from './pages/ProductDetailsPage';
 import ProfilePage from './pages/ProfilePage';
@@ -270,6 +271,11 @@ function App() {
           <Route path="/services/posture-correction" element={
             <ProtectedRoute>
               <PostureCorrectionPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/services/yoga-pose-corrector" element={
+            <ProtectedRoute>
+              <YogaPoseCorrectorPage />
             </ProtectedRoute>
           } />
           {/* AI Coach chat */}

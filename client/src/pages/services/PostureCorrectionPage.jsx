@@ -110,23 +110,43 @@ export default function PostureCorrectionPage() {
         try {
             setError('');
             console.log('🔄 Starting webcam...');
-            const mediaStream = await navigator.mediaDevices.getUserMedia({
-                video: { width: 640, height: 480, facingMode: 'user' },
+            const constraints = {
+                video: {
+                    width: { ideal: 640 },
+                    height: { ideal: 480 },
+                    facingMode: 'user'
+                },
                 audio: false
-            });
+            };
 
+            const mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
             setStream(mediaStream);
-            if (videoRef.current) {
-                videoRef.current.srcObject = mediaStream;
-                await videoRef.current.play();
-            }
             setIsActive(true);
-            console.log('✅ Webcam started');
+            console.log('✅ Webcam stream obtained');
         } catch (err) {
-            setError('Could not access camera: ' + err.message);
             console.error('❌ Webcam error:', err);
+            if (err.name === 'NotAllowedError') {
+                setError('Permission denied. Please allow camera access.');
+            } else if (err.name === 'NotFoundError') {
+                setError('No camera detected on this device.');
+            } else {
+                setError('Could not access camera: ' + err.message);
+            }
         }
     };
+
+    // Effect to attach stream to video element when both are ready
+    useEffect(() => {
+        if (stream && videoRef.current) {
+            const video = videoRef.current;
+            if (video.srcObject !== stream) {
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    video.play().catch(e => console.error("Webcam play failed:", e));
+                };
+            }
+        }
+    }, [stream]);
 
     // Stop webcam
     const stopWebcam = () => {
@@ -593,7 +613,7 @@ export default function PostureCorrectionPage() {
                                         {issues.length > 0 && (
                                             <div className="absolute bottom-3 left-3 right-3">
                                                 <div className={`p-3 rounded-lg backdrop-blur-sm ${postureStatus === 'good' ? 'bg-green-500/90' :
-                                                        postureStatus === 'warning' ? 'bg-yellow-500/90' : 'bg-red-500/90'
+                                                    postureStatus === 'warning' ? 'bg-yellow-500/90' : 'bg-red-500/90'
                                                     }`}>
                                                     <div className="flex items-center gap-2 text-white">
                                                         <span className="text-xl">{issues[0]?.icon}</span>
@@ -631,8 +651,8 @@ export default function PostureCorrectionPage() {
                                     onClick={toggleAnalysis}
                                     disabled={!isActive || isLoading}
                                     className={`px-6 py-2.5 rounded-lg font-bold flex items-center gap-2 ${isAnalyzing
-                                            ? 'bg-red-500 hover:bg-red-600 text-white'
-                                            : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white'
+                                        ? 'bg-red-500 hover:bg-red-600 text-white'
+                                        : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white'
                                         } disabled:opacity-50`}
                                 >
                                     {isAnalyzing ? (
@@ -719,10 +739,10 @@ export default function PostureCorrectionPage() {
                                         <div
                                             key={issue.type}
                                             className={`p-2 rounded-lg flex items-center gap-2 text-sm ${issue.severity === 'bad'
-                                                    ? (isDark ? 'bg-red-900/30' : 'bg-red-50')
-                                                    : issue.severity === 'warning'
-                                                        ? (isDark ? 'bg-yellow-900/30' : 'bg-yellow-50')
-                                                        : (isDark ? 'bg-blue-900/30' : 'bg-blue-50')
+                                                ? (isDark ? 'bg-red-900/30' : 'bg-red-50')
+                                                : issue.severity === 'warning'
+                                                    ? (isDark ? 'bg-yellow-900/30' : 'bg-yellow-50')
+                                                    : (isDark ? 'bg-blue-900/30' : 'bg-blue-50')
                                                 }`}
                                         >
                                             <span>{issue.icon}</span>
