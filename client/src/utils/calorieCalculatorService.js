@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { predictCaloriesByName } from './calorieMLService';
 
 const CALORIE_API_KEY = process.env.REACT_APP_CALORIE_API_KEY;
 const CALORIE_API_HOST = process.env.REACT_APP_CALORIE_API_HOST || 'advanced-calorie-calculator-api.p.rapidapi.com';
@@ -136,7 +137,30 @@ export async function getFoodCalories(food) {
     throw new Error('Please enter a valid food item name (e.g., apple, chicken breast, brown rice).');
   }
 
-  // First try the API if key is available
+  // ── 1. Try our ML backend first (247+ foods, no API key needed) ──────────
+  try {
+    const mlResult = await predictCaloriesByName(food);
+    if (mlResult && mlResult.calories != null) {
+      return {
+        food: mlResult.foodName,
+        calories: mlResult.calories,
+        serving_size: mlResult.servingSize || '100g',
+        method: 'ml_model',
+        category: mlResult.category,
+        protein: mlResult.protein,
+        fat: mlResult.fat,
+        carbohydrates: mlResult.carbohydrates,
+        fiber: mlResult.fiber,
+        sugar: mlResult.sugar,
+        source: mlResult.source,
+      };
+    }
+  } catch (mlErr) {
+    // ML backend unavailable – continue to next fallback
+    console.warn('ML calorie service unavailable, using fallback:', mlErr.message);
+  }
+
+  // ── 2. Try the RapidAPI if key is available ──────────────────────────────
   if (CALORIE_API_KEY) {
     try {
       assertKey();

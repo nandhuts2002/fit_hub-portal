@@ -19,6 +19,7 @@ from server.yoga_progress import yoga_progress_bp
 from server.exercise_progress import exercise_progress_bp
 from server.blog import blog_bp
 from server.svm_workout_classifier import WorkoutPerformanceClassifier
+from server.calorie_predictor import calorie_predictor_bp
 from dotenv import load_dotenv
 import os
 from datetime import timedelta
@@ -70,6 +71,7 @@ app.register_blueprint(upload_bp)
 app.register_blueprint(yoga_progress_bp, url_prefix='')
 app.register_blueprint(exercise_progress_bp, url_prefix='')
 app.register_blueprint(blog_bp, url_prefix='/blog')
+app.register_blueprint(calorie_predictor_bp)
 
 classifier = WorkoutPerformanceClassifier()
 

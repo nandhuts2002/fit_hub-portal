@@ -13,5 +13,7 @@ flask-socketio==5.4.1
 eventlet==0.39.0
 pymongo==4.10.1
 numpy>=1.24.0
+pandas>=2.0.0
+joblib>=1.3.0
 # Updated scikit-learn to 1.6.1 for Python 3.13 wheel support
 scikit-learn==1.6.1

@@ -18,6 +18,15 @@ const SERVICES = [
     desc: "Calculate calories burned, food calories & BMR",
     path: "/services/calorie-detector",
   },
+  {
+    icon: "🥗",
+    img: "https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg",
+    title: "Nutrition Tracker",
+    desc: "ML-powered food lookup, macro calculator & meal builder",
+    path: "/services/nutrition-tracker",
+    badge: "AI 🤖",
+  },
+
   // {
   //   icon: "🚶",
   //   img: "https://images.unsplash.com/photo-1544211412-2a3c0b3a0b19?q=80&w=400&auto=format&fit=crop",
@@ -168,8 +177,15 @@ const ServicesPage = () => {
                           )}
                         </span>
                       </div>
-                      <div>
-                        <h3 className="text-lg md:text-xl font-bold text-slate-900">{svc.title}</h3>
+                    <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-lg md:text-xl font-bold text-slate-900">{svc.title}</h3>
+                          {svc.badge && (
+                            <span className="text-[10px] font-bold bg-gradient-to-r from-emerald-500 to-teal-500 text-white px-2 py-0.5 rounded-full shadow">
+                              {svc.badge}
+                            </span>
+                          )}
+                        </div>
                         <p className="text-slate-600 text-sm mt-0.5">{svc.desc}</p>
                       </div>
                     </div>

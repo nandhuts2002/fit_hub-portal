@@ -19,6 +19,7 @@ from yoga_progress import yoga_progress_bp
 from exercise_progress import exercise_progress_bp
 from blog import blog_bp
 from food_scanner import food_scanner_bp
+from calorie_predictor import calorie_predictor_bp
 # Import Cloudinary configuration to initialize it
 import cloudinary_config
 from dotenv import load_dotenv
@@ -125,6 +126,7 @@ app.register_blueprint(yoga_progress_bp)
 app.register_blueprint(exercise_progress_bp)
 app.register_blueprint(blog_bp, url_prefix='/blog')
 app.register_blueprint(food_scanner_bp, url_prefix='/api/food-scanner')
+app.register_blueprint(calorie_predictor_bp)
 
 # Add explicit handling for OPTIONS requests (CORS preflight)
 @app.before_request

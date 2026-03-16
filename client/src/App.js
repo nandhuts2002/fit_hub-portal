@@ -36,6 +36,7 @@ import LiveSessionDetail from './pages/services/LiveSessionDetail';
 import AICoachPage from './pages/services/AICoachPage';
 import BMICalculatorPage from './pages/services/BMICalculatorPage';
 import CalorieDetectorPage from './pages/services/CalorieDetectorPage';
+import NutritionTrackerPage from './pages/services/NutritionTrackerPage';
 import PostureCorrectionPage from './pages/services/PostureCorrectionPage';
 import YogaPoseCorrectorPage from './pages/services/YogaPoseCorrectorPage';
 import ShopProfilePage from './pages/ShopProfilePage';
@@ -266,6 +267,11 @@ function App() {
           <Route path="/services/calorie-detector" element={
             <ProtectedRoute>
               <CalorieDetectorPage />
+            </ProtectedRoute>
+          } />
+          <Route path="/services/nutrition-tracker" element={
+            <ProtectedRoute>
+              <NutritionTrackerPage />
             </ProtectedRoute>
           } />
           <Route path="/services/posture-correction" element={

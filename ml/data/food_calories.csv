@@ -1,0 +1,248 @@
+food_item,calories,protein,fat,carbohydrates,fiber,sugar,category
+Apple,52,0.3,0.2,13.8,2.4,10.4,Fruit
+Banana,89,1.1,0.3,22.8,2.6,12.2,Fruit
+Orange,47,0.9,0.1,11.8,2.4,9.4,Fruit
+Mango,60,0.8,0.4,15.0,1.6,13.7,Fruit
+Grapes,67,0.6,0.4,17.2,0.9,16.3,Fruit
+Watermelon,30,0.6,0.2,7.6,0.4,6.2,Fruit
+Strawberry,32,0.7,0.3,7.7,2.0,4.9,Fruit
+Pineapple,50,0.5,0.1,13.1,1.4,9.9,Fruit
+Papaya,43,0.5,0.3,10.8,1.7,7.8,Fruit
+Kiwi,61,1.1,0.5,14.7,3.0,9.0,Fruit
+Avocado,160,2.0,14.7,8.5,6.7,0.7,Fruit
+Pear,57,0.4,0.1,15.2,3.1,9.8,Fruit
+Peach,39,0.9,0.3,9.5,1.5,8.4,Fruit
+Blueberry,57,0.7,0.3,14.5,2.4,10.0,Fruit
+Cherry,50,1.0,0.3,12.2,1.6,8.5,Fruit
+Lemon,29,1.1,0.3,9.3,2.8,2.5,Fruit
+Pomegranate,83,1.7,1.2,18.7,4.0,13.7,Fruit
+Guava,68,2.6,1.0,14.3,5.4,8.9,Fruit
+Dates,282,2.5,0.4,75.0,8.0,63.4,Fruit
+Fig,74,0.8,0.3,19.2,2.9,16.3,Fruit
+Broccoli,34,2.8,0.4,6.6,2.6,1.7,Vegetable
+Carrot,41,0.9,0.2,9.6,2.8,4.7,Vegetable
+Spinach,23,2.9,0.4,3.6,2.2,0.4,Vegetable
+Tomato,18,0.9,0.2,3.9,1.2,2.6,Vegetable
+Cucumber,15,0.6,0.1,3.6,0.5,1.7,Vegetable
+Bell Pepper,31,1.0,0.3,6.0,2.1,4.2,Vegetable
+Cauliflower,25,1.9,0.3,4.9,2.0,1.9,Vegetable
+Onion,40,1.1,0.1,9.3,1.7,4.2,Vegetable
+Potato,87,1.9,0.1,20.0,1.8,0.9,Vegetable
+Sweet Potato,86,1.6,0.1,20.1,3.0,4.2,Vegetable
+Cabbage,25,1.3,0.1,5.8,2.5,3.2,Vegetable
+Peas,81,5.4,0.4,14.5,5.7,5.7,Vegetable
+Corn,86,3.3,1.4,18.7,1.8,6.3,Vegetable
+Beet,43,1.6,0.2,9.6,2.8,6.8,Vegetable
+Celery,16,0.7,0.2,3.0,1.6,1.3,Vegetable
+Mushroom,22,3.1,0.3,3.3,1.0,2.0,Vegetable
+Eggplant,25,1.0,0.2,5.9,3.0,2.4,Vegetable
+Lettuce,15,1.4,0.2,2.9,1.3,1.2,Vegetable
+Zucchini,17,1.2,0.3,3.1,1.0,2.5,Vegetable
+Asparagus,20,2.2,0.1,3.9,2.1,1.9,Vegetable
+Pumpkin,26,1.0,0.1,6.5,0.5,2.8,Vegetable
+Radish,16,0.7,0.1,3.4,1.6,2.0,Vegetable
+Garlic,149,6.4,0.5,33.1,2.1,1.0,Vegetable
+Ginger,80,1.8,0.8,17.8,2.0,1.7,Vegetable
+Kale,49,4.3,0.9,8.8,3.6,2.3,Vegetable
+Chicken Breast,165,31.0,3.6,0.0,0.0,0.0,Meat
+Chicken Thigh,209,26.0,12.0,0.0,0.0,0.0,Meat
+Beef Steak,271,26.0,17.0,0.0,0.0,0.0,Meat
+Ground Beef,215,21.0,13.0,0.0,0.0,0.0,Meat
+Pork Chop,231,28.0,12.0,0.0,0.0,0.0,Meat
+Lamb,294,25.0,21.0,0.0,0.0,0.0,Meat
+Turkey Breast,135,30.0,1.0,0.0,0.0,0.0,Meat
+Duck,337,19.0,28.0,0.0,0.0,0.0,Meat
+Bacon,541,37.0,42.0,1.4,0.0,0.0,Meat
+Sausage,301,18.0,25.0,2.0,0.0,0.0,Meat
+Salmon,208,20.0,13.0,0.0,0.0,0.0,Seafood
+Tuna,144,30.0,2.5,0.0,0.0,0.0,Seafood
+Shrimp,99,24.0,0.3,0.2,0.0,0.0,Seafood
+Cod,82,18.0,0.7,0.0,0.0,0.0,Seafood
+Tilapia,128,26.0,2.7,0.0,0.0,0.0,Seafood
+Mackerel,205,19.0,14.0,0.0,0.0,0.0,Seafood
+Crab,97,19.0,1.8,0.0,0.0,0.0,Seafood
+Lobster,89,19.0,0.9,0.0,0.0,0.0,Seafood
+Sardine,208,25.0,11.0,0.0,0.0,0.0,Seafood
+Clam,148,25.0,2.0,5.1,0.0,0.0,Seafood
+Egg,155,13.0,11.0,1.1,0.0,1.1,Dairy & Eggs
+Egg White,17,3.6,0.1,0.2,0.0,0.2,Dairy & Eggs
+Boiled Egg,78,6.0,5.0,0.6,0.0,0.6,Dairy & Eggs
+Whole Milk,61,3.2,3.3,4.8,0.0,5.1,Dairy & Eggs
+Skim Milk,34,3.4,0.2,5.0,0.0,5.1,Dairy & Eggs
+Greek Yogurt,59,10.0,0.4,3.6,0.0,3.6,Dairy & Eggs
+Cheese,402,25.0,33.0,1.3,0.0,0.5,Dairy & Eggs
+Butter,717,0.9,81.0,0.1,0.0,0.1,Dairy & Eggs
+Cream,340,2.0,36.0,3.0,0.0,3.0,Dairy & Eggs
+Cottage Cheese,98,11.0,4.3,3.4,0.0,2.7,Dairy & Eggs
+Cheddar Cheese,403,25.0,33.0,1.3,0.0,0.5,Dairy & Eggs
+Mozzarella,280,22.0,17.0,2.2,0.0,1.0,Dairy & Eggs
+Parmesan,431,38.0,29.0,4.1,0.0,0.9,Dairy & Eggs
+White Rice,130,2.7,0.3,28.2,0.4,0.0,Grains
+Brown Rice,111,2.6,0.9,23.0,1.8,0.4,Grains
+Basmati Rice,121,3.5,0.4,25.2,0.4,0.1,Grains
+White Bread,265,9.0,3.2,49.0,2.7,5.0,Grains
+Whole Wheat Bread,247,13.0,3.4,41.0,6.0,5.6,Grains
+Pasta,131,5.0,1.1,25.0,1.8,0.6,Grains
+Spaghetti,157,5.8,0.9,30.6,1.8,0.6,Grains
+Oats,389,17.0,7.0,66.0,11.0,1.1,Grains
+Corn Flakes,357,7.0,0.4,83.4,1.2,8.5,Grains
+Wheat Flour,364,10.0,1.0,76.0,2.7,0.3,Grains
+Barley,354,12.5,2.3,73.5,17.3,0.8,Grains
+Quinoa,120,4.4,1.9,21.3,2.8,0.9,Grains
+Rye Bread,259,8.5,3.3,48.0,6.2,3.8,Grains
+Tortilla,218,5.6,5.0,36.0,2.5,1.8,Grains
+Noodles,138,4.5,2.0,25.0,1.2,0.5,Grains
+Rice Noodles,109,2.3,0.2,24.5,0.9,0.0,Grains
+Croissant,406,8.2,21.0,45.0,2.0,11.0,Grains
+Baguette,263,9.6,1.7,52.0,2.3,2.8,Grains
+Pizza Dough,266,8.0,3.0,50.0,2.1,3.0,Grains
+Biryani,290,12.0,10.0,40.0,1.5,2.0,Indian Food
+Dal,116,7.5,0.4,21.0,4.5,0.8,Indian Food
+Roti,297,9.0,3.7,57.0,4.0,0.6,Indian Food
+Samosa,252,4.3,13.0,30.0,2.1,1.0,Indian Food
+Idli,66,2.1,0.4,13.2,0.9,0.2,Indian Food
+Dosa,168,4.5,5.0,26.0,1.2,0.5,Indian Food
+Paneer Tikka,265,18.0,19.0,6.0,0.5,2.0,Indian Food
+Butter Chicken,150,12.0,8.0,8.0,0.5,4.0,Indian Food
+Chana Masala,164,9.0,4.5,24.0,8.0,3.0,Indian Food
+Palak Paneer,183,9.0,14.0,7.0,2.0,2.5,Indian Food
+Aloo Gobi,95,3.0,4.0,14.0,3.5,2.0,Indian Food
+Rajma,127,8.0,0.5,22.0,6.5,0.5,Indian Food
+Khichdi,110,4.5,1.5,21.0,2.0,0.5,Indian Food
+Paratha,258,7.0,9.0,38.0,2.5,0.5,Indian Food
+Puri,330,7.0,16.0,42.0,2.0,0.5,Indian Food
+Chole Bhature,450,12.0,18.0,60.0,8.0,3.0,Indian Food
+Tandoori Chicken,180,31.0,4.5,4.5,0.5,2.0,Indian Food
+Lassi,150,5.5,5.5,19.0,0.0,18.0,Indian Food
+Chai,45,1.5,2.0,5.5,0.0,4.5,Indian Food
+Masala Chai,55,1.8,2.5,7.0,0.0,5.5,Indian Food
+Vada,172,5.0,9.0,20.0,3.0,1.0,Indian Food
+Upma,150,4.0,5.5,22.0,2.0,1.5,Indian Food
+Poha,180,3.5,4.5,32.0,1.5,1.0,Indian Food
+Lentil Soup,116,9.0,0.4,20.0,8.0,1.8,Soup & Stew
+Tomato Soup,71,1.3,3.5,9.0,0.5,5.5,Soup & Stew
+Chicken Soup,75,6.0,2.5,6.5,0.5,1.5,Soup & Stew
+Minestrone,82,4.5,2.0,12.0,3.0,3.5,Soup & Stew
+Clam Chowder,170,8.5,8.5,17.0,1.0,3.0,Soup & Stew
+Pea Soup,118,8.0,0.8,20.0,7.0,3.5,Soup & Stew
+French Onion Soup,57,3.5,1.5,8.0,1.0,4.0,Soup & Stew
+Miso Soup,40,3.0,1.0,5.5,0.5,1.5,Soup & Stew
+Hamburger,295,17.0,14.0,24.0,1.0,5.0,Fast Food
+Cheeseburger,354,21.0,17.0,27.0,1.0,6.0,Fast Food
+French Fries,312,3.4,15.0,41.0,3.8,0.3,Fast Food
+Pizza,266,11.0,10.0,33.0,2.3,3.6,Fast Food
+Hot Dog,290,10.0,17.0,24.0,1.2,5.0,Fast Food
+Chicken Nuggets,296,15.0,19.0,18.0,0.9,0.4,Fast Food
+Fried Chicken,319,28.0,19.0,8.6,0.3,0.0,Fast Food
+Onion Rings,411,5.0,22.0,47.0,2.6,4.5,Fast Food
+Tacos,226,12.0,10.0,23.0,3.5,2.0,Fast Food
+Burrito,305,13.0,9.5,43.0,6.5,2.5,Fast Food
+Sandwich,250,12.0,8.0,30.0,2.0,4.0,Snacks
+Club Sandwich,400,24.0,18.0,36.0,2.5,4.5,Snacks
+Wrap,300,14.0,12.0,35.0,3.0,3.0,Snacks
+Grilled Cheese,290,13.0,14.0,28.0,1.5,3.0,Snacks
+BLT Sandwich,360,18.0,17.0,31.0,2.5,4.0,Snacks
+Peanut Butter,588,25.0,50.0,20.0,6.0,9.0,Snacks
+Chocolate,546,5.0,31.0,60.0,3.4,48.0,Snacks
+Chips,536,7.0,35.0,53.0,4.4,0.5,Snacks
+Popcorn,375,12.0,16.0,74.0,14.0,0.9,Snacks
+Crackers,422,9.0,13.0,70.0,2.5,4.3,Snacks
+Granola Bar,471,10.0,20.0,64.0,4.0,26.0,Snacks
+Almonds,579,21.0,50.0,22.0,12.5,4.4,Nuts & Seeds
+Walnuts,654,15.0,65.0,14.0,6.7,2.6,Nuts & Seeds
+Cashews,553,18.0,44.0,30.0,3.3,5.9,Nuts & Seeds
+Peanuts,567,26.0,49.0,16.0,8.5,4.0,Nuts & Seeds
+Pistachios,562,20.0,45.0,28.0,10.3,7.7,Nuts & Seeds
+Sunflower Seeds,584,21.0,51.0,20.0,8.6,2.6,Nuts & Seeds
+Flaxseeds,534,18.0,42.0,29.0,27.3,1.6,Nuts & Seeds
+Chia Seeds,486,17.0,31.0,42.0,34.4,0.0,Nuts & Seeds
+Pumpkin Seeds,559,30.0,49.0,11.0,6.0,1.4,Nuts & Seeds
+Coconut,354,3.3,33.0,15.0,9.0,6.2,Nuts & Seeds
+Chickpeas,164,8.9,2.6,27.0,7.6,4.8,Legumes
+Black Beans,132,8.9,0.5,23.7,8.7,0.3,Legumes
+Kidney Beans,127,8.7,0.5,22.8,6.4,0.3,Legumes
+Lentils,116,9.0,0.4,20.0,7.9,1.8,Legumes
+Soybeans,446,36.5,20.0,30.0,9.3,7.3,Legumes
+Green Beans,31,1.8,0.2,7.0,3.4,1.4,Legumes
+Lima Beans,113,6.8,0.4,20.3,7.0,1.0,Legumes
+Edamame,122,11.0,5.0,8.9,5.2,2.2,Legumes
+Tofu,76,8.0,4.8,1.9,0.3,0.5,Legumes
+Tempeh,193,19.0,11.0,9.4,0.0,0.0,Legumes
+Olive Oil,884,0.0,100.0,0.0,0.0,0.0,Oils & Fats
+Coconut Oil,862,0.0,100.0,0.0,0.0,0.0,Oils & Fats
+Vegetable Oil,884,0.0,100.0,0.0,0.0,0.0,Oils & Fats
+Mayonnaise,680,1.0,75.0,0.6,0.0,0.6,Condiments
+Ketchup,101,1.7,0.1,25.0,0.3,22.4,Condiments
+Mustard,66,4.4,4.0,5.8,3.0,1.4,Condiments
+Soy Sauce,53,8.1,0.1,4.9,0.8,1.7,Condiments
+Honey,304,0.3,0.0,82.4,0.2,82.1,Condiments
+Sugar,387,0.0,0.0,100.0,0.0,100.0,Condiments
+Salt,0,0.0,0.0,0.0,0.0,0.0,Condiments
+Vinegar,18,0.0,0.0,0.8,0.0,0.0,Condiments
+Hot Sauce,11,0.5,0.4,2.0,0.4,1.5,Condiments
+Salsa,36,1.9,0.2,7.5,1.7,5.0,Condiments
+Chocolate Cake,371,5.0,14.0,55.0,2.0,38.0,Desserts
+Cheesecake,321,5.5,22.0,26.0,0.5,20.0,Desserts
+Ice Cream,207,3.5,11.0,24.0,0.7,21.0,Desserts
+Brownie,466,5.9,25.0,58.0,2.8,40.0,Desserts
+Cookie,502,5.4,23.0,66.0,1.8,39.0,Desserts
+Apple Pie,265,2.4,11.0,39.0,1.3,18.0,Desserts
+Donut,452,4.9,25.0,51.0,1.7,21.0,Desserts
+Muffin,430,7.3,13.0,70.0,1.5,43.0,Desserts
+Pancake,227,6.4,8.2,34.0,0.5,7.5,Desserts
+Waffle,291,7.9,10.0,43.0,1.5,11.0,Desserts
+Pudding,175,3.3,4.0,30.0,0.5,24.0,Desserts
+Tiramisu,240,4.5,13.0,26.0,0.5,18.0,Desserts
+Baklava,428,5.6,25.0,46.0,2.0,29.0,Desserts
+Coffee Black,1,0.3,0.0,0.0,0.0,0.0,Beverages
+Coffee with Milk,20,1.0,0.8,2.5,0.0,2.3,Beverages
+Orange Juice,45,0.7,0.2,10.4,0.2,8.4,Beverages
+Apple Juice,46,0.1,0.1,11.4,0.2,9.6,Beverages
+Green Tea,2,0.2,0.0,0.4,0.0,0.3,Beverages
+Black Tea,2,0.0,0.0,0.5,0.0,0.0,Beverages
+Smoothie,140,2.0,0.5,33.0,2.5,27.0,Beverages
+Protein Shake,200,30.0,3.0,15.0,1.0,5.0,Beverages
+Sports Drink,25,0.0,0.0,6.0,0.0,6.0,Beverages
+Soda,41,0.0,0.0,10.6,0.0,10.6,Beverages
+Energy Drink,45,0.5,0.0,11.0,0.0,11.0,Beverages
+Fried Rice,163,3.4,5.0,26.0,1.0,0.8,Rice Dishes
+Vegetable Fried Rice,170,4.5,5.5,27.0,2.0,1.5,Rice Dishes
+Chicken Fried Rice,185,9.0,6.0,26.0,1.0,0.8,Rice Dishes
+Egg Fried Rice,160,5.5,5.5,24.0,1.0,0.8,Rice Dishes
+Sushi Rice,150,2.8,0.5,32.0,0.5,2.5,Rice Dishes
+Risotto,165,5.5,5.0,25.0,0.8,1.5,Rice Dishes
+Paella,200,10.0,7.0,25.0,1.5,2.0,Rice Dishes
+Congee,60,2.0,0.5,12.0,0.3,0.1,Rice Dishes
+Sushi,150,7.0,2.5,24.0,1.0,3.0,Japanese Food
+Ramen,436,21.0,14.0,54.0,2.8,7.0,Japanese Food
+Tempura,307,11.0,12.0,40.0,1.5,2.0,Japanese Food
+Teriyaki Chicken,190,26.0,6.0,9.0,0.2,7.0,Japanese Food
+Miso Ramen,480,22.0,15.0,59.0,3.0,7.5,Japanese Food
+Tonkatsu,432,24.0,23.0,33.0,1.0,3.0,Japanese Food
+Gyoza,195,8.5,9.5,20.0,1.5,2.0,Japanese Food
+Edamame Salad,130,12.0,6.0,10.0,6.0,3.0,Japanese Food
+Pad Thai,357,15.0,14.0,47.0,2.2,7.0,Asian Food
+Spring Roll,131,4.0,7.0,15.0,1.2,1.5,Asian Food
+Fried Noodles,200,6.0,8.0,27.0,1.5,2.0,Asian Food
+Nasi Goreng,270,8.0,10.0,36.0,1.5,3.0,Asian Food
+Tom Yum Soup,65,4.0,2.5,7.0,1.0,2.0,Asian Food
+Green Curry,200,15.0,12.0,8.0,2.0,4.0,Asian Food
+Dumplings,219,9.0,8.0,27.0,1.5,2.5,Asian Food
+Beef Stew,160,17.0,6.0,10.0,2.0,3.0,Western Food
+Roast Chicken,215,29.0,10.0,0.0,0.0,0.0,Western Food
+BBQ Ribs,397,29.0,25.0,15.0,0.5,12.0,Western Food
+Steak 200g,400,50.0,21.0,0.0,0.0,0.0,Western Food
+Caesar Salad,158,8.0,12.5,6.0,1.5,2.0,Salads
+Greek Salad,180,5.0,14.0,10.0,2.5,5.5,Salads
+Coleslaw,152,1.5,9.0,17.0,2.0,12.0,Salads
+Fruit Salad,55,1.0,0.3,13.5,1.5,10.5,Salads
+Pasta Salad,220,7.0,10.0,28.0,2.5,4.0,Salads
+Niçoise Salad,200,14.0,9.0,16.0,4.0,5.0,Salads
+Waldorf Salad,270,4.0,22.0,15.0,2.5,10.0,Salads
+Egg Salad,185,9.0,14.0,5.0,0.5,3.0,Salads
+Protein Bar,405,20.0,14.0,45.0,5.0,22.0,Supplements
+Whey Protein,120,24.0,1.5,3.0,0.5,2.0,Supplements
+Creatine,0,0.0,0.0,0.0,0.0,0.0,Supplements
+BCAA,20,5.0,0.0,0.0,0.0,0.0,Supplements
+Mass Gainer,400,25.0,6.0,65.0,3.0,10.0,Supplements
+Pre-Workout,10,0.5,0.0,2.0,0.0,1.5,Supplements
