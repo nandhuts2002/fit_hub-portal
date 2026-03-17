@@ -164,24 +164,7 @@ class CaloriePredictionService:
                 "confidence": 1.0,
             }
 
-        # 2. Partial / substring match
-        matches = []
-        for dict_key, entry in self._lookup.items():
-            if key in dict_key or dict_key in key:
-                matches.append((dict_key, entry))
-
-        if matches:
-            # Prefer the shortest key (most specific)
-            matches.sort(key=lambda x: len(x[0]))
-            best_key, best_entry = matches[0]
-            return {
-                "food_name": food_name,
-                **best_entry,
-                "source": "fuzzy_lookup",
-                "confidence": 0.8,
-            }
-
-        # 3. Word-level overlap
+        # 2. Word-level overlap
         key_words = set(key.split())
         best_overlap = 0
         best_match = None
