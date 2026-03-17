@@ -11,7 +11,6 @@ Falls back to a hardcoded table if the model files haven't been trained yet.
 
 import os
 import json
-import numpy as np
 from typing import Optional, Dict, Any
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
@@ -235,6 +234,7 @@ class CaloriePredictionService:
 
         if self._model_loaded and self._model is not None:
             try:
+                import numpy as np
                 X = np.array([[protein, fat, carbs, fiber, sugar]])
                 X_scaled = self._scaler.transform(X)
                 predicted = float(self._model.predict(X_scaled)[0])
