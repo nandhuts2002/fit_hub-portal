@@ -295,7 +295,54 @@ export default function PostureCorrectionPage() {
             }
         }
 
-        // 6. Check visibility
+        // 6. Check for leaning forward / slouching (head too close or dropped)
+        const noseKP = nose; // already defined near the top `const nose = getKP('nose');`
+        if (noseKP && leftShoulder && rightShoulder) {
+            const shoulderWidth = Math.abs(leftShoulder.x - rightShoulder.x);
+            const shoulderMidY = (leftShoulder.y + rightShoulder.y) / 2;
+            const noseY = noseKP.y;
+            
+            // Distance from shoulders to nose
+            const neckLength = shoulderMidY - noseY;
+            
+            if (shoulderWidth > 0) {
+                const neckRatio = neckLength / shoulderWidth;
+                
+                // If nose is extremely close to the shoulder line (or below it), they are slouching/leaning heavily
+                if (neckRatio < 0.20) {
+                    issues.push({
+                        type: 'slouching',
+                        severity: neckRatio < 0.10 ? 'bad' : 'warning',
+                        message: 'Head too low / hunching - sit up straight!',
+                        icon: '🪑'
+                    });
+                    score -= neckRatio < 0.10 ? 30 : 15;
+                }
+            }
+        }
+        
+        // 7. Check head width vs shoulder width (leaning into camera)
+        if (leftEar && rightEar && leftShoulder && rightShoulder) {
+            const earWidth = Math.abs(leftEar.x - rightEar.x);
+            const shoulderWidth = Math.abs(leftShoulder.x - rightShoulder.x);
+            
+            if (shoulderWidth > 0) {
+                const headToShoulderRatio = earWidth / shoulderWidth;
+                
+                // If head is significantly wider relative to shoulders
+                if (headToShoulderRatio > 0.45) { // Lowered threshold from 0.55 to be more sensitive
+                    issues.push({
+                        type: 'leaning_forward',
+                        severity: headToShoulderRatio > 0.55 ? 'bad' : 'warning',
+                        message: 'Leaning too close to camera - move back!',
+                        icon: '🖥️'
+                    });
+                    score -= headToShoulderRatio > 0.55 ? 20 : 10;
+                }
+            }
+        }
+
+        // 8. Check visibility
         if (visibleCount < 8) {
             issues.push({
                 type: 'visibility',
