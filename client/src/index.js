@@ -3,7 +3,6 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 // Use the generated Tailwind CSS build
 import './generated.css';
-import './debug.js';
 import SessionManager from './utils/sessionManager';
 
 console.log('Index.js loaded - React app starting...');

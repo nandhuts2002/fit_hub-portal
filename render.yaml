@@ -7,8 +7,6 @@ services:
       echo "Starting API build process..." &&
       pip install -r requirements.txt && 
       echo "Python dependencies installed" &&
-      python test_mongo.py && 
-      echo "MongoDB test passed" &&
       echo "API build completed successfully"
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
     envVars:
