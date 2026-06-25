@@ -920,4 +920,19 @@
   .tab-btn-premium.active {
     color: #667eea;
   }
+}/* Stitch Export Styles */
+.glass-card {
+    background: rgba(30, 41, 59, 0.7);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.text-glow-primary {
+    text-shadow: 0 0 15px rgba(249, 115, 22, 0.3);
+}
+.pulse-soft {
+    animation: pulse-soft 3s infinite ease-in-out;
+}
+@keyframes pulse-soft {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(0.98); }
 }
