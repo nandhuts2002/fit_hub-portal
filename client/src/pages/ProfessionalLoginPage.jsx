@@ -366,6 +366,15 @@ const ProfessionalLoginPage = () => {
               <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
               Continue with Google
             </button>
+             {/* Google Sign-In */}
+             <button
+              type="button"
+              onClick={handleGoogleLogin}
+              className="w-full flex items-center justify-center gap-3 px-4 py-2 rounded-lg border border-white/15 bg-white/10 hover:bg-white/15 text-white transition-colors duration-200"
+            >
+              <img src="https://static-prod.adweek.com/wp-content/uploads/2017/04/ContinueWithFacebook-600x315.jpg" alt="Google" className="w-5 h-5" />
+              Continue with 
+            </button>
 
             {/* Footer link */}
             <div className="text-center mt-4">
